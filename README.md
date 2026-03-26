@@ -177,6 +177,34 @@ A `v0.1` é considerada pronta quando cumprir:
 - pacote Debian (`.deb`) instalável localmente
 - publicação em repositório APT assinado para permitir `apt install trama`
 
+## Objetivo da v1.0 (Backend)
+
+Para a `trama` ser uma linguagem viável para backend em produção, a v1.0 deve entregar:
+
+- sistema de módulos/imports estável
+- biblioteca padrão de rede/HTTP (cliente e servidor)
+- acesso a banco de dados (mínimo SQL)
+- I/O de arquivos e configuração por ambiente
+- tratamento de erros/exceções robusto
+- concorrência assíncrona (ou modelo equivalente para I/O)
+- logs estruturados e observabilidade básica (métricas/traces iniciais)
+- testes e tooling para projetos backend (runner, cobertura, lint/format)
+- empacotamento e deploy previsíveis (binário, `.deb`, container-friendly)
+- compatibilidade e documentação de migração entre versões
+
+## Objetivo da v1.5 (Frontend)
+
+Após consolidar backend na v1.0, a v1.5 deve habilitar desenvolvimento frontend com:
+
+- toolkit de UI (componentes, estado e ciclo de renderização)
+- integração com HTML/CSS/DOM (ou runtime equivalente)
+- roteamento de aplicação (SPA)
+- consumo de API HTTP no cliente
+- build de assets frontend (dev/prod)
+- hot reload para desenvolvimento
+- integração full-stack com backend em `trama`
+- documentação e templates de projeto frontend
+
 ## Princípios Técnicos
 
 - simplicidade primeiro
