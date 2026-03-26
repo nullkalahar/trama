@@ -1,0 +1,8 @@
+função principal()
+    idade = 20
+    se idade >= 18
+        exibir("maior de idade")
+    senao
+        exibir("menor de idade")
+    fim
+fim

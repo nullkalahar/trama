@@ -45,6 +45,20 @@ fim
 - `pare`
 - `continue`
 
+### 4.1 Equivalência de acentuação (regra oficial)
+
+A `trama` aceitará palavras-chave com ou sem acento como equivalentes.
+
+Exemplos:
+
+- `função` == `funcao`
+- `senão` == `senao`
+
+Estratégia do lexer:
+
+- normalizar lexemas para minúsculas sem diacríticos na identificação de palavras-chave;
+- preservar o lexema original para mensagens de erro e debug.
+
 ## 5. Escopo da Versão 0.1
 
 Suportar apenas:
@@ -59,6 +73,11 @@ Suportar apenas:
 - funções
 - chamada de função
 - builtin `exibir`
+- CLI funcional (`trama executar`, `trama bytecode`, `trama compilar`)
+- pacote Python instalável
+- binário standalone obrigatório (sem dependência de Python no alvo)
+- pacote Debian (`.deb`) instalável localmente
+- publicação em repositório APT assinado para permitir `apt install trama`
 
 Fora do escopo inicial:
 
@@ -236,6 +255,14 @@ Comandos sugeridos:
 - organização de módulos simples (importação local)
 - libs padrão mínimas (texto, tempo, arquivo)
 - melhoria de erros e observabilidade
+
+## Marco 5 - Empacotamento e Distribuição v0.1
+
+- empacotamento Python para instalação local
+- geração de binário standalone obrigatório
+- geração de pacote Debian (`.deb`)
+- criação/publicação de repositório APT com assinatura GPG
+- instalação de validação com `apt install trama`
 
 ## 11. Estratégia de Testes
 

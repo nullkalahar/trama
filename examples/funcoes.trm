@@ -1,0 +1,8 @@
+função soma(a, b)
+    retorne a + b
+fim
+
+função principal()
+    resultado = soma(10, 20)
+    exibir("resultado:", resultado)
+fim
