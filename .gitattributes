@@ -1,0 +1,9 @@
+# Reduz distorção do gráfico de linguagens do GitHub Linguist
+build/** linguist-generated=true
+dist/** linguist-generated=true
+*.tbc linguist-generated=true
+*.spec linguist-generated=true
+
+# Conteúdo auxiliar/documentação
+scripts/** linguist-vendored=true
+docs/** linguist-documentation
