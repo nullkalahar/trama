@@ -186,4 +186,4 @@ A `v0.1` é considerada pronta quando cumprir:
 
 ## Licença
 
-A definir.
+MIT (livre e permissiva).
