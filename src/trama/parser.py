@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from .ast_nodes import (
     AssignStmt,
+    AwaitExpr,
     BinaryExpr,
     BreakStmt,
     CallExpr,
@@ -50,11 +51,14 @@ class Parser:
         return Program(declarations=declarations)
 
     def _declaration(self) -> Stmt:
+        if self._match("ASSINCRONA"):
+            self._consume("FUNCAO", "Esperado 'função' após 'assíncrona'.")
+            return self._function_decl(is_async=True)
         if self._match("FUNCAO"):
-            return self._function_decl()
+            return self._function_decl(is_async=False)
         return self._statement()
 
-    def _function_decl(self) -> FunctionDecl:
+    def _function_decl(self, is_async: bool) -> FunctionDecl:
         name = self._consume("IDENT", "Esperado nome da função.")
         self._consume("ABRE_PAREN", "Esperado '(' após nome da função.")
         params: list[str] = []
@@ -68,7 +72,7 @@ class Parser:
         self._consume_optional_separators_or_error("Esperado nova linha após cabeçalho da função.")
         body = self._parse_block(until={"FIM"})
         self._consume("FIM", "Esperado 'fim' para encerrar função.")
-        return FunctionDecl(name=name.lexema, params=params, body=body)
+        return FunctionDecl(name=name.lexema, params=params, body=body, is_async=is_async)
 
     def _statement(self) -> Stmt:
         if self._match("SE"):
@@ -212,6 +216,8 @@ class Parser:
         return expr
 
     def _unary(self) -> Expr:
+        if self._match("AGUARDE"):
+            return AwaitExpr(expression=self._unary())
         if self._match("MENOS"):
             operator = self._previous().tipo
             return UnaryExpr(operator=operator, operand=self._unary())

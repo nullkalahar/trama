@@ -169,3 +169,52 @@ def test_erro_break_fora_de_laco() -> None:
 def test_erro_nome_nao_definido() -> None:
     with pytest.raises(VMError, match="Nome não definido"):
         run_source("função principal()\nexibir(x)\nfim\n")
+
+
+def test_assincrona_e_aguarde_basico() -> None:
+    codigo = (
+        "assíncrona função dobro_async(x)\n"
+        "    retorne x * 2\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    valor = aguarde dobro_async(21)\n"
+        "    exibir(valor)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["42"]
+
+
+def test_tarefas_timeout_cancelamento() -> None:
+    codigo = (
+        "assíncrona função demorado()\n"
+        "    aguarde dormir(0.05)\n"
+        "    retorne 99\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    t1 = criar_tarefa(demorado())\n"
+        "    t2 = criar_tarefa(demorado())\n"
+        "    cancelar_tarefa(t2)\n"
+        "    tente\n"
+        "        valor = aguarde com_timeout(t1, 1.0)\n"
+        "        exibir(valor)\n"
+        "    pegue erro\n"
+        "        exibir(\"falhou\")\n"
+        "    fim\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["99"]
+
+
+def test_io_nao_bloqueante(tmp_path) -> None:
+    arquivo = tmp_path / "async_io.txt"
+    codigo = (
+        "assíncrona função principal()\n"
+        f"    aguarde escrever_texto_async(\"{arquivo}\", \"ola async\")\n"
+        f"    conteudo = aguarde ler_texto_async(\"{arquivo}\")\n"
+        "    exibir(conteudo)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["ola async"]

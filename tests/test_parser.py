@@ -2,6 +2,7 @@ import pytest
 
 from trama.ast_nodes import (
     AssignStmt,
+    AwaitExpr,
     BinaryExpr,
     CallExpr,
     DictExpr,
@@ -141,3 +142,13 @@ def test_parse_error_em_fim_ausente() -> None:
 def test_parse_error_em_expressao_invalida() -> None:
     with pytest.raises(ParseError, match="Expressão inválida"):
         parse("x =\n")
+
+
+def test_parse_funcao_assincrona_com_aguarde() -> None:
+    ast = parse("assíncrona função principal()\n    aguarde dormir(0.01)\nfim\n")
+    stmt = ast.declarations[0]
+    assert isinstance(stmt, FunctionDecl)
+    assert stmt.is_async is True
+    body_stmt = stmt.body[0]
+    assert isinstance(body_stmt, ExprStmt)
+    assert isinstance(body_stmt.expression, AwaitExpr)

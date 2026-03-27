@@ -35,6 +35,10 @@ KEYWORDS: dict[str, str] = {
     "lance": "LANCE",
     "importe": "IMPORTE",
     "como": "COMO",
+    "assincrona": "ASSINCRONA",
+    "async": "ASSINCRONA",
+    "aguarde": "AGUARDE",
+    "await": "AGUARDE",
 }
 
 SINGLE_CHAR_TOKENS: dict[str, str] = {

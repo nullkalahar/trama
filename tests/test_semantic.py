@@ -47,3 +47,13 @@ def test_funcoes_aninhadas_agora_suportadas() -> None:
         "fim\n"
     )
     compile_source(codigo)
+
+
+def test_aguarde_fora_de_funcao_assincrona_da_erro() -> None:
+    codigo = (
+        "função principal()\n"
+        "    aguarde dormir(0.01)\n"
+        "fim\n"
+    )
+    with pytest.raises(CompileError, match="assíncrona"):
+        compile_source(codigo)

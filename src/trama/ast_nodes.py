@@ -30,6 +30,7 @@ class FunctionDecl(Stmt):
     name: str
     params: list[str]
     body: list[Stmt]
+    is_async: bool = False
 
 
 @dataclass(frozen=True)
@@ -101,6 +102,11 @@ class BinaryExpr(Expr):
 class UnaryExpr(Expr):
     operator: str
     operand: Expr
+
+
+@dataclass(frozen=True)
+class AwaitExpr(Expr):
+    expression: Expr
 
 
 @dataclass(frozen=True)

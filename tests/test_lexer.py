@@ -119,6 +119,12 @@ def test_tokens_para_try_importe_e_colecoes() -> None:
     assert "FECHA_CHAVE" in tipos
 
 
+def test_keywords_async_await_em_ptbr() -> None:
+    tipos = _tipos("assíncrona funcao x()\naguarde dormir(0.01)\nfim\n")
+    assert "ASSINCRONA" in tipos
+    assert "AGUARDE" in tipos
+
+
 def test_numero_real_valido() -> None:
     tokens = tokenizar("valor = 10.25\n")
     numero = [t for t in tokens if t.tipo == "NUMERO"][0]

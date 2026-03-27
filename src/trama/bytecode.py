@@ -15,6 +15,7 @@ class Instruction:
 class FunctionCode:
     name: str
     params: list[str]
+    is_async: bool = False
     instructions: list[Instruction] = field(default_factory=list)
 
 
@@ -28,6 +29,7 @@ def function_to_dict(function: FunctionCode) -> dict[str, object]:
     return {
         "name": function.name,
         "params": function.params,
+        "is_async": function.is_async,
         "instructions": [{"op": i.op, "arg": i.arg} for i in function.instructions],
     }
 
@@ -43,7 +45,8 @@ def format_program(program: BytecodeProgram) -> str:
     lines: list[str] = []
 
     def emit_function(fn: FunctionCode) -> None:
-        lines.append(f"func {fn.name}({', '.join(fn.params)})")
+        prefix = "async func" if fn.is_async else "func"
+        lines.append(f"{prefix} {fn.name}({', '.join(fn.params)})")
         for ip, instr in enumerate(fn.instructions):
             if instr.arg is None:
                 lines.append(f"  {ip:04d}: {instr.op}")

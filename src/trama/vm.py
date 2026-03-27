@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -16,7 +18,7 @@ class VMError(RuntimeError):
 
 
 class TramaRaised(Exception):
-    """Exceção de usuário levantada por `lance`."""
+    """Exceção de usuário levantada por lance."""
 
     def __init__(self, value: object) -> None:
         super().__init__(repr(value))
@@ -63,6 +65,19 @@ class UserFunction:
 
 
 @dataclass
+class TramaCoroutine:
+    vm: VirtualMachine
+    callee: UserFunction
+    args: list[object]
+
+    async def run(self) -> object:
+        return await self.vm._run_function(self.callee.code, self.args, closure=self.callee.closure)
+
+    def __await__(self):
+        return self.run().__await__()
+
+
+@dataclass
 class TryHandler:
     catch_ip: int | None
     finally_ip: int | None
@@ -97,18 +112,24 @@ class VirtualMachine:
         self.globals_env = Environment(values=dict(self._builtins), parent=None)
 
     def execute(self, auto_call_principal: bool = True) -> object:
-        result = self._run_entry()
+        return asyncio.run(self.execute_async(auto_call_principal=auto_call_principal))
+
+    async def execute_async(self, auto_call_principal: bool = True) -> object:
+        result = await self._run_entry()
         if auto_call_principal:
             principal = self.globals_env.values.get("principal")
             if isinstance(principal, UserFunction):
-                return self._call_callable(principal, [])
+                called = await self._call_callable(principal, [])
+                if principal.code.is_async:
+                    return await self._await_value(called)
+                return called
         return result
 
-    def _run_entry(self) -> object:
+    async def _run_entry(self) -> object:
         frame = Frame(code=self.program.entry, ip=0, env=self.globals_env, stack=[])
-        return self._run_frame(frame)
+        return await self._run_frame(frame)
 
-    def _run_function(self, code: FunctionCode, args: list[object], closure: Environment) -> object:
+    async def _run_function(self, code: FunctionCode, args: list[object], closure: Environment) -> object:
         if len(args) != len(code.params):
             raise VMError(
                 f"Função '{code.name}' esperava {len(code.params)} argumentos, recebeu {len(args)}."
@@ -119,9 +140,9 @@ class VirtualMachine:
             fn_env.set_local(param, value)
 
         frame = Frame(code=code, ip=0, env=fn_env, stack=[])
-        return self._run_frame(frame)
+        return await self._run_frame(frame)
 
-    def _run_frame(self, frame: Frame) -> object:
+    async def _run_frame(self, frame: Frame) -> object:
         instructions = frame.code.instructions
         while frame.ip < len(instructions):
             try:
@@ -168,7 +189,7 @@ class VirtualMachine:
                     target = frame.stack.pop()
                     try:
                         frame.stack.append(target[index])
-                    except Exception as exc:  # pragma: no cover - erro convertido abaixo
+                    except Exception as exc:
                         raise TramaRaised(str(exc)) from exc
                 elif op == "BUILD_LIST":
                     count = int(arg)
@@ -195,20 +216,21 @@ class VirtualMachine:
                     argc = int(arg)
                     if len(frame.stack) < argc + 1:
                         raise VMError("Pilha insuficiente para CALL.")
+                    args = frame.stack[-argc:] if argc > 0 else []
                     if argc > 0:
-                        args = frame.stack[-argc:]
                         del frame.stack[-argc:]
-                    else:
-                        args = []
                     callee = frame.stack.pop()
-                    frame.stack.append(self._call_callable(callee, args))
+                    frame.stack.append(await self._call_callable(callee, args))
+                elif op == "AWAIT":
+                    value = frame.stack.pop() if frame.stack else None
+                    frame.stack.append(await self._await_value(value))
                 elif op == "MAKE_FUNCTION":
-                    display_name, code_name = tuple(arg)  # type: ignore[arg-type]
+                    display_name, code_name, _is_async = tuple(arg)
                     fn_code = self.program.functions[str(code_name)]
                     frame.stack.append(UserFunction(name=str(display_name), code=fn_code, closure=frame.env))
                 elif op == "IMPORT_NAME":
                     module_name = str(arg)
-                    frame.stack.append(self._import_module(module_name))
+                    frame.stack.append(await self._import_module(module_name))
                 elif op == "THROW":
                     value = frame.stack.pop() if frame.stack else None
                     raise TramaRaised(value)
@@ -249,6 +271,13 @@ class VirtualMachine:
 
         return None
 
+    async def _await_value(self, value: object) -> object:
+        if isinstance(value, TramaCoroutine):
+            return await value
+        if inspect.isawaitable(value):
+            return await value
+        raise VMError("Valor não aguardável em 'aguarde'.")
+
     def _end_try_block(self, frame: Frame) -> None:
         if not frame.handlers:
             raise VMError("END_TRY_BLOCK sem handler ativo.")
@@ -276,8 +305,7 @@ class VirtualMachine:
     def _begin_finally(self, frame: Frame) -> None:
         if not frame.handlers:
             raise VMError("BEGIN_FINALLY sem handler ativo.")
-        handler = frame.handlers[-1]
-        handler.phase = "finally"
+        frame.handlers[-1].phase = "finally"
 
     def _end_finally(self, frame: Frame) -> None:
         if not frame.handlers:
@@ -322,19 +350,24 @@ class VirtualMachine:
 
         return False
 
-    def _call_callable(self, callee: object, args: list[object]) -> object:
+    async def _call_callable(self, callee: object, args: list[object]) -> object:
         if isinstance(callee, UserFunction):
-            return self._run_function(callee.code, args, closure=callee.closure)
+            if callee.code.is_async:
+                return TramaCoroutine(vm=self, callee=callee, args=args)
+            return await self._run_function(callee.code, args, closure=callee.closure)
+
         if callable(callee):
             try:
-                return callee(*args)
+                result = callee(*args)
+                return result
             except TramaRaised:
                 raise
-            except Exception as exc:  # pragma: no cover - erro convertido em runtime
+            except Exception as exc:
                 raise TramaRaised(str(exc)) from exc
+
         raise VMError(f"Valor não chamável: {callee!r}")
 
-    def _import_module(self, module_ref: str) -> dict[str, object]:
+    async def _import_module(self, module_ref: str) -> dict[str, object]:
         path = self._resolve_module_path(module_ref)
         key = str(path)
         if key in self.module_cache:
@@ -348,7 +381,7 @@ class VirtualMachine:
             source_path=str(path),
             module_cache=self.module_cache,
         )
-        module_vm.execute(auto_call_principal=False)
+        await module_vm.execute_async(auto_call_principal=False)
 
         exports = {
             name: value
@@ -375,7 +408,7 @@ class VirtualMachine:
             candidates.append(base_dir / module_ref / "mod.trm")
 
         for candidate in candidates:
-            path = candidate.resolve() if candidate.is_absolute() else (candidate).resolve()
+            path = candidate.resolve() if candidate.is_absolute() else candidate.resolve()
             if path.exists() and path.is_file():
                 return path
 

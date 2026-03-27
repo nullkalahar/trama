@@ -26,6 +26,7 @@ Pipeline da linguagem:
 - plano técnico documentado em [`docs/PLANO_TRAMA.md`](docs/PLANO_TRAMA.md)
 - manual da linguagem v0.1 em [`docs/LINGUAGEM_V0_1.md`](docs/LINGUAGEM_V0_1.md)
 - manual da linguagem v0.2 em [`docs/LINGUAGEM_V0_2.md`](docs/LINGUAGEM_V0_2.md)
+- manual da linguagem v0.3 em [`docs/LINGUAGEM_V0_3.md`](docs/LINGUAGEM_V0_3.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
@@ -70,10 +71,15 @@ Pipeline da linguagem:
   - módulos via `importe`
   - escopos e closures para funções aninhadas
   - coleções nativas (lista/mapa) e JSON (`json_parse`/`json_stringify`)
+- v0.3 completa:
+  - runtime assíncrono oficial
+  - `assíncrona/aguarde` (equivalente pt-BR de `async/await`)
+  - tarefas, timeout e cancelamento (`criar_tarefa`, `com_timeout`, `cancelar_tarefa`)
+  - I/O não bloqueante (`ler_texto_async`, `escrever_texto_async`)
 
 ### Em andamento
 
-- hardening de runtime e ergonomia para backend (preparação de v0.3+)
+- hardening de runtime e ergonomia para backend (preparação de v0.4+)
 
 ### Falta fazer (próximos passos)
 
@@ -148,7 +154,7 @@ trama bytecode arquivo.trm
 trama repl
 ```
 
-## Distribuição (atual: v0.2)
+## Distribuição (atual: v0.3)
 
 Build do binário standalone (obrigatório):
 
@@ -160,15 +166,15 @@ scripts/build_standalone.sh
 Build do pacote Debian:
 
 ```bash
-scripts/package_deb.sh 0.2.0 amd64
-sudo apt install ./build/trama_0.2.0_amd64.deb
+scripts/package_deb.sh 0.3.0 amd64
+sudo apt install ./build/trama_0.3.0_amd64.deb
 ```
 
 Preparar repositório APT:
 
 ```bash
 scripts/init_apt_repo.sh packaging/apt-repo stable main trama <SEU_GPG_KEY_ID>
-scripts/publish_apt_package.sh packaging/apt-repo stable ./build/trama_0.2.0_amd64.deb
+scripts/publish_apt_package.sh packaging/apt-repo stable ./build/trama_0.3.0_amd64.deb
 ```
 
 ## Entrega da v0.1
@@ -197,10 +203,10 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [x] escopos/closures sólidos
 - [x] coleções nativas e JSON
 
-### v0.3
-- [ ] runtime assíncrono oficial
-- [ ] `async/await`, tarefas, timeout e cancelamento
-- [ ] I/O não bloqueante
+### v0.3 (concluída)
+- [x] runtime assíncrono oficial
+- [x] `assíncrona/aguarde` (`async/await` em pt-BR), tarefas, timeout e cancelamento
+- [x] I/O não bloqueante
 
 ### v0.4
 - [ ] stdlib backend mínima (HTTP client, FS, ENV, TIME, LOG)
