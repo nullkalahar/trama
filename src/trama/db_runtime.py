@@ -1,10 +1,8 @@
-"""Runtime de banco de dados para a linguagem trama (v0.6).
+"""Runtime de banco de dados para a linguagem trama (v0.6+).
 
-Implementação inicial de driver async + query builder/ORM e migrações/seed.
-Nesta versão, o backend padrão usa SQLite como shim para desenvolvimento local.
-DSN suportada:
-- sqlite:///caminho/arquivo.db
-- postgresql://... (mapeada para arquivo local via TRAMA_PG_SHIM_PATH)
+Suporta backends:
+- SQLite: `sqlite:///caminho/arquivo.db`
+- PostgreSQL nativo: `postgres://...` ou `postgresql://...` (via asyncpg)
 """
 
 from __future__ import annotations
@@ -15,7 +13,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 import threading
-from typing import Any
+
+try:
+    import asyncpg  # type: ignore
+except Exception:  # pragma: no cover - dependência opcional em tempo de execução
+    asyncpg = None
 
 
 class DbError(RuntimeError):
@@ -25,68 +27,155 @@ class DbError(RuntimeError):
 @dataclass
 class DbConnection:
     dsn: str
-    sqlite_path: Path
-    _conn: sqlite3.Connection = field(init=False)
-    _lock: threading.Lock = field(default_factory=threading.Lock)
+    backend: str
+    sqlite_path: Path | None = None
+    sqlite_conn: sqlite3.Connection | None = None
+    sqlite_lock: threading.Lock = field(default_factory=threading.Lock)
+    pg_pool: object | None = None
 
-    def __post_init__(self) -> None:
-        self.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(self.sqlite_path), check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA foreign_keys = ON")
-
-    def close(self) -> None:
-        with self._lock:
-            self._conn.close()
-
-    def execute(self, sql: str, params: list[object] | tuple[object, ...] | None = None) -> dict[str, object]:
-        with self._lock:
-            cursor = self._conn.execute(sql, tuple(params or []))
-            self._conn.commit()
-            return {
-                "rows_affected": int(cursor.rowcount if cursor.rowcount != -1 else 0),
-                "last_row_id": int(cursor.lastrowid or 0),
-            }
-
-    def query(self, sql: str, params: list[object] | tuple[object, ...] | None = None) -> list[dict[str, object]]:
-        with self._lock:
-            cursor = self._conn.execute(sql, tuple(params or []))
-            rows = cursor.fetchall()
-        return [dict(r) for r in rows]
+    def close_sqlite(self) -> None:
+        if self.sqlite_conn is None:
+            return
+        with self.sqlite_lock:
+            self.sqlite_conn.close()
 
 
 @dataclass
 class DbTransaction:
     connection: DbConnection
     active: bool = True
+    pg_conn: object | None = None
+    pg_tx: object | None = None
 
     def ensure_active(self) -> None:
         if not self.active:
             raise DbError("Transação não está ativa.")
 
 
-def _resolve_sqlite_path(dsn: str) -> Path:
+def _detect_backend(dsn: str) -> str:
     if dsn.startswith("sqlite:///"):
-        return Path(dsn[len("sqlite:///") :]).resolve()
-
+        return "sqlite"
     if dsn.startswith("postgresql://") or dsn.startswith("postgres://"):
-        shim = Path(
-            Path.home().joinpath("trama_pg_shim.db")
-            if "TRAMA_PG_SHIM_PATH" not in __import__("os").environ
-            else __import__("os").environ["TRAMA_PG_SHIM_PATH"]
-        )
-        return shim.resolve()
-
+        return "postgres"
     raise DbError(f"DSN não suportada: {dsn}")
 
 
+def _resolve_sqlite_path(dsn: str) -> Path:
+    return Path(dsn[len("sqlite:///") :]).resolve()
+
+
+def _parse_tag_count(tag: str) -> int:
+    # Ex.: "UPDATE 3", "INSERT 0 1", "DELETE 2"
+    parts = tag.strip().split()
+    for token in reversed(parts):
+        if token.isdigit():
+            return int(token)
+    return 0
+
+
+def _to_pg_placeholders(sql: str) -> str:
+    # Converte ? em $1, $2... respeitando aspas simples/duplas.
+    out: list[str] = []
+    idx = 0
+    in_single = False
+    in_double = False
+
+    i = 0
+    while i < len(sql):
+        ch = sql[i]
+
+        if ch == "'" and not in_double:
+            in_single = not in_single
+            out.append(ch)
+            i += 1
+            continue
+
+        if ch == '"' and not in_single:
+            in_double = not in_double
+            out.append(ch)
+            i += 1
+            continue
+
+        if ch == "?" and not in_single and not in_double:
+            idx += 1
+            out.append(f"${idx}")
+            i += 1
+            continue
+
+        out.append(ch)
+        i += 1
+
+    return "".join(out)
+
+
+def _split_sql_statements(script: str) -> list[str]:
+    statements: list[str] = []
+    current: list[str] = []
+    in_single = False
+    in_double = False
+
+    for ch in script:
+        if ch == "'" and not in_double:
+            in_single = not in_single
+            current.append(ch)
+            continue
+        if ch == '"' and not in_single:
+            in_double = not in_double
+            current.append(ch)
+            continue
+
+        if ch == ";" and not in_single and not in_double:
+            stmt = "".join(current).strip()
+            if stmt:
+                statements.append(stmt)
+            current = []
+            continue
+
+        current.append(ch)
+
+    tail = "".join(current).strip()
+    if tail:
+        statements.append(tail)
+
+    return statements
+
+
 async def conectar(dsn: str) -> DbConnection:
-    path = _resolve_sqlite_path(dsn)
-    return await asyncio.to_thread(DbConnection, dsn, path)
+    backend = _detect_backend(dsn)
+
+    if backend == "sqlite":
+        path = _resolve_sqlite_path(dsn)
+
+        def _open() -> DbConnection:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            conn = sqlite3.connect(str(path), check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            return DbConnection(
+                dsn=dsn,
+                backend="sqlite",
+                sqlite_path=path,
+                sqlite_conn=conn,
+            )
+
+        return await asyncio.to_thread(_open)
+
+    if asyncpg is None:
+        raise DbError(
+            "Driver PostgreSQL não disponível. Instale a dependência 'asyncpg' para usar DSN postgresql://"
+        )
+
+    pool = await asyncpg.create_pool(dsn=dsn, min_size=1, max_size=10, command_timeout=30)
+    return DbConnection(dsn=dsn, backend="postgres", pg_pool=pool)
 
 
 async def fechar(conn: DbConnection) -> None:
-    await asyncio.to_thread(conn.close)
+    if conn.backend == "sqlite":
+        await asyncio.to_thread(conn.close_sqlite)
+        return
+
+    if conn.pg_pool is not None:
+        await conn.pg_pool.close()  # type: ignore[union-attr]
 
 
 async def executar(
@@ -94,7 +183,33 @@ async def executar(
     sql: str,
     params: list[object] | tuple[object, ...] | None = None,
 ) -> dict[str, object]:
-    return await asyncio.to_thread(conn.execute, sql, params)
+    params_seq = tuple(params or [])
+
+    if conn.backend == "sqlite":
+        if conn.sqlite_conn is None:
+            raise DbError("Conexão SQLite inválida.")
+
+        def _exec_sqlite() -> dict[str, object]:
+            with conn.sqlite_lock:
+                cursor = conn.sqlite_conn.execute(sql, params_seq)
+                conn.sqlite_conn.commit()
+                return {
+                    "rows_affected": int(cursor.rowcount if cursor.rowcount != -1 else 0),
+                    "last_row_id": int(cursor.lastrowid or 0),
+                }
+
+        return await asyncio.to_thread(_exec_sqlite)
+
+    if conn.pg_pool is None:
+        raise DbError("Conexão PostgreSQL inválida.")
+
+    pg_conn = await conn.pg_pool.acquire()  # type: ignore[union-attr]
+    try:
+        pg_sql = _to_pg_placeholders(sql)
+        tag = await pg_conn.execute(pg_sql, *params_seq)
+        return {"rows_affected": _parse_tag_count(tag), "last_row_id": 0}
+    finally:
+        await conn.pg_pool.release(pg_conn)  # type: ignore[union-attr]
 
 
 async def consultar(
@@ -102,36 +217,101 @@ async def consultar(
     sql: str,
     params: list[object] | tuple[object, ...] | None = None,
 ) -> list[dict[str, object]]:
-    return await asyncio.to_thread(conn.query, sql, params)
+    params_seq = tuple(params or [])
+
+    if conn.backend == "sqlite":
+        if conn.sqlite_conn is None:
+            raise DbError("Conexão SQLite inválida.")
+
+        def _query_sqlite() -> list[dict[str, object]]:
+            with conn.sqlite_lock:
+                cursor = conn.sqlite_conn.execute(sql, params_seq)
+                rows = cursor.fetchall()
+            return [dict(r) for r in rows]
+
+        return await asyncio.to_thread(_query_sqlite)
+
+    if conn.pg_pool is None:
+        raise DbError("Conexão PostgreSQL inválida.")
+
+    pg_conn = await conn.pg_pool.acquire()  # type: ignore[union-attr]
+    try:
+        pg_sql = _to_pg_placeholders(sql)
+        rows = await pg_conn.fetch(pg_sql, *params_seq)
+        return [dict(r) for r in rows]
+    finally:
+        await conn.pg_pool.release(pg_conn)  # type: ignore[union-attr]
 
 
 async def transacao_iniciar(conn: DbConnection) -> DbTransaction:
-    def _begin() -> DbTransaction:
-        with conn._lock:
-            conn._conn.execute("BEGIN")
-        return DbTransaction(connection=conn, active=True)
+    if conn.backend == "sqlite":
+        if conn.sqlite_conn is None:
+            raise DbError("Conexão SQLite inválida.")
 
-    return await asyncio.to_thread(_begin)
+        def _begin_sqlite() -> DbTransaction:
+            with conn.sqlite_lock:
+                conn.sqlite_conn.execute("BEGIN")
+            return DbTransaction(connection=conn, active=True)
+
+        return await asyncio.to_thread(_begin_sqlite)
+
+    if conn.pg_pool is None:
+        raise DbError("Conexão PostgreSQL inválida.")
+
+    pg_conn = await conn.pg_pool.acquire()  # type: ignore[union-attr]
+    tx = pg_conn.transaction()
+    await tx.start()
+    return DbTransaction(connection=conn, active=True, pg_conn=pg_conn, pg_tx=tx)
 
 
 async def transacao_commit(tx: DbTransaction) -> None:
-    def _commit() -> None:
-        tx.ensure_active()
-        with tx.connection._lock:
-            tx.connection._conn.commit()
-        tx.active = False
+    tx.ensure_active()
 
-    await asyncio.to_thread(_commit)
+    if tx.connection.backend == "sqlite":
+        if tx.connection.sqlite_conn is None:
+            raise DbError("Conexão SQLite inválida.")
+
+        def _commit_sqlite() -> None:
+            with tx.connection.sqlite_lock:
+                tx.connection.sqlite_conn.commit()
+            tx.active = False
+
+        await asyncio.to_thread(_commit_sqlite)
+        return
+
+    if tx.pg_tx is None or tx.pg_conn is None or tx.connection.pg_pool is None:
+        raise DbError("Transação PostgreSQL inválida.")
+
+    try:
+        await tx.pg_tx.commit()
+    finally:
+        await tx.connection.pg_pool.release(tx.pg_conn)  # type: ignore[union-attr]
+        tx.active = False
 
 
 async def transacao_rollback(tx: DbTransaction) -> None:
-    def _rollback() -> None:
-        tx.ensure_active()
-        with tx.connection._lock:
-            tx.connection._conn.rollback()
-        tx.active = False
+    tx.ensure_active()
 
-    await asyncio.to_thread(_rollback)
+    if tx.connection.backend == "sqlite":
+        if tx.connection.sqlite_conn is None:
+            raise DbError("Conexão SQLite inválida.")
+
+        def _rollback_sqlite() -> None:
+            with tx.connection.sqlite_lock:
+                tx.connection.sqlite_conn.rollback()
+            tx.active = False
+
+        await asyncio.to_thread(_rollback_sqlite)
+        return
+
+    if tx.pg_tx is None or tx.pg_conn is None or tx.connection.pg_pool is None:
+        raise DbError("Transação PostgreSQL inválida.")
+
+    try:
+        await tx.pg_tx.rollback()
+    finally:
+        await tx.connection.pg_pool.release(tx.pg_conn)  # type: ignore[union-attr]
+        tx.active = False
 
 
 async def tx_executar(
@@ -139,16 +319,29 @@ async def tx_executar(
     sql: str,
     params: list[object] | tuple[object, ...] | None = None,
 ) -> dict[str, object]:
-    def _exec() -> dict[str, object]:
-        tx.ensure_active()
-        with tx.connection._lock:
-            cursor = tx.connection._conn.execute(sql, tuple(params or []))
-            return {
-                "rows_affected": int(cursor.rowcount if cursor.rowcount != -1 else 0),
-                "last_row_id": int(cursor.lastrowid or 0),
-            }
+    tx.ensure_active()
+    params_seq = tuple(params or [])
 
-    return await asyncio.to_thread(_exec)
+    if tx.connection.backend == "sqlite":
+        if tx.connection.sqlite_conn is None:
+            raise DbError("Conexão SQLite inválida.")
+
+        def _exec_sqlite() -> dict[str, object]:
+            with tx.connection.sqlite_lock:
+                cursor = tx.connection.sqlite_conn.execute(sql, params_seq)
+                return {
+                    "rows_affected": int(cursor.rowcount if cursor.rowcount != -1 else 0),
+                    "last_row_id": int(cursor.lastrowid or 0),
+                }
+
+        return await asyncio.to_thread(_exec_sqlite)
+
+    if tx.pg_conn is None:
+        raise DbError("Transação PostgreSQL inválida.")
+
+    pg_sql = _to_pg_placeholders(sql)
+    tag = await tx.pg_conn.execute(pg_sql, *params_seq)
+    return {"rows_affected": _parse_tag_count(tag), "last_row_id": 0}
 
 
 async def tx_consultar(
@@ -156,14 +349,27 @@ async def tx_consultar(
     sql: str,
     params: list[object] | tuple[object, ...] | None = None,
 ) -> list[dict[str, object]]:
-    def _query() -> list[dict[str, object]]:
-        tx.ensure_active()
-        with tx.connection._lock:
-            cursor = tx.connection._conn.execute(sql, tuple(params or []))
-            rows = cursor.fetchall()
-        return [dict(r) for r in rows]
+    tx.ensure_active()
+    params_seq = tuple(params or [])
 
-    return await asyncio.to_thread(_query)
+    if tx.connection.backend == "sqlite":
+        if tx.connection.sqlite_conn is None:
+            raise DbError("Conexão SQLite inválida.")
+
+        def _query_sqlite() -> list[dict[str, object]]:
+            with tx.connection.sqlite_lock:
+                cursor = tx.connection.sqlite_conn.execute(sql, params_seq)
+                rows = cursor.fetchall()
+            return [dict(r) for r in rows]
+
+        return await asyncio.to_thread(_query_sqlite)
+
+    if tx.pg_conn is None:
+        raise DbError("Transação PostgreSQL inválida.")
+
+    pg_sql = _to_pg_placeholders(sql)
+    rows = await tx.pg_conn.fetch(pg_sql, *params_seq)
+    return [dict(r) for r in rows]
 
 
 def qb_select(tabela: str, colunas: list[str] | None = None) -> dict[str, object]:
@@ -231,8 +437,17 @@ async def qb_consultar(conn: DbConnection, query: dict[str, object]) -> list[dic
 async def orm_inserir(conn: DbConnection, tabela: str, dados: dict[str, object]) -> int:
     if not dados:
         raise DbError("orm_inserir exige dados.")
+
     cols = list(dados.keys())
     placeholders = ", ".join(["?"] * len(cols))
+
+    if conn.backend == "postgres":
+        sql = f"INSERT INTO {tabela} ({', '.join(cols)}) VALUES ({placeholders}) RETURNING id"
+        rows = await consultar(conn, sql, [dados[c] for c in cols])
+        if not rows or "id" not in rows[0]:
+            raise DbError("INSERT sem retorno de id no PostgreSQL.")
+        return int(rows[0]["id"])
+
     sql = f"INSERT INTO {tabela} ({', '.join(cols)}) VALUES ({placeholders})"
     res = await executar(conn, sql, [dados[c] for c in cols])
     return int(res["last_row_id"])
@@ -267,78 +482,82 @@ async def orm_buscar_por_id(conn: DbConnection, tabela: str, id_value: object) -
     return rows[0] if rows else None
 
 
-def _ensure_meta_tables(conn: DbConnection) -> None:
-    with conn._lock:
-        conn._conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS _trama_migrations (
-                nome TEXT PRIMARY KEY,
-                aplicado_em TEXT NOT NULL
-            )
-            """
+async def _ensure_meta_tables(conn: DbConnection) -> None:
+    await executar(
+        conn,
+        """
+        CREATE TABLE IF NOT EXISTS _trama_migrations (
+            nome TEXT PRIMARY KEY,
+            aplicado_em TEXT NOT NULL
         )
-        conn._conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS _trama_seeds (
-                nome TEXT PRIMARY KEY,
-                aplicado_em TEXT NOT NULL
-            )
-            """
+        """,
+    )
+    await executar(
+        conn,
+        """
+        CREATE TABLE IF NOT EXISTS _trama_seeds (
+            nome TEXT PRIMARY KEY,
+            aplicado_em TEXT NOT NULL
         )
-        conn._conn.commit()
+        """,
+    )
 
 
 async def migracao_aplicar(conn: DbConnection, nome: str, sql: str) -> dict[str, object]:
-    def _apply() -> dict[str, object]:
-        _ensure_meta_tables(conn)
-        with conn._lock:
-            row = conn._conn.execute(
-                "SELECT nome FROM _trama_migrations WHERE nome = ?",
-                (nome,),
-            ).fetchone()
-            if row is not None:
-                return {"aplicada": False, "nome": nome}
+    await _ensure_meta_tables(conn)
 
-            conn._conn.execute("BEGIN")
-            try:
-                conn._conn.executescript(sql)
-                conn._conn.execute(
-                    "INSERT INTO _trama_migrations (nome, aplicado_em) VALUES (?, ?)",
-                    (nome, datetime.now(timezone.utc).isoformat()),
-                )
-                conn._conn.commit()
-            except Exception:
-                conn._conn.rollback()
-                raise
+    existing = await consultar(
+        conn,
+        "SELECT nome FROM _trama_migrations WHERE nome = ? LIMIT 1",
+        [nome],
+    )
+    if existing:
+        return {"aplicada": False, "nome": nome}
 
-        return {"aplicada": True, "nome": nome}
+    tx = await transacao_iniciar(conn)
+    try:
+        for stmt in _split_sql_statements(sql):
+            await tx_executar(tx, stmt)
 
-    return await asyncio.to_thread(_apply)
+        await tx_executar(
+            tx,
+            "INSERT INTO _trama_migrations (nome, aplicado_em) VALUES (?, ?)",
+            [nome, datetime.now(timezone.utc).isoformat()],
+        )
+        await transacao_commit(tx)
+    except Exception:
+        if tx.active:
+            await transacao_rollback(tx)
+        raise
+
+    return {"aplicada": True, "nome": nome}
 
 
 async def seed_aplicar(conn: DbConnection, nome: str, sql: str) -> dict[str, object]:
-    def _apply() -> dict[str, object]:
-        _ensure_meta_tables(conn)
-        with conn._lock:
-            row = conn._conn.execute(
-                "SELECT nome FROM _trama_seeds WHERE nome = ?",
-                (nome,),
-            ).fetchone()
-            if row is not None:
-                return {"aplicada": False, "nome": nome}
+    await _ensure_meta_tables(conn)
 
-            conn._conn.execute("BEGIN")
-            try:
-                conn._conn.executescript(sql)
-                conn._conn.execute(
-                    "INSERT INTO _trama_seeds (nome, aplicado_em) VALUES (?, ?)",
-                    (nome, datetime.now(timezone.utc).isoformat()),
-                )
-                conn._conn.commit()
-            except Exception:
-                conn._conn.rollback()
-                raise
+    existing = await consultar(
+        conn,
+        "SELECT nome FROM _trama_seeds WHERE nome = ? LIMIT 1",
+        [nome],
+    )
+    if existing:
+        return {"aplicada": False, "nome": nome}
 
-        return {"aplicada": True, "nome": nome}
+    tx = await transacao_iniciar(conn)
+    try:
+        for stmt in _split_sql_statements(sql):
+            await tx_executar(tx, stmt)
 
-    return await asyncio.to_thread(_apply)
+        await tx_executar(
+            tx,
+            "INSERT INTO _trama_seeds (nome, aplicado_em) VALUES (?, ?)",
+            [nome, datetime.now(timezone.utc).isoformat()],
+        )
+        await transacao_commit(tx)
+    except Exception:
+        if tx.active:
+            await transacao_rollback(tx)
+        raise
+
+    return {"aplicada": True, "nome": nome}

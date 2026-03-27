@@ -22,7 +22,7 @@ Aliases pt-BR oficiais (recomendados):
 ### DSN suportada
 
 - `sqlite:///caminho/arquivo.db`
-- `postgres://...` e `postgresql://...` (compatibilidade inicial via shim local)
+- `postgres://...` e `postgresql://...` (PostgreSQL nativo via `asyncpg`)
 
 Nesta versão, o runtime usa SQLite como backend local para facilitar desenvolvimento e testes.
 

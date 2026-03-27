@@ -30,7 +30,7 @@ Pipeline da linguagem:
 - manual da linguagem v0.4 em [`docs/LINGUAGEM_V0_4.md`](docs/LINGUAGEM_V0_4.md)
 - manual da linguagem v0.5 em [`docs/LINGUAGEM_V0_5.md`](docs/LINGUAGEM_V0_5.md)
 - manual da linguagem v0.6 em [`docs/LINGUAGEM_V0_6.md`](docs/LINGUAGEM_V0_6.md)
-- manual completo consolidado até v0.4 em [`docs/MANUAL_COMPLETO_ATE_V0_4.md`](docs/MANUAL_COMPLETO_ATE_V0_4.md)
+- manual completo consolidado até v0.6 em [`docs/MANUAL_COMPLETO_ATE_V0_6.md`](docs/MANUAL_COMPLETO_ATE_V0_6.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
@@ -90,7 +90,7 @@ Pipeline da linguagem:
   - validação de payload e erros padronizados
   - healthcheck e serving de estáticos
 - v0.6 completa:
-  - driver de banco assíncrono (`pg_*`) com DSN `sqlite:///` e compatibilidade inicial `postgres://` via shim
+  - driver de banco assíncrono (`pg_*`) com DSN `sqlite:///`, `postgres://` e `postgresql://` com PostgreSQL nativo (`asyncpg`)
   - query builder/ORM inicial (`qb_*`, `orm_*`)
   - transações (`pg_transacao_*`, `pg_tx_*`)
   - migrações idempotentes e seed (`migracao_aplicar`, `seed_aplicar`)
@@ -155,6 +155,12 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
 pytest
+```
+
+Para desenvolvimento com PostgreSQL nativo:
+
+```bash
+pip install -e .[dev,db]
 ```
 
 Validação rápida sem pytest:
