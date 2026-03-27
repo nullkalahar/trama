@@ -59,6 +59,7 @@ Pipeline da linguagem:
 - manual da linguagem v0.8 em [`docs/LINGUAGEM_V0_8.md`](docs/LINGUAGEM_V0_8.md)
 - manual da linguagem v0.9 em [`docs/LINGUAGEM_V0_9.md`](docs/LINGUAGEM_V0_9.md)
 - manual completo consolidado até v0.9 em [`docs/MANUAL_COMPLETO_ATE_V0_9.md`](docs/MANUAL_COMPLETO_ATE_V0_9.md)
+- guia de auto-hospedagem v1.0 em [`docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md`](docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
@@ -114,7 +115,7 @@ Pipeline da linguagem:
   - configuração por ambiente (`config_carregar`)
 - v0.5 completa:
   - servidor web nativo
-  - roteamento, middlewares, CORS e fluxo request/response
+  - roteamento, middlewares, CORS e fluxo `requisicao/resposta`
   - validação de payload e erros padronizados
   - healthcheck e serving de estáticos
 - v0.6 completa:
@@ -150,20 +151,21 @@ Pipeline da linguagem:
 Pontos que ainda faltam para substituir integralmente backends grandes em produção:
 
 - roteamento HTTP com handlers dinâmicos por função (request/response completos)
+- roteamento HTTP com handlers dinâmicos por função (`requisicao/resposta` completos)
 - cadeia real de middlewares (auth, validação, rate-limit, erro global)
 - uploads multipart/form-data e processamento de imagem
 - realtime nativo (WebSocket/Socket.IO), salas, presença e eventos
 - jobs e filas para tarefas assíncronas de longa duração
 - cache robusto com TTL/invalidação e estratégia para múltiplas instâncias
 - observabilidade de produção (métricas HTTP/DB, tracing por requisição, logs correlacionados)
-- hardening operacional (graceful shutdown, health/readiness, limites, timeout, retries)
+- hardening operacional (`encerramento_gracioso`, `saude/pronto/vivo`, limites, timeout, retries)
 - testes de integração/e2e/carga para cenários de concorrência alta
 
 ## Plano de Paridade Backend (v1.0 -> v1.5)
 
 Ordem de implementação para alcançar backend robusto:
 
-1. Runtime HTTP programável (`request/response`, handlers e middleware chain)
+1. Runtime HTTP programável (`requisicao/resposta`, handlers e middleware chain)
 2. Segurança de borda (auth middleware, RBAC por rota, rate-limit por política)
 3. Persistência avançada (query builder/ORM evoluídos, migrações versionadas, pool tuning)
 4. Realtime (WebSocket), notificações, presença e eventos
@@ -311,7 +313,7 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 
 ### v0.5 (concluída)
 - [x] servidor web nativo
-- [x] roteamento, middlewares, CORS, request/response
+- [x] roteamento, middlewares, CORS, `requisicao/resposta`
 - [x] validação de payload e erros padronizados
 - [x] healthcheck e serving de estáticos
 
@@ -334,15 +336,22 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [x] cobertura, lint/format
 - [x] templates de projeto backend
 
-### v1.0 (backend pronto para produção)
-- [ ] runtime HTTP programável: handlers dinâmicos por rota (request/response completos)
-- [ ] middleware chain real (pré/pós), erro global e validação por schema
-- [ ] segurança por rota (JWT/RBAC), rate-limit configurável e proteção de abuso
-- [ ] APIs versionadas e contratos de resposta estáveis
-- [ ] jobs e webhooks com retries, timeout, idempotência e DLQ básica
-- [ ] persistência sólida: transações, migração versionada e evolução de schema segura
-- [ ] testes de integração e carga com metas mínimas de desempenho/estabilidade
-- [ ] guia de auto-hospedagem e operação (SLO, monitoramento, backup/restore)
+### v1.0 (concluída)
+- [x] runtime HTTP programável: handlers dinâmicos por rota (`requisicao/resposta` completos)
+- [x] middleware chain real (pré/pós), erro global e validação por esquema
+- [x] segurança por rota (JWT/RBAC), rate-limit configurável e proteção de abuso
+- [x] APIs versionadas e contratos de resposta estáveis (com validação de contrato por rota)
+- [x] jobs e webhooks com retries, timeout, idempotência e DLQ básica
+- [x] persistência sólida: transações, migração versionada e evolução de esquema segura (lock + dry-run + compatibilidade)
+- [x] testes de integração e carga com metas mínimas de desempenho/estabilidade
+- [x] guia de auto-hospedagem e operação (SLO, monitoramento, backup/restore)
+
+### v1.0.5 (auto-hospedagem do compilador)
+- [ ] compilador e runtime principais implementados em `.trm` (self-hosted)
+- [ ] pipeline oficial de build compilando componentes centrais a partir de código `.trm`
+- [ ] remoção do papel de implementação primária em `.py` (Python apenas compatibilidade transitória)
+- [ ] suíte de equivalência garantindo paridade entre implementação antiga e self-hosted
+- [ ] release oficial marcada como “Trama compilando Trama”
 
 ### v1.1
 - [ ] cache de aplicação completo (TTL, invalidação por chave/padrão, warmup)
@@ -382,12 +391,12 @@ Regra obrigatória deste plano: toda superfície de linguagem deve ser canônica
 - parâmetros de rota (`/usuarios/:id`), match determinístico e precedência estável.
 - composição por método (`GET/POST/PUT/PATCH/DELETE/OPTIONS`).
 3. Implementar handlers dinâmicos:
-- `web_rota(app, metodo, caminho, handler_fn)`.
+- `web_rota(app, metodo, caminho, funcao_handler)`.
 - suporte async completo com cancelamento por timeout.
 4. Critério de aceite:
 - suíte de integração cobrindo 2xx/4xx/5xx, params/query/body, erros de parser e CORS.
 
-### Fase 2 - Middleware chain e validação por schema
+### Fase 2 - Middleware chain e validação por esquema
 
 1. Middleware pré e pós-handler:
 - cadeia com ordem explícita e short-circuit seguro.
