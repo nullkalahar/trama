@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
+import threading
 import pytest
 
 from trama.compiler import CompileError, compile_source
@@ -218,3 +221,73 @@ def test_io_nao_bloqueante(tmp_path) -> None:
     )
     _, out = _run_capture(codigo)
     assert out == ["ola async"]
+
+
+def test_stdlib_fs_env_time_log(tmp_path, monkeypatch) -> None:
+    arquivo = tmp_path / "sync.txt"
+    monkeypatch.setenv("TRAMA_HOST", "localhost")
+    monkeypatch.setenv("TRAMA_PORT", "8080")
+
+    codigo = (
+        "função principal()\n"
+        f"    escrever_texto(\"{arquivo}\", \"abc\")\n"
+        f"    exibir(ler_texto(\"{arquivo}\"))\n"
+        f"    exibir(arquivo_existe(\"{arquivo}\"))\n"
+        "    cfg = config_carregar({\"host\": \"127.0.0.1\", \"porta\": 3000}, \"TRAMA_\")\n"
+        "    exibir(cfg[\"host\"])\n"
+        "    exibir(cfg[\"port\"])\n"
+        "    exibir(env_obter(\"TRAMA_HOST\"))\n"
+        "    exibir(agora_iso() != nulo)\n"
+        "    exibir(timestamp() > 0)\n"
+        "    log_info(\"ok\")\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out[0:7] == ["abc", "True", "localhost", "8080", "localhost", "True", "True"]
+    assert "[INFO] ok" in out[-1]
+
+
+def test_json_robusto() -> None:
+    codigo = (
+        "função principal()\n"
+        "    bom = json_parse_seguro(\"{\\\"a\\\":1}\")\n"
+        "    ruim = json_parse_seguro(\"{\")\n"
+        "    exibir(bom[\"ok\"])\n"
+        "    exibir(ruim[\"ok\"])\n"
+        "    exibir(json_stringify_pretty({\"z\": 1, \"a\": 2}) != nulo)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["True", "False", "True"]
+
+
+def test_http_client_async() -> None:
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            body = json.dumps({"ok": True}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format, *args):  # noqa: A003
+            return
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        codigo = (
+            "assíncrona função principal()\n"
+            f"    resp = aguarde http_get(\"http://127.0.0.1:{port}/ok\")\n"
+            "    exibir(resp[\"status\"])\n"
+            "    exibir(resp[\"json\"][\"ok\"])\n"
+            "fim\n"
+        )
+        _, out = _run_capture(codigo)
+        assert out == ["200", "True"]
+    finally:
+        server.shutdown()
+        server.server_close()

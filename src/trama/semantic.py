@@ -37,14 +37,30 @@ class SemanticError(ValueError):
 
 _BUILTIN_ARITY: dict[str, int | None] = {
     "exibir": None,
+    "log": 2,
+    "log_info": 1,
+    "log_erro": 1,
     "json_parse": 1,
+    "json_parse_seguro": 1,
     "json_stringify": 1,
+    "json_stringify_pretty": 1,
     "criar_tarefa": 1,
     "cancelar_tarefa": 1,
     "dormir": 1,
     "ler_texto_async": 1,
     "escrever_texto_async": 2,
     "com_timeout": 2,
+    "ler_texto": 1,
+    "escrever_texto": 2,
+    "arquivo_existe": 1,
+    "listar_diretorio": 1,
+    "http_get": None,
+    "http_post": None,
+    "env_obter": None,
+    "env_todos": None,
+    "config_carregar": None,
+    "agora_iso": 0,
+    "timestamp": 0,
 }
 
 

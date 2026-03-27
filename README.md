@@ -27,6 +27,7 @@ Pipeline da linguagem:
 - manual da linguagem v0.1 em [`docs/LINGUAGEM_V0_1.md`](docs/LINGUAGEM_V0_1.md)
 - manual da linguagem v0.2 em [`docs/LINGUAGEM_V0_2.md`](docs/LINGUAGEM_V0_2.md)
 - manual da linguagem v0.3 em [`docs/LINGUAGEM_V0_3.md`](docs/LINGUAGEM_V0_3.md)
+- manual da linguagem v0.4 em [`docs/LINGUAGEM_V0_4.md`](docs/LINGUAGEM_V0_4.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
@@ -76,10 +77,14 @@ Pipeline da linguagem:
   - `assíncrona/aguarde` (equivalente pt-BR de `async/await`)
   - tarefas, timeout e cancelamento (`criar_tarefa`, `com_timeout`, `cancelar_tarefa`)
   - I/O não bloqueante (`ler_texto_async`, `escrever_texto_async`)
+- v0.4 completa:
+  - stdlib backend mínima (HTTP client, FS, ENV, TIME, LOG)
+  - serialização JSON robusta (`json_parse_seguro`, `json_stringify_pretty`)
+  - configuração por ambiente (`config_carregar`)
 
 ### Em andamento
 
-- hardening de runtime e ergonomia para backend (preparação de v0.4+)
+- hardening de runtime e ergonomia para backend (preparação de v0.5+)
 
 ### Falta fazer (próximos passos)
 
@@ -154,7 +159,7 @@ trama bytecode arquivo.trm
 trama repl
 ```
 
-## Distribuição (atual: v0.3)
+## Distribuição (atual: v0.4)
 
 Build do binário standalone (obrigatório):
 
@@ -166,15 +171,15 @@ scripts/build_standalone.sh
 Build do pacote Debian:
 
 ```bash
-scripts/package_deb.sh 0.3.0 amd64
-sudo apt install ./build/trama_0.3.0_amd64.deb
+scripts/package_deb.sh 0.4.0 amd64
+sudo apt install ./build/trama_0.4.0_amd64.deb
 ```
 
 Preparar repositório APT:
 
 ```bash
 scripts/init_apt_repo.sh packaging/apt-repo stable main trama <SEU_GPG_KEY_ID>
-scripts/publish_apt_package.sh packaging/apt-repo stable ./build/trama_0.3.0_amd64.deb
+scripts/publish_apt_package.sh packaging/apt-repo stable ./build/trama_0.4.0_amd64.deb
 ```
 
 ## Entrega da v0.1
@@ -208,10 +213,10 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [x] `assíncrona/aguarde` (`async/await` em pt-BR), tarefas, timeout e cancelamento
 - [x] I/O não bloqueante
 
-### v0.4
-- [ ] stdlib backend mínima (HTTP client, FS, ENV, TIME, LOG)
-- [ ] serialização JSON robusta
-- [ ] configuração por ambiente
+### v0.4 (concluída)
+- [x] stdlib backend mínima (HTTP client, FS, ENV, TIME, LOG)
+- [x] serialização JSON robusta
+- [x] configuração por ambiente
 
 ### v0.5
 - [ ] servidor web nativo
