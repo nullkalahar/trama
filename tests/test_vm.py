@@ -291,3 +291,60 @@ def test_http_client_async() -> None:
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_web_server_nativo_rotas_validacao_cors_health_static(tmp_path) -> None:
+    static_dir = tmp_path / "publico"
+    static_dir.mkdir(parents=True, exist_ok=True)
+    (static_dir / "hello.txt").write_text("conteudo-estatico", encoding="utf-8")
+
+    codigo = (
+        "assíncrona função principal()\n"
+        "    app = web_criar_app()\n"
+        "    web_adicionar_rota_json(app, \"GET\", \"/ola\", {\"mensagem\": \"ok\"}, 200)\n"
+        "    web_adicionar_rota_echo_json(app, \"POST\", \"/echo\", [\"nome\"])\n"
+        "    web_usar_middleware(app, \"request_id\")\n"
+        "    web_configurar_cors(app, \"*\")\n"
+        "    web_ativar_healthcheck(app, \"/healthz\")\n"
+        f"    web_servir_estaticos(app, \"/static\", \"{static_dir}\")\n"
+        "    servidor = aguarde web_iniciar(app, \"127.0.0.1\", 0)\n"
+        "    base = servidor[\"base_url\"]\n"
+        "    r1 = aguarde http_get(base + \"/ola\")\n"
+        "    exibir(r1[\"status\"])\n"
+        "    exibir(r1[\"json\"][\"ok\"])\n"
+        "    exibir(r1[\"json\"][\"dados\"][\"mensagem\"])\n"
+        "    exibir(r1[\"headers\"][\"Access-Control-Allow-Origin\"])\n"
+        "    exibir(r1[\"headers\"][\"X-Request-Id\"] != nulo)\n"
+        "    r2 = aguarde http_post(base + \"/echo\", {\"nome\": \"trama\"}, {\"Content-Type\": \"application/json\"})\n"
+        "    exibir(r2[\"status\"])\n"
+        "    exibir(r2[\"json\"][\"ok\"])\n"
+        "    exibir(r2[\"json\"][\"dados\"][\"payload\"][\"nome\"])\n"
+        "    r3 = aguarde http_post(base + \"/echo\", {\"x\": 1}, {\"Content-Type\": \"application/json\"})\n"
+        "    exibir(r3[\"status\"])\n"
+        "    exibir(r3[\"json\"][\"erro\"][\"codigo\"])\n"
+        "    r4 = aguarde http_get(base + \"/healthz\")\n"
+        "    exibir(r4[\"status\"])\n"
+        "    exibir(r4[\"json\"][\"status\"])\n"
+        "    r5 = aguarde http_get(base + \"/static/hello.txt\")\n"
+        "    exibir(r5[\"status\"])\n"
+        "    exibir(r5[\"corpo\"])\n"
+        "    aguarde web_parar(servidor)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == [
+        "200",
+        "True",
+        "ok",
+        "*",
+        "True",
+        "200",
+        "True",
+        "trama",
+        "422",
+        "VALIDACAO_FALHOU",
+        "200",
+        "up",
+        "200",
+        "conteudo-estatico",
+    ]

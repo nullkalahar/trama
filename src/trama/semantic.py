@@ -61,6 +61,15 @@ _BUILTIN_ARITY: dict[str, int | None] = {
     "config_carregar": None,
     "agora_iso": 0,
     "timestamp": 0,
+    "web_criar_app": 0,
+    "web_adicionar_rota_json": None,
+    "web_adicionar_rota_echo_json": None,
+    "web_usar_middleware": 2,
+    "web_configurar_cors": None,
+    "web_ativar_healthcheck": None,
+    "web_servir_estaticos": 3,
+    "web_iniciar": None,
+    "web_parar": 1,
 }
 
 
