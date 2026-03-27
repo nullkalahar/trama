@@ -205,6 +205,62 @@ Após consolidar backend na v1.0, a v1.5 deve habilitar desenvolvimento frontend
 - integração full-stack com backend em `trama`
 - documentação e templates de projeto frontend
 
+## Meta v1.5: Substituir o Backend do Projeto Sooner
+
+Referência analisada: `/home/arara/Sooner/backend`.
+
+Para a `trama` substituir esse backend real até a `v1.5`, precisa atingir paridade funcional nos pontos abaixo:
+
+- framework web HTTP com roteamento, middlewares e CORS
+- suporte a API versionada (`/api/v1`) e rotas de webhook
+- autenticação com bearer token (JWT) + hashing de senha (bcrypt)
+- validação/serialização de payloads (equivalente ao uso atual de schemas)
+- ORM/SQL assíncrono com PostgreSQL (queries, filtros, join, upsert, transação)
+- migrações de banco e seed idempotente de dados iniciais (planos/cupons)
+- jobs agendados assíncronos (cron e interval), com execução contínua em produção
+- camada de integração HTTP externa assíncrona (ex.: Evolution API)
+- integração com provedores de pagamento e webhooks (Stripe já ativo; Mercado Pago planejado)
+- regras de negócio de assinatura/plano (free, premium, empresarial) e autorização por plano
+- sincronização em lote cliente-servidor (endpoint de sync com upsert + diff por `updated_at`)
+- gerenciamento de listas de transmissão e membros com limites por plano
+- i18n de mensagens de lembrete e tratamento de timezone por usuário
+- observabilidade mínima para produção: logs estruturados, healthcheck, códigos de erro consistentes
+- servir frontend estático (SPA) no mesmo backend quando necessário
+- deploy container-friendly (Docker), `.deb` e binário standalone
+- suíte de testes de integração cobrindo auth, CRUD, sync, assinatura e jobs
+
+Critério objetivo de aceite:
+
+- executar os mesmos fluxos atuais do Sooner (auth, eventos, listas, sync, usuário, assinaturas, webhooks e jobs)
+- manter compatibilidade de contrato HTTP com os clientes atuais (app/web)
+- operar com estabilidade em ambiente real (túnel/proxy + Postgres + serviços externos)
+
+## Meta v1.5–v1.8: Substituir também o Backend do BraniMeDB
+
+Referência analisada: `/home/arara/branimedb` (cliente Flutter consumindo backend HTTP + Socket.IO).
+
+Para a `trama` também substituir esse backend no intervalo `v1.5` a `v1.8`, precisa entregar:
+
+- servidor HTTP completo com rotas REST compatíveis com os contratos atuais do app
+- servidor Socket.IO/WebSocket nativo com autenticação JWT por conexão
+- sistema de mensagens privadas em tempo real (conversas, mensagens, upload de arquivo, contador de não lidas, confirmação de leitura)
+- eventos realtime compatíveis: `new_message`, `typing_status`, `read_receipt`, `user_online`, `user_offline`
+- sistema social/gamificado em tempo real (eventos `new_like`, `new_comment`, `new_follower`, `new_alert`)
+- sistema de guildas/comunidades (feed por guilda, posts, comentários, reações, moderação e permissões de membro)
+- APIs administrativas (dashboard, métricas de engajamento em tempo real e campanhas de push)
+- suporte a push notifications end-to-end (registro de token, campanhas, envio e estatísticas)
+- autenticação/autorização robusta (JWT + perfis de permissão: usuário, moderador, administrador)
+- camada de upload de mídia com validação de tipo/tamanho e URLs públicas
+- persistência e cache (banco relacional para domínio principal + estratégia de cache offline/sincronização incremental)
+- observabilidade e operação (métricas de conexões WebSocket, filas/eventos, logs estruturados, healthcheck e backpressure)
+- compatibilidade de deploy (execução atrás de túnel/proxy, Docker, `.deb` e binário standalone)
+
+Critério objetivo de aceite:
+
+- app Flutter atual do BraniMeDB funcionar sem regressão crítica ao trocar o backend para `trama`
+- manter paridade de eventos realtime e contratos REST usados em produção
+- suportar carga de mensagens/conexões simultâneas com estabilidade operacional
+
 ## Princípios Técnicos
 
 - simplicidade primeiro
