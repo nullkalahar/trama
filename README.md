@@ -28,6 +28,7 @@ Pipeline da linguagem:
 - manual da linguagem v0.2 em [`docs/LINGUAGEM_V0_2.md`](docs/LINGUAGEM_V0_2.md)
 - manual da linguagem v0.3 em [`docs/LINGUAGEM_V0_3.md`](docs/LINGUAGEM_V0_3.md)
 - manual da linguagem v0.4 em [`docs/LINGUAGEM_V0_4.md`](docs/LINGUAGEM_V0_4.md)
+- manual completo consolidado até v0.4 em [`docs/MANUAL_COMPLETO_ATE_V0_4.md`](docs/MANUAL_COMPLETO_ATE_V0_4.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
@@ -247,6 +248,12 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [ ] paridade backend geral em produção
 - [ ] suporte a APIs versionadas, jobs e webhooks
 - [ ] testes de integração e carga com estabilidade operacional
+- [ ] plano de auto-hospedagem concluído (self-hosted)
+- [ ] módulos e sistema de pacotes maduros para o compilador em `trama`
+- [ ] stdlib necessária para compilador/runtime em `trama` (FS, ENV, TIME, HTTP, JSON, processos)
+- [ ] tooling oficial em `trama` (build, test runner, lint/format, debug básico)
+- [ ] estabilidade e performance mínimas para bootstrap seguro
+- [ ] bootstrap gradual concluído: partes críticas migradas de Python para `trama` com fallback removido
 
 ### v1.5 (frontend)
 - [ ] toolkit de UI, estado e renderização
