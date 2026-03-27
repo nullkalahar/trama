@@ -205,9 +205,7 @@ Após consolidar backend na v1.0, a v1.5 deve habilitar desenvolvimento frontend
 - integração full-stack com backend em `trama`
 - documentação e templates de projeto frontend
 
-## Meta v1.5: Substituir o Backend do Projeto Sooner
-
-Referência analisada: `/home/arara/Sooner/backend`.
+## Meta v1.5: Substituir o Backend 
 
 Para a `trama` substituir esse backend real até a `v1.5`, precisa atingir paridade funcional nos pontos abaixo:
 
@@ -235,9 +233,7 @@ Critério objetivo de aceite:
 - manter compatibilidade de contrato HTTP com os clientes atuais (app/web)
 - operar com estabilidade em ambiente real (túnel/proxy + Postgres + serviços externos)
 
-## Meta v1.5–v1.8: Substituir também o Backend do BraniMeDB
-
-Referência analisada: `/home/arara/branimedb` (cliente Flutter consumindo backend HTTP + Socket.IO).
+## Meta v1.5–v1.8: 
 
 Para a `trama` também substituir esse backend no intervalo `v1.5` a `v1.8`, precisa entregar:
 
