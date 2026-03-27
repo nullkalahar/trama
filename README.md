@@ -364,6 +364,120 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [ ] logs estruturados com correlação (`request_id`, `trace_id`, `user_id`)
 - [ ] dashboard operacional mínimo e alertas iniciais
 
+## Plano de Implementação v1.0 (Completo e Robusto)
+
+Objetivo: entregar backend de produção em `trama` com arquitetura previsível, segurança forte, testes reais e operação confiável.
+
+Regra obrigatória deste plano: toda superfície de linguagem deve ser canônica em pt-BR.
+- nomes de API/sintaxe em português como padrão oficial;
+- aliases em inglês somente para compatibilidade, nunca como forma principal;
+- documentação e exemplos sempre primeiro em pt-BR.
+
+### Fase 1 - Runtime HTTP programável
+
+1. Definir objetos nativos canônicos `requisicao` e `resposta`:
+- `requisicao`: método, caminho, consulta, parametros, cabecalhos, corpo, ip, contexto.
+- `resposta`: status, cabecalhos, json, texto, bytes, redirecionar, fluxo.
+2. Implementar roteador com:
+- parâmetros de rota (`/usuarios/:id`), match determinístico e precedência estável.
+- composição por método (`GET/POST/PUT/PATCH/DELETE/OPTIONS`).
+3. Implementar handlers dinâmicos:
+- `web_rota(app, metodo, caminho, handler_fn)`.
+- suporte async completo com cancelamento por timeout.
+4. Critério de aceite:
+- suíte de integração cobrindo 2xx/4xx/5xx, params/query/body, erros de parser e CORS.
+
+### Fase 2 - Middleware chain e validação por schema
+
+1. Middleware pré e pós-handler:
+- cadeia com ordem explícita e short-circuit seguro.
+2. Handler global de erro:
+- erro padronizado com código, mensagem, detalhes e `request_id`.
+3. Validação por esquema:
+- esquema declarativo para `parametros/consulta/corpo`.
+- mensagens de erro consistentes e localizadas.
+4. Critério de aceite:
+- testes de contrato de erro para cada categoria (validação, auth, rate-limit, interno).
+
+### Fase 3 - Segurança por rota
+
+1. Middleware `autenticar_jwt`.
+2. Middleware `autorizar_permissoes` (RBAC por rota e método).
+3. Rate-limit por política:
+- por IP, por usuário e por rota sensível.
+4. Proteção de abuso:
+- limite de payload, limite de conexões e proteção básica de brute-force.
+5. Critério de aceite:
+- testes de segurança negativos e positivos com casos de bypass.
+
+### Fase 4 - APIs versionadas e contratos estáveis
+
+1. Namespace de versão (`/api/v1`, `/api/v2`).
+2. Contratos de resposta:
+- envelope canônico (`ok`, `dados`, `erro`, `meta`).
+3. Compatibilidade:
+- política de depreciação e changelog de contratos.
+4. Critério de aceite:
+- testes de snapshot/contrato por rota crítica.
+
+### Fase 5 - Jobs e webhooks
+
+1. Fila de jobs nativa:
+- enfileirar, agendar, retry com backoff, timeout por job.
+2. Idempotência:
+- chave idempotente para evitar processamento duplicado.
+3. DLQ (dead-letter queue) básica:
+- jobs falhos persistidos para reprocessamento.
+4. Webhooks:
+- assinatura HMAC, retry, deduplicação e observabilidade.
+5. Critério de aceite:
+- testes de concorrência e falha controlada (rede/timeout/exceção).
+
+### Fase 6 - Persistência sólida
+
+1. Migrações versionadas:
+- `subir/descer`, histórico, lock de migração e rollback seguro.
+2. Evolução de schema:
+- check de compatibilidade e dry-run.
+3. Transações avançadas:
+- savepoints e rollback parcial quando suportado.
+4. Critério de aceite:
+- testes de migração em banco vazio, banco legado e rollback forçado.
+
+### Fase 7 - Qualidade e desempenho
+
+1. Testes obrigatórios:
+- unitários, integração HTTP, integração DB, e2e e carga.
+2. Metas mínimas de estabilidade:
+- sem regressão funcional em suíte completa.
+- erro não tratado igual a zero em cenários de integração.
+3. Metas mínimas de performance (baseline):
+- registrar p50/p95/p99 por rota crítica.
+4. Critério de aceite:
+- pipeline CI bloqueia merge sem cobertura e sem testes de integração.
+
+### Fase 8 - Operação e auto-hospedagem
+
+1. Guia operacional:
+- deploy, rollback, backup/restore, rotação de segredos.
+2. SLO/SLI:
+- disponibilidade, latência, taxa de erro.
+3. Saúde de serviço:
+- endpoints canônicos `saude`, `pronto`, `vivo` (com compatibilidade para `health/readiness/liveness`).
+4. Runbooks:
+- incidentes comuns, banco indisponível, saturação e degradação.
+5. Critério de aceite:
+- ambiente de staging com ensaio de falha e recuperação validado.
+
+## Regras de Execução (linguagem séria)
+
+- nenhuma feature entra sem teste de integração.
+- toda mudança de contrato HTTP exige teste de contrato.
+- toda migração exige plano de rollback.
+- toda entrega operacional exige documentação atualizada.
+- checklist de release obrigatório antes de marcar item como concluído.
+- toda API nova deve ter nome canônico em pt-BR e exemplos oficiais em pt-BR.
+
 ### v1.5 (frontend)
 - [ ] toolkit de UI, estado e renderização
 - [ ] integração HTML/CSS/DOM (ou runtime equivalente)
