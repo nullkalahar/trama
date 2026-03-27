@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trama"
-version = "0.6.0"
+version = "1.0.0"
 description = "Linguagem em português compilada para bytecode com VM própria"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,6 +23,10 @@ pack = [
 ]
 db = [
   "asyncpg>=0.29"
+]
+security = [
+  "bcrypt>=4.1",
+  "argon2-cffi>=23.1"
 ]
 
 [project.scripts]

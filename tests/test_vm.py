@@ -428,3 +428,223 @@ def test_v06_aliases_ptbr_banco(tmp_path) -> None:
     )
     _, out = _run_capture(codigo)
     assert out == ["ptbr", "True", "True"]
+
+
+def test_v07_auth_jwt_hash_rbac() -> None:
+    codigo = (
+        "função principal()\n"
+        "    h = senha_hash(\"abc123\", \"pbkdf2\")\n"
+        "    exibir(senha_verificar(\"abc123\", h))\n"
+        "    tok = jwt_criar({\"sub\": \"u1\", \"papel\": \"admin\"}, \"segredo\", 60)\n"
+        "    dados = jwt_verificar(tok, \"segredo\")\n"
+        "    exibir(dados[\"sub\"])\n"
+        "    modelo = rbac_criar({\"admin\": [\"users:write\"], \"viewer\": [\"users:read\"]}, {\"admin\": [\"viewer\"]})\n"
+        "    usuarios = {}\n"
+        "    usuarios = rbac_atribuir(usuarios, \"u1\", \"admin\")\n"
+        "    exibir(rbac_tem_papel(usuarios, \"u1\", \"admin\"))\n"
+        "    exibir(rbac_tem_permissao(modelo, usuarios, \"u1\", \"users:read\"))\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["True", "u1", "True", "True"]
+
+
+def test_v08_observabilidade_logs_metricas_tracing() -> None:
+    codigo = (
+        "função principal()\n"
+        "    metricas_reset()\n"
+        "    tracos_reset()\n"
+        "    metrica_incrementar(\"http_requests_total\", 1, {\"rota\": \"/health\"})\n"
+        "    metrica_observar(\"http_latencia_ms\", 12.5, {\"rota\": \"/health\"})\n"
+        "    m = metricas_snapshot()\n"
+        "    exibir(m[\"counters\"][0][\"nome\"])\n"
+        "    s = traco_iniciar(\"req\", {\"metodo\": \"GET\"})\n"
+        "    traco_evento(s, \"db.query\", {\"ok\": verdadeiro})\n"
+        "    sf = traco_finalizar(s, \"ok\")\n"
+        "    t = tracos_snapshot()\n"
+        "    exibir(sf[\"status\"])\n"
+        "    exibir(t[\"spans\"][0][\"nome\"])\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["http_requests_total", "ok", "req"]
+
+
+def test_v10_http_programavel_middleware_schema_auth_rate_limit() -> None:
+    codigo = (
+        "função pre(req)\n"
+        "    se req[\"consulta\"][\"bloq\"] == \"1\"\n"
+        "        retorne {\"parar\": verdadeiro, \"resposta\": {\"status\": 403, \"json\": {\"ok\": falso, \"erro\": \"BLOQUEADO\"}}}\n"
+        "    fim\n"
+        "    retorne {\"parar\": falso}\n"
+        "fim\n"
+        "função item(req)\n"
+        "    retorne {\"status\": 200, \"json\": {\"ok\": verdadeiro, \"id\": req[\"parametros\"][\"id\"]}}\n"
+        "fim\n"
+        "função criar(req)\n"
+        "    retorne {\"status\": 201, \"json\": {\"ok\": verdadeiro, \"nome\": req[\"corpo\"][\"nome\"]}}\n"
+        "fim\n"
+        "função privado(req)\n"
+        "    retorne {\"status\": 200, \"json\": {\"ok\": verdadeiro, \"sub\": req[\"usuario\"][\"sub\"]}}\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    app = web_criar_app()\n"
+        "    versao = web_api_versionar(app, \"v1\")\n"
+        "    web_saude_paths(app, \"/saude\", \"/pronto\", \"/vivo\")\n"
+        "    web_middleware(app, pre, \"pre\")\n"
+        "    web_rota(app, \"GET\", versao + \"/itens/:id\", item)\n"
+        "    web_rota(app, \"POST\", versao + \"/itens\", criar, {\"corpo_obrigatorio\": [\"nome\"]})\n"
+        "    segredo = \"segredo-123\"\n"
+        "    web_rota(app, \"GET\", versao + \"/privado\", privado, nulo, {\"jwt_segredo\": segredo, \"rbac_permissoes\": [\"admin:ler\"]})\n"
+        "    web_rate_limit(app, 1, 60, versao + \"/limitado/abc\", \"GET\")\n"
+        "    web_rota(app, \"GET\", versao + \"/limitado/:id\", item)\n"
+        "    servidor = aguarde web_iniciar(app, \"127.0.0.1\", 0)\n"
+        "    base = servidor[\"base_url\"]\n"
+        "    r1 = aguarde http_get(base + versao + \"/itens/10?bloq=0\")\n"
+        "    exibir(r1[\"status\"])\n"
+        "    exibir(r1[\"json\"][\"id\"])\n"
+        "    r2 = aguarde http_get(base + versao + \"/itens/10?bloq=1\")\n"
+        "    exibir(r2[\"status\"])\n"
+        "    r3 = aguarde http_post(base + versao + \"/itens?bloq=0\", {\"x\": 1}, {\"Content-Type\": \"application/json\"})\n"
+        "    exibir(r3[\"status\"])\n"
+        "    r4 = aguarde http_post(base + versao + \"/itens?bloq=0\", {\"nome\": \"ana\"}, {\"Content-Type\": \"application/json\"})\n"
+        "    exibir(r4[\"status\"])\n"
+        "    token = token_criar({\"sub\": \"u1\", \"permissoes\": [\"admin:ler\"]}, segredo, 60)\n"
+        "    r5 = aguarde http_get(base + versao + \"/privado?bloq=0\", {\"Authorization\": \"Bearer \" + token})\n"
+        "    exibir(r5[\"status\"])\n"
+        "    exibir(r5[\"json\"][\"sub\"])\n"
+        "    r6 = aguarde http_get(base + versao + \"/limitado/abc?bloq=0\")\n"
+        "    r7 = aguarde http_get(base + versao + \"/limitado/abc?bloq=0\")\n"
+        "    exibir(r6[\"status\"])\n"
+        "    exibir(r7[\"status\"])\n"
+        "    s1 = aguarde http_get(base + \"/saude\")\n"
+        "    s2 = aguarde http_get(base + \"/pronto\")\n"
+        "    s3 = aguarde http_get(base + \"/vivo\")\n"
+        "    exibir(s1[\"json\"][\"status\"])\n"
+        "    exibir(s2[\"json\"][\"status\"])\n"
+        "    exibir(s3[\"json\"][\"status\"])\n"
+        "    aguarde web_parar(servidor)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["200", "10", "403", "422", "201", "200", "u1", "200", "429", "up", "ready", "alive"]
+
+
+def test_v10_contrato_api_versionado() -> None:
+    codigo = (
+        "função ok(req)\n"
+        "    retorne {\"status\": 200, \"json\": {\"ok\": verdadeiro, \"dados\": {\"id\": 1}, \"erro\": nulo, \"meta\": {\"v\": 1}}}\n"
+        "fim\n"
+        "função ruim(req)\n"
+        "    retorne {\"status\": 200, \"json\": {\"ok\": verdadeiro}}\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    app = web_criar_app()\n"
+        "    c = {\"envelope\": verdadeiro}\n"
+        "    web_rota_contrato(app, \"GET\", \"/api/v1/ok\", ok, \"v1\", c)\n"
+        "    web_rota_contrato(app, \"GET\", \"/api/v1/ruim\", ruim, \"v1\", c)\n"
+        "    s = aguarde web_iniciar(app, \"127.0.0.1\", 0)\n"
+        "    b = s[\"base_url\"]\n"
+        "    r1 = aguarde http_get(b + \"/api/v1/ok\")\n"
+        "    r2 = aguarde http_get(b + \"/api/v1/ruim\")\n"
+        "    exibir(r1[\"status\"])\n"
+        "    exibir(r2[\"status\"])\n"
+        "    exibir(r2[\"json\"][\"erro\"][\"codigo\"])\n"
+        "    aguarde web_parar(s)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["200", "500", "CONTRATO_INVALIDO"]
+
+
+def test_v10_jobs_fila_retry_idempotencia() -> None:
+    codigo = (
+        "função job(payload)\n"
+        "    retorne payload[\"x\"] * 2\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    fila = fila_criar(\"emails\")\n"
+        "    a = aguarde fila_enfileirar(fila, job, {\"x\": 21}, 2, 2.0, \"id-1\")\n"
+        "    b = aguarde fila_enfileirar(fila, job, {\"x\": 21}, 2, 2.0, \"id-1\")\n"
+        "    r = aguarde fila_processar(fila)\n"
+        "    s = fila_status(fila)\n"
+        "    exibir(a[\"enfileirado\"])\n"
+        "    exibir(b[\"idempotente\"])\n"
+        "    exibir(r[\"concluidos\"])\n"
+        "    exibir(s[\"pendentes\"])\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["True", "True", "1", "0"]
+
+
+def test_v10_migracao_versionada_e_rollback(tmp_path) -> None:
+    db_file = tmp_path / "trama_v10.db"
+    codigo = (
+        "assíncrona função principal()\n"
+        f"    conn = aguarde banco_conectar(\"sqlite:///{db_file}\")\n"
+        "    a1 = aguarde migracao_versionada_aplicar(conn, \"001\", \"criar_t\", \"CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY);\", \"DROP TABLE IF EXISTS t;\")\n"
+        "    a2 = aguarde migracao_versionada_aplicar(conn, \"001\", \"criar_t\", \"CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY);\", \"DROP TABLE IF EXISTS t;\")\n"
+        "    exibir(a1[\"aplicada\"])\n"
+        "    exibir(a2[\"aplicada\"])\n"
+        "    st = aguarde migracao_listar(conn)\n"
+        "    exibir(st[0][\"versao\"])\n"
+        "    rv = aguarde migracao_desfazer_ultima(conn)\n"
+        "    exibir(rv[\"revertida\"])\n"
+        "    cnt = aguarde banco_consultar(conn, \"SELECT COUNT(*) AS c FROM _trama_migration_versions\")\n"
+        "    exibir(cnt[0][\"c\"])\n"
+        "    aguarde banco_fechar(conn)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["True", "False", "001", "True", "0"]
+
+
+def test_v10_migracao_dry_run_e_compatibilidade(tmp_path) -> None:
+    db_file = tmp_path / "trama_v10_dry.db"
+    codigo = (
+        "assíncrona função principal()\n"
+        f"    conn = aguarde banco_conectar(\"sqlite:///{db_file}\")\n"
+        "    d = aguarde migracao_versionada_aplicar(conn, \"010\", \"dry\", \"CREATE TABLE IF NOT EXISTS dry_t (id INTEGER PRIMARY KEY);\", \"DROP TABLE IF EXISTS dry_t;\", verdadeiro)\n"
+        "    exibir(d[\"dry_run\"])\n"
+        "    st = aguarde migracao_listar(conn)\n"
+        "    exibir(st == [])\n"
+        "    a = aguarde migracao_versionada_aplicar(conn, \"011\", \"real\", \"CREATE TABLE IF NOT EXISTS real_t (id INTEGER PRIMARY KEY);\", \"DROP TABLE IF EXISTS real_t;\")\n"
+        "    exibir(a[\"aplicada\"])\n"
+        "    c1 = aguarde migracao_compatibilidade_validar(conn, \"011\", \"CREATE TABLE IF NOT EXISTS real_t (id INTEGER PRIMARY KEY);\")\n"
+        "    exibir(c1[\"ok\"])\n"
+        "    c2 = aguarde migracao_compatibilidade_validar(conn, \"011\", \"CREATE TABLE IF NOT EXISTS real_t (id INTEGER PRIMARY KEY, x TEXT);\")\n"
+        "    exibir(c2[\"ok\"])\n"
+        "    aguarde banco_fechar(conn)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["True", "True", "True", "True", "False"]
+
+
+def test_v10_carga_basica_http() -> None:
+    codigo = (
+        "função ping(req)\n"
+        "    retorne {\"status\": 200, \"json\": {\"ok\": verdadeiro}}\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    app = web_criar_app()\n"
+        "    p = web_api_versionar(app, \"v1\")\n"
+        "    web_rota(app, \"GET\", p + \"/ping\", ping)\n"
+        "    servidor = aguarde web_iniciar(app, \"127.0.0.1\", 0)\n"
+        "    base = servidor[\"base_url\"]\n"
+        "    i = 0\n"
+        "    ok = verdadeiro\n"
+        "    enquanto i < 30\n"
+        "        r = aguarde http_get(base + p + \"/ping\")\n"
+        "        se r[\"status\"] != 200\n"
+        "            ok = falso\n"
+        "        fim\n"
+        "        i = i + 1\n"
+        "    fim\n"
+        "    exibir(ok)\n"
+        "    aguarde web_parar(servidor)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["True"]

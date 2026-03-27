@@ -57,3 +57,49 @@ def test_cli_erro_retorna_1(tmp_path: Path) -> None:
         code = main(["executar", str(src)])
     assert code == 1
     assert "Erro:" in err.getvalue()
+
+
+def test_cli_testar_e_lint(tmp_path: Path) -> None:
+    test_file = _write(tmp_path, "test_ok.trm", "função principal()\n    exibir(\"ok\")\nfim\n")
+    _ = test_file
+    bad_file = _write(tmp_path, "bad.trm", "retorne 1\n")
+    _ = bad_file
+
+    out = StringIO()
+    with redirect_stdout(out):
+        code = main(["testar", str(tmp_path)])
+    assert code == 0
+    assert "Aprovados" in out.getvalue()
+
+    out = StringIO()
+    with redirect_stdout(out):
+        code = main(["lint", str(tmp_path)])
+    assert code == 1
+    assert "Erros" in out.getvalue()
+
+
+def test_cli_formatar_cobertura_template(tmp_path: Path) -> None:
+    src = _write(tmp_path, "mod.trm", "função principal()\t\n    exibir(\"x\")    \nfim")
+    _write(
+        tmp_path,
+        "test_mod.trm",
+        "importe \"mod.trm\" como m\nfunção principal()\n    m[\"principal\"]()\nfim\n",
+    )
+    out = StringIO()
+    with redirect_stdout(out):
+        code = main(["formatar", str(src), "--aplicar"])
+    assert code == 0
+    assert "Alterados" in out.getvalue()
+
+    out = StringIO()
+    with redirect_stdout(out):
+        code = main(["cobertura", str(tmp_path)])
+    assert code == 0
+    assert "Cobertura:" in out.getvalue()
+
+    dst = tmp_path / "meu_backend"
+    out = StringIO()
+    with redirect_stdout(out):
+        code = main(["template-backend", str(dst)])
+    assert code == 0
+    assert (dst / "src" / "app.trm").exists()

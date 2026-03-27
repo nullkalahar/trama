@@ -6,6 +6,7 @@ import asyncio
 import inspect
 from dataclasses import dataclass, field
 from pathlib import Path
+import threading
 from typing import Any
 
 from .builtins import make_builtins
@@ -107,8 +108,9 @@ class VirtualMachine:
         self.print_fn = print_fn
         self.source_path = Path(source_path).resolve() if source_path else None
         self.module_cache = module_cache if module_cache is not None else {}
+        self._invoke_lock = threading.RLock()
 
-        self._builtins = make_builtins(print_fn=print_fn)
+        self._builtins = make_builtins(print_fn=print_fn, invoke_callable_sync=self._invoke_from_runtime_sync)
         self.globals_env = Environment(values=dict(self._builtins), parent=None)
 
     def execute(self, auto_call_principal: bool = True) -> object:
@@ -366,6 +368,16 @@ class VirtualMachine:
                 raise TramaRaised(str(exc)) from exc
 
         raise VMError(f"Valor não chamável: {callee!r}")
+
+    async def _invoke_from_runtime(self, callee: object, args: list[object]) -> object:
+        result = await self._call_callable(callee, args)
+        if isinstance(result, TramaCoroutine) or inspect.isawaitable(result):
+            return await self._await_value(result)
+        return result
+
+    def _invoke_from_runtime_sync(self, callee: object, args: list[object]) -> object:
+        with self._invoke_lock:
+            return asyncio.run(self._invoke_from_runtime(callee, args))
 
     async def _import_module(self, module_ref: str) -> dict[str, object]:
         path = self._resolve_module_path(module_ref)

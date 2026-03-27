@@ -501,6 +501,28 @@ async def _ensure_meta_tables(conn: DbConnection) -> None:
         )
         """,
     )
+    await executar(
+        conn,
+        """
+        CREATE TABLE IF NOT EXISTS _trama_migration_versions (
+            versao TEXT PRIMARY KEY,
+            nome TEXT NOT NULL,
+            checksum TEXT NOT NULL,
+            down_sql TEXT,
+            aplicado_em TEXT NOT NULL
+        )
+        """,
+    )
+    await executar(
+        conn,
+        """
+        CREATE TABLE IF NOT EXISTS _trama_migration_lock (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            owner TEXT NOT NULL,
+            acquired_em TEXT NOT NULL
+        )
+        """,
+    )
 
 
 async def migracao_aplicar(conn: DbConnection, nome: str, sql: str) -> dict[str, object]:
@@ -561,3 +583,136 @@ async def seed_aplicar(conn: DbConnection, nome: str, sql: str) -> dict[str, obj
         raise
 
     return {"aplicada": True, "nome": nome}
+
+
+def _sql_checksum(sql: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(sql.encode("utf-8")).hexdigest()
+
+
+async def migracao_aplicar_versionada(
+    conn: DbConnection,
+    versao: str,
+    nome: str,
+    up_sql: str,
+    down_sql: str = "",
+    dry_run: bool = False,
+    lock_owner: str = "trama",
+) -> dict[str, object]:
+    await _ensure_meta_tables(conn)
+    checksum = _sql_checksum(up_sql)
+    existing = await consultar(
+        conn,
+        "SELECT versao, checksum FROM _trama_migration_versions WHERE versao = ? LIMIT 1",
+        [versao],
+    )
+    if existing:
+        old_checksum = str(existing[0]["checksum"])
+        if old_checksum != checksum:
+            raise DbError(
+                f"Migração {versao} já aplicada com checksum diferente. Evolução de schema insegura."
+            )
+        return {"aplicada": False, "versao": versao, "nome": nome}
+
+    lock_token = f"{lock_owner}:{datetime.now(timezone.utc).isoformat()}"
+    lock_acquired = False
+    try:
+        try:
+            await executar(
+                conn,
+                "INSERT INTO _trama_migration_lock (id, owner, acquired_em) VALUES (1, ?, ?)",
+                [lock_token, datetime.now(timezone.utc).isoformat()],
+            )
+            lock_acquired = True
+        except Exception as exc:  # noqa: BLE001
+            raise DbError("Lock de migração indisponível: outra migração em execução.") from exc
+
+        tx = await transacao_iniciar(conn)
+        try:
+            for stmt in _split_sql_statements(up_sql):
+                await tx_executar(tx, stmt)
+            if dry_run:
+                await transacao_rollback(tx)
+                return {"aplicada": False, "dry_run": True, "versao": versao, "nome": nome}
+            await tx_executar(
+                tx,
+                "INSERT INTO _trama_migration_versions (versao, nome, checksum, down_sql, aplicado_em) VALUES (?, ?, ?, ?, ?)",
+                [versao, nome, checksum, down_sql, datetime.now(timezone.utc).isoformat()],
+            )
+            await transacao_commit(tx)
+        except Exception:
+            if tx.active:
+                await transacao_rollback(tx)
+            raise
+        return {"aplicada": True, "versao": versao, "nome": nome}
+    finally:
+        if lock_acquired:
+            try:
+                await executar(conn, "DELETE FROM _trama_migration_lock WHERE id = 1")
+            except Exception:
+                pass
+
+
+async def migracao_status(conn: DbConnection) -> list[dict[str, object]]:
+    await _ensure_meta_tables(conn)
+    rows = await consultar(
+        conn,
+        "SELECT versao, nome, checksum, aplicado_em FROM _trama_migration_versions ORDER BY versao ASC",
+    )
+    return rows
+
+
+async def migracao_validar_compatibilidade(
+    conn: DbConnection,
+    versao: str,
+    up_sql: str,
+) -> dict[str, object]:
+    await _ensure_meta_tables(conn)
+    checksum = _sql_checksum(up_sql)
+    rows = await consultar(
+        conn,
+        "SELECT checksum FROM _trama_migration_versions WHERE versao = ? LIMIT 1",
+        [versao],
+    )
+    if not rows:
+        return {"ok": True, "aplicada": False, "versao": versao}
+    old_checksum = str(rows[0]["checksum"])
+    if old_checksum != checksum:
+        return {
+            "ok": False,
+            "aplicada": True,
+            "versao": versao,
+            "erro": "checksum_diferente",
+        }
+    return {"ok": True, "aplicada": True, "versao": versao}
+
+
+async def migracao_reverter_ultima(conn: DbConnection) -> dict[str, object]:
+    await _ensure_meta_tables(conn)
+    rows = await consultar(
+        conn,
+        "SELECT versao, nome, down_sql FROM _trama_migration_versions ORDER BY versao DESC LIMIT 1",
+    )
+    if not rows:
+        return {"revertida": False, "motivo": "sem_migracoes"}
+    row = rows[0]
+    down_sql = str(row.get("down_sql") or "")
+    if not down_sql.strip():
+        raise DbError(f"Migração {row['versao']} não possui down_sql para rollback.")
+
+    tx = await transacao_iniciar(conn)
+    try:
+        for stmt in _split_sql_statements(down_sql):
+            await tx_executar(tx, stmt)
+        await tx_executar(
+            tx,
+            "DELETE FROM _trama_migration_versions WHERE versao = ?",
+            [row["versao"]],
+        )
+        await transacao_commit(tx)
+    except Exception:
+        if tx.active:
+            await transacao_rollback(tx)
+        raise
+    return {"revertida": True, "versao": row["versao"], "nome": row["nome"]}

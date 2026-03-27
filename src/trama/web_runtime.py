@@ -1,0 +1,647 @@
+"""Runtime HTTP programável da Trama (v1.0)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+import mimetypes
+from pathlib import Path
+import re
+import threading
+import time
+from typing import Any, Callable
+from urllib.parse import parse_qs, urlparse
+import uuid
+
+from . import security_runtime
+
+
+def _route_to_regex(path: str) -> tuple[re.Pattern[str], list[str]]:
+    names: list[str] = []
+    chunks = path.strip("/").split("/") if path.strip("/") else []
+    parts: list[str] = ["^"]
+    if not chunks:
+        parts.append("/$")
+        return re.compile("".join(parts)), names
+    parts.append("/")
+    for idx, chunk in enumerate(chunks):
+        if chunk.startswith(":") and len(chunk) > 1:
+            name = chunk[1:]
+            names.append(name)
+            parts.append(r"(?P<" + re.escape(name) + r">[^/]+)")
+        else:
+            parts.append(re.escape(chunk))
+        if idx < len(chunks) - 1:
+            parts.append("/")
+    parts.append("$")
+    return re.compile("".join(parts)), names
+
+
+@dataclass
+class WebRoute:
+    method: str
+    path: str
+    kind: str
+    data: dict[str, object]
+    regex: re.Pattern[str] | None = None
+    param_names: list[str] = field(default_factory=list)
+
+    @staticmethod
+    def dynamic(
+        method: str,
+        path: str,
+        handler: object,
+        schema: dict[str, object] | None = None,
+        options: dict[str, object] | None = None,
+    ) -> "WebRoute":
+        regex, names = _route_to_regex(path)
+        return WebRoute(
+            method=method.upper(),
+            path=path,
+            kind="handler",
+            data={"handler": handler, "schema": dict(schema or {}), "options": dict(options or {})},
+            regex=regex,
+            param_names=names,
+        )
+
+
+@dataclass
+class RateLimitPolicy:
+    method: str
+    path: str
+    max_requisicoes: int
+    janela_segundos: float
+    by_key: dict[str, list[float]] = field(default_factory=dict)
+
+    def allow(self, key: str) -> bool:
+        now = time.time()
+        bucket = self.by_key.setdefault(key, [])
+        min_ts = now - self.janela_segundos
+        while bucket and bucket[0] < min_ts:
+            bucket.pop(0)
+        if len(bucket) >= self.max_requisicoes:
+            return False
+        bucket.append(now)
+        return True
+
+
+class WebApp:
+    def __init__(self) -> None:
+        self.routes: list[WebRoute] = []
+        self.middlewares_pre: list[object] = []
+        self.middlewares_pos: list[object] = []
+        self.error_handler: object | None = None
+        self.middlewares: set[str] = set()
+        self.cors_enabled = False
+        self.cors_origin = "*"
+        self.cors_methods = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+        self.cors_headers = "Content-Type,Authorization"
+        self.health_path = "/saude"
+        self.readiness_path = "/pronto"
+        self.liveness_path = "/vivo"
+        self.health_enabled = True
+        self.static_prefix: str | None = None
+        self.static_dir: Path | None = None
+        self.rate_limits: list[RateLimitPolicy] = []
+        self.api_versions: set[str] = set()
+
+
+class WebRuntime:
+    def __init__(
+        self,
+        app: WebApp,
+        host: str,
+        port: int,
+        out: Callable[[str], None],
+        invoke_callable_sync: Callable[[object, list[object]], object] | None = None,
+    ) -> None:
+        self.app = app
+        self.host = host
+        self.port = port
+        self.out = out
+        self.invoke_callable_sync = invoke_callable_sync
+        self.server: ThreadingHTTPServer | None = None
+        self.thread: threading.Thread | None = None
+
+    def _invoke(self, fn: object, args: list[object]) -> object:
+        if self.invoke_callable_sync is None:
+            raise RuntimeError("Runtime sem ponte de execução para handlers da linguagem.")
+        return self.invoke_callable_sync(fn, args)
+
+    def start(self) -> None:
+        app = self.app
+        out = self.out
+        invoke = self._invoke
+
+        class Handler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def log_message(self, fmt: str, *args: object) -> None:  # noqa: A003
+                return
+
+            def _add_common_headers(self, headers: dict[str, str] | None = None) -> None:
+                self.send_header("Connection", "close")
+                if app.cors_enabled:
+                    self.send_header("Access-Control-Allow-Origin", app.cors_origin)
+                    self.send_header("Access-Control-Allow-Methods", app.cors_methods)
+                    self.send_header("Access-Control-Allow-Headers", app.cors_headers)
+                if headers:
+                    for k, v in headers.items():
+                        self.send_header(k, v)
+
+            def _send_bytes(
+                self,
+                status: int,
+                payload: bytes,
+                content_type: str,
+                headers: dict[str, str] | None = None,
+            ) -> None:
+                self.send_response(int(status))
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(payload)))
+                self._add_common_headers(headers)
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def _send_json(
+                self,
+                status: int,
+                payload: dict[str, object],
+                headers: dict[str, str] | None = None,
+            ) -> None:
+                body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+                self._send_bytes(status, body, "application/json; charset=utf-8", headers)
+
+            def _send_text(
+                self,
+                status: int,
+                texto: str,
+                headers: dict[str, str] | None = None,
+            ) -> None:
+                self._send_bytes(status, texto.encode("utf-8"), "text/plain; charset=utf-8", headers)
+
+            def _send_file(self, file_path: Path, request_id: str | None = None) -> None:
+                data = file_path.read_bytes()
+                mime, _ = mimetypes.guess_type(str(file_path))
+                h: dict[str, str] = {}
+                if request_id:
+                    h["X-Request-Id"] = request_id
+                self._send_bytes(200, data, mime or "application/octet-stream", h)
+
+            def _read_body(self) -> tuple[bytes, dict[str, object] | None, tuple[int, dict[str, object]] | None]:
+                raw_len = self.headers.get("Content-Length", "0")
+                try:
+                    length = int(raw_len)
+                except ValueError:
+                    return b"", None, (
+                        400,
+                        {
+                            "ok": False,
+                            "erro": {
+                                "codigo": "CONTENT_LENGTH_INVALIDO",
+                                "mensagem": "Content-Length inválido.",
+                                "detalhes": None,
+                            },
+                        },
+                    )
+                if length <= 0:
+                    return b"", {}, None
+                if length > 5 * 1024 * 1024:
+                    return b"", None, (
+                        413,
+                        {
+                            "ok": False,
+                            "erro": {
+                                "codigo": "PAYLOAD_GRANDE",
+                                "mensagem": "Payload excede o limite de 5MB.",
+                                "detalhes": None,
+                            },
+                        },
+                    )
+                data = self.rfile.read(length)
+                ctype = (self.headers.get("Content-Type") or "").lower()
+                if "application/json" not in ctype:
+                    return data, {}, None
+                text = data.decode("utf-8", errors="replace")
+                if not text.strip():
+                    return data, {}, None
+                try:
+                    parsed = json.loads(text)
+                except json.JSONDecodeError as exc:
+                    return data, None, (
+                        400,
+                        {
+                            "ok": False,
+                            "erro": {
+                                "codigo": "JSON_INVALIDO",
+                                "mensagem": "Corpo JSON inválido.",
+                                "detalhes": str(exc),
+                            },
+                        },
+                    )
+                if not isinstance(parsed, dict):
+                    return data, None, (
+                        422,
+                        {
+                            "ok": False,
+                            "erro": {
+                                "codigo": "PAYLOAD_INVALIDO",
+                                "mensagem": "Payload deve ser objeto JSON.",
+                                "detalhes": None,
+                            },
+                        },
+                    )
+                return data, parsed, None
+
+            def _route_match(self, method: str, path: str) -> tuple[WebRoute | None, dict[str, str]]:
+                for r in app.routes:
+                    if r.method != method:
+                        continue
+                    if r.kind == "handler":
+                        assert r.regex is not None
+                        m = r.regex.match(path)
+                        if m:
+                            return r, {k: v for k, v in m.groupdict().items()}
+                        continue
+                    if r.path == path:
+                        return r, {}
+                return None, {}
+
+            def _apply_rate_limit(
+                self,
+                method: str,
+                path: str,
+                request_id: str | None,
+                req: dict[str, object],
+            ) -> tuple[bool, tuple[int, dict[str, object]] | None]:
+                ip = str(req.get("ip", "unknown"))
+                for p in app.rate_limits:
+                    if p.method not in {"*", method}:
+                        continue
+                    if p.path != "*" and p.path != path:
+                        continue
+                    key = f"{ip}:{method}:{path}"
+                    if not p.allow(key):
+                        headers = {"X-Request-Id": request_id} if request_id else {}
+                        _ = headers
+                        return False, (
+                            429,
+                            {
+                                "ok": False,
+                                "erro": {
+                                    "codigo": "RATE_LIMIT_EXCEDIDO",
+                                    "mensagem": "Limite de requisições excedido.",
+                                    "detalhes": {"metodo": method, "caminho": path},
+                                },
+                            },
+                        )
+                return True, None
+
+            @staticmethod
+            def _validate_schema(req: dict[str, object], schema: dict[str, object]) -> list[str]:
+                missing: list[str] = []
+                body = req.get("corpo", {})
+                query = req.get("consulta", {})
+                params = req.get("parametros", {})
+                for k in list(schema.get("corpo_obrigatorio", [])):
+                    if not isinstance(body, dict) or k not in body:
+                        missing.append(f"corpo.{k}")
+                for k in list(schema.get("consulta_obrigatoria", [])):
+                    if not isinstance(query, dict) or k not in query:
+                        missing.append(f"consulta.{k}")
+                for k in list(schema.get("parametros_obrigatorios", [])):
+                    if not isinstance(params, dict) or k not in params:
+                        missing.append(f"parametros.{k}")
+                return missing
+
+            def _apply_auth(
+                self,
+                req: dict[str, object],
+                options: dict[str, object],
+            ) -> tuple[bool, tuple[int, dict[str, object]] | None]:
+                segredo = str(options.get("jwt_segredo", "") or "")
+                if not segredo:
+                    return True, None
+                auth = str(req["cabecalhos"].get("authorization", ""))  # type: ignore[index]
+                if not auth.lower().startswith("bearer "):
+                    return False, (
+                        401,
+                        {
+                            "ok": False,
+                            "erro": {
+                                "codigo": "NAO_AUTENTICADO",
+                                "mensagem": "Token Bearer ausente.",
+                                "detalhes": None,
+                            },
+                        },
+                    )
+                token = auth.split(" ", 1)[1].strip()
+                try:
+                    claims = security_runtime.jwt_verificar(token, segredo)
+                except Exception as exc:  # noqa: BLE001
+                    return False, (
+                        401,
+                        {
+                            "ok": False,
+                            "erro": {
+                                "codigo": "TOKEN_INVALIDO",
+                                "mensagem": "Token inválido.",
+                                "detalhes": str(exc),
+                            },
+                        },
+                    )
+                req["usuario"] = claims
+                required = list(options.get("rbac_permissoes", []))
+                if required:
+                    user_perms = set(list(claims.get("permissoes", [])))
+                    if not all(p in user_perms for p in required):
+                        return False, (
+                            403,
+                            {
+                                "ok": False,
+                                "erro": {
+                                    "codigo": "SEM_PERMISSAO",
+                                    "mensagem": "Permissão insuficiente.",
+                                    "detalhes": {"necessarias": required},
+                                },
+                            },
+                        )
+                return True, None
+
+            def _as_response(self, value: object) -> tuple[int, dict[str, str], bytes, str]:
+                if isinstance(value, dict):
+                    status = int(value.get("status", 200))
+                    headers_raw = value.get("cabecalhos", {})
+                    headers = {str(k): str(v) for k, v in dict(headers_raw).items()} if isinstance(headers_raw, dict) else {}
+                    if "texto" in value:
+                        return status, headers, str(value.get("texto", "")).encode("utf-8"), "text/plain; charset=utf-8"
+                    if "bytes" in value and isinstance(value["bytes"], (bytes, bytearray)):
+                        ctype = str(value.get("content_type", "application/octet-stream"))
+                        return status, headers, bytes(value["bytes"]), ctype
+                    if "json" in value and isinstance(value["json"], dict):
+                        payload = json.dumps(value["json"], ensure_ascii=False).encode("utf-8")
+                        return status, headers, payload, "application/json; charset=utf-8"
+                    if "corpo" in value and isinstance(value["corpo"], dict):
+                        payload = json.dumps(value["corpo"], ensure_ascii=False).encode("utf-8")
+                        return status, headers, payload, "application/json; charset=utf-8"
+                payload = json.dumps({"ok": True, "dados": value}, ensure_ascii=False).encode("utf-8")
+                return 200, {}, payload, "application/json; charset=utf-8"
+
+            @staticmethod
+            def _validate_response_contract(value: object, options: dict[str, object]) -> tuple[bool, str | None]:
+                contrato = dict(options.get("contrato_resposta", {}))
+                if not contrato:
+                    return True, None
+                required_top = list(contrato.get("campos_obrigatorios", []))
+                exigir_envelope = bool(contrato.get("envelope", False))
+                if not isinstance(value, dict):
+                    return False, "resposta deve ser mapa para contrato"
+                payload: dict[str, object]
+                if "json" in value and isinstance(value["json"], dict):
+                    payload = value["json"]  # type: ignore[assignment]
+                elif "corpo" in value and isinstance(value["corpo"], dict):
+                    payload = value["corpo"]  # type: ignore[assignment]
+                else:
+                    payload = value
+                if exigir_envelope:
+                    for k in ["ok", "dados", "erro", "meta"]:
+                        if k not in payload:
+                            return False, f"campo obrigatório de envelope ausente: {k}"
+                for k in required_top:
+                    if k not in payload:
+                        return False, f"campo obrigatório ausente: {k}"
+                return True, None
+
+            def _handle_request(self) -> None:
+                start = time.perf_counter()
+                request_id = str(uuid.uuid4()) if "request_id" in app.middlewares else None
+
+                if self.command == "OPTIONS" and app.cors_enabled:
+                    self.send_response(204)
+                    self.send_header("Content-Length", "0")
+                    self._add_common_headers()
+                    self.end_headers()
+                    return
+
+                parsed_url = urlparse(self.path)
+                path = parsed_url.path
+                query = {k: (v[0] if len(v) == 1 else v) for k, v in parse_qs(parsed_url.query).items()}
+
+                if app.health_enabled and path in {app.health_path, app.readiness_path, app.liveness_path}:
+                    headers = {"X-Request-Id": request_id} if request_id else None
+                    status = "up"
+                    if path == app.readiness_path:
+                        status = "ready"
+                    if path == app.liveness_path:
+                        status = "alive"
+                    self._send_json(200, {"ok": True, "status": status}, headers)
+                    return
+
+                if app.static_prefix and app.static_dir and path.startswith(app.static_prefix):
+                    rel = path[len(app.static_prefix) :].lstrip("/")
+                    safe = (app.static_dir / rel).resolve()
+                    base = app.static_dir.resolve()
+                    if not str(safe).startswith(str(base)):
+                        headers = {"X-Request-Id": request_id} if request_id else None
+                        self._send_json(403, {"ok": False, "erro": {"codigo": "STATIC_FORBIDDEN"}}, headers)
+                        return
+                    if safe.is_file():
+                        self._send_file(safe, request_id=request_id)
+                        return
+                    headers = {"X-Request-Id": request_id} if request_id else None
+                    self._send_json(404, {"ok": False, "erro": {"codigo": "STATIC_NOT_FOUND"}}, headers)
+                    return
+
+                route, path_params = self._route_match(self.command, path)
+                if route is None:
+                    headers = {"X-Request-Id": request_id} if request_id else None
+                    self._send_json(
+                        404,
+                        {"ok": False, "erro": {"codigo": "ROTA_NAO_ENCONTRADA", "detalhes": {"metodo": self.command, "caminho": path}}},
+                        headers,
+                    )
+                    return
+
+                if app.api_versions and route.kind == "handler":
+                    if not any(path.startswith(prefix + "/") or path == prefix for prefix in app.api_versions):
+                        headers = {"X-Request-Id": request_id} if request_id else None
+                        self._send_json(
+                            404,
+                            {
+                                "ok": False,
+                                "erro": {
+                                    "codigo": "VERSAO_API_INVALIDA",
+                                    "mensagem": "Caminho não corresponde a versão de API registrada.",
+                                    "detalhes": {"caminho": path},
+                                },
+                            },
+                            headers,
+                        )
+                        return
+
+                raw_body, body, body_err = self._read_body()
+                if body_err:
+                    headers = {"X-Request-Id": request_id} if request_id else None
+                    self._send_json(body_err[0], body_err[1], headers)
+                    return
+
+                headers_map = {k.lower(): v for k, v in self.headers.items()}
+                req: dict[str, object] = {
+                    "metodo": self.command,
+                    "caminho": path,
+                    "consulta": query,
+                    "parametros": path_params,
+                    "cabecalhos": headers_map,
+                    "corpo": body or {},
+                    "corpo_raw": raw_body,
+                    "ip": self.client_address[0] if self.client_address else "0.0.0.0",
+                    "request_id": request_id,
+                }
+                req["request"] = req
+                req["query"] = req["consulta"]
+                req["params"] = req["parametros"]
+                req["headers"] = req["cabecalhos"]
+                req["body"] = req["corpo"]
+
+                ok_rl, rl_err = self._apply_rate_limit(self.command, path, request_id, req)
+                if not ok_rl and rl_err is not None:
+                    headers = {"X-Request-Id": request_id} if request_id else None
+                    self._send_json(rl_err[0], rl_err[1], headers)
+                    return
+
+                if route.kind in {"json_static", "echo_json"}:
+                    if route.kind == "json_static":
+                        payload = {"ok": True, "dados": route.data.get("body")}
+                        headers = {"X-Request-Id": request_id} if request_id else None
+                        self._send_json(int(route.data.get("status", 200)), payload, headers)
+                        return
+                    required = list(route.data.get("required", []))
+                    missing = [field for field in required if field not in (body or {})]
+                    if missing:
+                        headers = {"X-Request-Id": request_id} if request_id else None
+                        self._send_json(
+                            422,
+                            {"ok": False, "erro": {"codigo": "VALIDACAO_FALHOU", "detalhes": {"faltando": missing}}},
+                            headers,
+                        )
+                        return
+                    payload = {"ok": True, "dados": {"metodo": self.command, "caminho": path, "query": query, "payload": body or {}}}
+                    headers = {"X-Request-Id": request_id} if request_id else None
+                    self._send_json(int(route.data.get("status", 200)), payload, headers)
+                    return
+
+                schema = dict(route.data.get("schema", {}))
+                options = dict(route.data.get("options", {}))
+                miss = self._validate_schema(req, schema)
+                if miss:
+                    headers = {"X-Request-Id": request_id} if request_id else None
+                    self._send_json(
+                        422,
+                        {"ok": False, "erro": {"codigo": "VALIDACAO_FALHOU", "detalhes": {"faltando": miss}}},
+                        headers,
+                    )
+                    return
+
+                auth_ok, auth_err = self._apply_auth(req, options)
+                if not auth_ok and auth_err is not None:
+                    headers = {"X-Request-Id": request_id} if request_id else None
+                    self._send_json(auth_err[0], auth_err[1], headers)
+                    return
+
+                try:
+                    for mw in app.middlewares_pre:
+                        mw_res = invoke(mw, [req])
+                        if isinstance(mw_res, dict) and mw_res.get("parar") is True:
+                            status, hdrs, body_bytes, ctype = self._as_response(mw_res.get("resposta"))
+                            if request_id:
+                                hdrs["X-Request-Id"] = request_id
+                            self._send_bytes(status, body_bytes, ctype, hdrs)
+                            return
+
+                    result = invoke(route.data["handler"], [req])
+                    ok_contract, contract_err = self._validate_response_contract(result, options)
+                    if not ok_contract:
+                        headers = {"X-Request-Id": request_id} if request_id else None
+                        self._send_json(
+                            500,
+                            {
+                                "ok": False,
+                                "erro": {
+                                    "codigo": "CONTRATO_INVALIDO",
+                                    "mensagem": "Resposta do handler violou contrato da API.",
+                                    "detalhes": contract_err,
+                                },
+                            },
+                            headers,
+                        )
+                        return
+                    status, hdrs, body_bytes, ctype = self._as_response(result)
+                    resp_map: dict[str, object] = {"status": status, "cabecalhos": hdrs, "tipo": ctype}
+
+                    for mw in app.middlewares_pos:
+                        post_res = invoke(mw, [req, resp_map])
+                        if isinstance(post_res, dict):
+                            if "status" in post_res:
+                                resp_map["status"] = int(post_res["status"])
+                            if "cabecalhos" in post_res and isinstance(post_res["cabecalhos"], dict):
+                                merged = dict(resp_map.get("cabecalhos", {}))
+                                merged.update(post_res["cabecalhos"])
+                                resp_map["cabecalhos"] = merged
+
+                    final_headers = {str(k): str(v) for k, v in dict(resp_map.get("cabecalhos", {})).items()}
+                    if request_id:
+                        final_headers["X-Request-Id"] = request_id
+                    self._send_bytes(int(resp_map.get("status", status)), body_bytes, ctype, final_headers)
+                except Exception as exc:  # noqa: BLE001
+                    if app.error_handler is not None:
+                        err_payload = invoke(app.error_handler, [req, {"mensagem": str(exc)}])
+                        s, h, b, c = self._as_response(err_payload)
+                        if request_id:
+                            h["X-Request-Id"] = request_id
+                        self._send_bytes(s, b, c, h)
+                        return
+                    headers = {"X-Request-Id": request_id} if request_id else None
+                    self._send_json(
+                        500,
+                        {
+                            "ok": False,
+                            "erro": {"codigo": "ERRO_INTERNO", "mensagem": "Falha interna no handler.", "detalhes": str(exc)},
+                        },
+                        headers,
+                    )
+                    return
+
+                if "log_requisicao" in app.middlewares:
+                    ms = (time.perf_counter() - start) * 1000.0
+                    out(f"[WEB] {self.command} {path} ({ms:.2f}ms, request_id={request_id or 'n/a'})")
+
+            def do_GET(self) -> None:  # noqa: N802
+                self._handle_request()
+
+            def do_POST(self) -> None:  # noqa: N802
+                self._handle_request()
+
+            def do_PUT(self) -> None:  # noqa: N802
+                self._handle_request()
+
+            def do_PATCH(self) -> None:  # noqa: N802
+                self._handle_request()
+
+            def do_DELETE(self) -> None:  # noqa: N802
+                self._handle_request()
+
+            def do_OPTIONS(self) -> None:  # noqa: N802
+                self._handle_request()
+
+        self.server = ThreadingHTTPServer((self.host, self.port), Handler)
+        self.port = int(self.server.server_address[1])
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+
+    def stop(self) -> None:
+        if self.server is not None:
+            self.server.shutdown()
+            self.server.server_close()
+        if self.thread is not None and self.thread.is_alive():
+            self.thread.join(timeout=2.0)

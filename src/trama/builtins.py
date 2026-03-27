@@ -20,6 +20,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from collections.abc import Callable
 
 from . import db_runtime
+from . import jobs_runtime
+from . import observability_runtime
+from . import security_runtime
+from . import web_runtime
 
 
 def _to_coroutine(awaitable: object):
@@ -426,7 +430,10 @@ class _WebRuntime:
             self.thread.join(timeout=2.0)
 
 
-def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Callable[..., object]]:
+def make_builtins(
+    print_fn: Callable[[str], None] | None = None,
+    invoke_callable_sync: Callable[[object, list[object]], object] | None = None,
+) -> dict[str, Callable[..., object]]:
     out = print_fn or print
 
     def exibir(*args: object) -> None:
@@ -537,10 +544,10 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
         return datetime.now(timezone.utc).timestamp()
 
     def web_criar_app() -> object:
-        return _WebApp()
+        return web_runtime.WebApp()
 
-    def _as_app(app: object) -> _WebApp:
-        if isinstance(app, _WebApp):
+    def _as_app(app: object) -> web_runtime.WebApp:
+        if isinstance(app, web_runtime.WebApp):
             return app
         raise TypeError("objeto de app web inválido")
 
@@ -553,7 +560,7 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
     ) -> None:
         web_app = _as_app(app)
         web_app.routes.append(
-            _WebRoute(metodo, caminho, "json_static", {"body": corpo, "status": int(status)})
+            web_runtime.WebRoute(metodo.upper(), caminho, "json_static", {"body": corpo, "status": int(status)})
         )
         return None
 
@@ -566,7 +573,7 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
         web_app = _as_app(app)
         required = list(campos_obrigatorios or [])
         web_app.routes.append(
-            _WebRoute(metodo, caminho, "echo_json", {"required": required, "status": 200})
+            web_runtime.WebRoute(metodo.upper(), caminho, "echo_json", {"required": required, "status": 200})
         )
         return None
 
@@ -591,7 +598,7 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
         web_app.cors_headers = headers
         return None
 
-    def web_ativar_healthcheck(app: object, caminho: str = "/health") -> None:
+    def web_ativar_healthcheck(app: object, caminho: str = "/saude") -> None:
         web_app = _as_app(app)
         web_app.health_enabled = True
         web_app.health_path = caminho
@@ -603,13 +610,104 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
         web_app.static_dir = Path(diretorio).resolve()
         return None
 
+    def web_rota(
+        app: object,
+        metodo: str,
+        caminho: str,
+        handler_fn: object,
+        schema: dict[str, object] | None = None,
+        opcoes: dict[str, object] | None = None,
+    ) -> None:
+        web_app = _as_app(app)
+        web_app.routes.append(
+            web_runtime.WebRoute.dynamic(
+                method=metodo,
+                path=caminho,
+                handler=handler_fn,
+                schema=schema or {},
+                options=opcoes or {},
+            )
+        )
+        return None
+
+    def web_rota_contrato(
+        app: object,
+        metodo: str,
+        caminho: str,
+        handler_fn: object,
+        versao_api: str,
+        contrato_resposta: dict[str, object],
+        schema: dict[str, object] | None = None,
+        opcoes: dict[str, object] | None = None,
+    ) -> None:
+        opts = dict(opcoes or {})
+        opts["contrato_resposta"] = dict(contrato_resposta or {})
+        web_rota(app, metodo, caminho, handler_fn, schema or {}, opts)
+        _ = web_api_versionar(app, versao_api)
+        return None
+
+    def web_middleware(app: object, middleware_fn: object, fase: str = "pre") -> None:
+        web_app = _as_app(app)
+        if fase == "pos":
+            web_app.middlewares_pos.append(middleware_fn)
+            return None
+        web_app.middlewares_pre.append(middleware_fn)
+        return None
+
+    def web_tratador_erro(app: object, handler_fn: object) -> None:
+        web_app = _as_app(app)
+        web_app.error_handler = handler_fn
+        return None
+
+    def web_rate_limit(
+        app: object,
+        max_requisicoes: int,
+        janela_segundos: float,
+        caminho: str = "*",
+        metodo: str = "*",
+    ) -> None:
+        web_app = _as_app(app)
+        web_app.rate_limits.append(
+            web_runtime.RateLimitPolicy(
+                method=metodo.upper(),
+                path=caminho,
+                max_requisicoes=int(max_requisicoes),
+                janela_segundos=float(janela_segundos),
+            )
+        )
+        return None
+
+    def web_api_versionar(app: object, versao: str, base: str = "/api") -> str:
+        web_app = _as_app(app)
+        prefixo = f"{base.rstrip('/')}/{versao.strip('/')}"
+        web_app.api_versions.add(prefixo)
+        return prefixo
+
+    def web_saude_paths(
+        app: object,
+        saude: str = "/saude",
+        pronto: str = "/pronto",
+        vivo: str = "/vivo",
+    ) -> None:
+        web_app = _as_app(app)
+        web_app.health_path = saude
+        web_app.readiness_path = pronto
+        web_app.liveness_path = vivo
+        return None
+
     async def web_iniciar(
         app: object,
         host: str = "127.0.0.1",
         porta: int = 8080,
     ) -> dict[str, object]:
         web_app = _as_app(app)
-        runtime = _WebRuntime(web_app, host, int(porta), out)
+        runtime = web_runtime.WebRuntime(
+            web_app,
+            host,
+            int(porta),
+            out,
+            invoke_callable_sync=invoke_callable_sync,
+        )
         await asyncio.to_thread(runtime.start)
         return {
             "host": host,
@@ -620,9 +718,57 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
 
     async def web_parar(handle: dict[str, object]) -> None:
         runtime = handle.get("runtime")
-        if isinstance(runtime, _WebRuntime):
+        if isinstance(runtime, web_runtime.WebRuntime):
             await asyncio.to_thread(runtime.stop)
         return None
+
+    def fila_criar(nome: str) -> object:
+        return jobs_runtime.JobQueue(nome, invoke_callable_sync=invoke_callable_sync)
+
+    def _as_fila(queue: object) -> jobs_runtime.JobQueue:
+        if not isinstance(queue, jobs_runtime.JobQueue):
+            raise TypeError("fila inválida")
+        return queue
+
+    async def fila_enfileirar(
+        queue: object,
+        handler_fn: object,
+        payload: object,
+        tentativas: int = 3,
+        timeout_segundos: float = 30.0,
+        chave_idempotencia: str | None = None,
+    ) -> dict[str, object]:
+        q = _as_fila(queue)
+        return await q.enqueue(
+            handler=handler_fn,
+            payload=payload,
+            retries=int(tentativas),
+            timeout_seconds=float(timeout_segundos),
+            idempotency_key=chave_idempotencia,
+        )
+
+    async def fila_processar(queue: object) -> dict[str, object]:
+        q = _as_fila(queue)
+        return await q.process_all()
+
+    def fila_status(queue: object) -> dict[str, object]:
+        q = _as_fila(queue)
+        return q.status()
+
+    async def webhook_enviar(
+        url: str,
+        payload: dict[str, object],
+        segredo: str | None = None,
+        tentativas: int = 3,
+        timeout_segundos: float = 10.0,
+    ) -> dict[str, object]:
+        return await jobs_runtime.send_webhook(
+            url=url,
+            payload=payload,
+            secret=segredo,
+            retries=int(tentativas),
+            timeout_seconds=float(timeout_segundos),
+        )
 
     async def pg_conectar(dsn: str) -> object:
         return await db_runtime.conectar(dsn)
@@ -732,6 +878,145 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
             raise TypeError("conexão inválida")
         return await db_runtime.seed_aplicar(conn, nome, sql)
 
+    async def migracao_aplicar_versionada(
+        conn: object,
+        versao: str,
+        nome: str,
+        up_sql: str,
+        down_sql: str = "",
+        dry_run: bool = False,
+        lock_owner: str = "trama",
+    ) -> dict[str, object]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.migracao_aplicar_versionada(
+            conn,
+            versao,
+            nome,
+            up_sql,
+            down_sql,
+            dry_run=dry_run,
+            lock_owner=lock_owner,
+        )
+
+    async def migracao_status(conn: object) -> list[dict[str, object]]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.migracao_status(conn)
+
+    async def migracao_reverter_ultima(conn: object) -> dict[str, object]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.migracao_reverter_ultima(conn)
+
+    async def migracao_validar_compatibilidade(
+        conn: object,
+        versao: str,
+        up_sql: str,
+    ) -> dict[str, object]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.migracao_validar_compatibilidade(conn, versao, up_sql)
+
+    def jwt_criar(
+        payload: dict[str, object],
+        segredo: str,
+        exp_segundos: int | None = None,
+        algoritmo: str = "HS256",
+    ) -> str:
+        return security_runtime.jwt_criar(payload, segredo, exp_segundos, algoritmo)
+
+    def jwt_verificar(token: str, segredo: str, leeway_segundos: int = 0) -> dict[str, object]:
+        return security_runtime.jwt_verificar(token, segredo, leeway_segundos)
+
+    def senha_hash(senha: str, algoritmo: str = "pbkdf2") -> str:
+        return security_runtime.senha_hash(senha, algoritmo)
+
+    def senha_verificar(senha: str, hash_armazenado: str) -> bool:
+        return security_runtime.senha_verificar(senha, hash_armazenado)
+
+    def rbac_criar(
+        papeis_permissoes: dict[str, list[str]],
+        heranca_papeis: dict[str, list[str]] | None = None,
+    ) -> dict[str, object]:
+        return security_runtime.rbac_criar(papeis_permissoes, heranca_papeis)
+
+    def rbac_atribuir(
+        usuarios_papeis: dict[str, list[str]],
+        usuario: str,
+        papel: str,
+    ) -> dict[str, list[str]]:
+        return security_runtime.rbac_atribuir(usuarios_papeis, usuario, papel)
+
+    def rbac_papeis_usuario(usuarios_papeis: dict[str, list[str]], usuario: str) -> list[str]:
+        return security_runtime.rbac_papeis_usuario(usuarios_papeis, usuario)
+
+    def rbac_tem_papel(usuarios_papeis: dict[str, list[str]], usuario: str, papel: str) -> bool:
+        return security_runtime.rbac_tem_papel(usuarios_papeis, usuario, papel)
+
+    def rbac_tem_permissao(
+        modelo: dict[str, object],
+        usuarios_papeis: dict[str, list[str]],
+        usuario: str,
+        permissao: str,
+    ) -> bool:
+        return security_runtime.rbac_tem_permissao(modelo, usuarios_papeis, usuario, permissao)
+
+    def log_estruturado(
+        nivel: str,
+        mensagem: object,
+        contexto: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        entry = observability_runtime.log_estruturado(nivel, mensagem, contexto)
+        out(json.dumps(entry, ensure_ascii=False, sort_keys=True))
+        return entry
+
+    def log_estruturado_json(
+        nivel: str,
+        mensagem: object,
+        contexto: dict[str, object] | None = None,
+    ) -> str:
+        return observability_runtime.log_estruturado_json(nivel, mensagem, contexto)
+
+    def metrica_incrementar(nome: str, valor: float = 1.0, labels: dict[str, object] | None = None) -> None:
+        observability_runtime.metrica_incrementar(nome, valor, labels)
+        return None
+
+    def metrica_observar(nome: str, valor: float, labels: dict[str, object] | None = None) -> None:
+        observability_runtime.metrica_observar(nome, valor, labels)
+        return None
+
+    def metricas_snapshot() -> dict[str, object]:
+        return observability_runtime.metricas_snapshot()
+
+    def metricas_reset() -> None:
+        observability_runtime.metricas_reset()
+        return None
+
+    def traco_iniciar(nome: str, atributos: dict[str, object] | None = None) -> dict[str, object]:
+        return observability_runtime.traco_iniciar(nome, atributos)
+
+    def traco_evento(
+        span: dict[str, object],
+        nome: str,
+        atributos: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        return observability_runtime.traco_evento(span, nome, atributos)
+
+    def traco_finalizar(
+        span: dict[str, object],
+        status: str = "ok",
+        erro: object | None = None,
+    ) -> dict[str, object]:
+        return observability_runtime.traco_finalizar(span, status, erro)
+
+    def tracos_snapshot() -> dict[str, object]:
+        return observability_runtime.tracos_snapshot()
+
+    def tracos_reset() -> None:
+        observability_runtime.tracos_reset()
+        return None
+
     # Aliases oficiais em pt-BR (mantém compatibilidade com nomes anteriores)
     banco_conectar = pg_conectar
     banco_fechar = pg_fechar
@@ -752,6 +1037,32 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
     modelo_atualizar = orm_atualizar
     modelo_buscar_por_id = orm_buscar_por_id
     semente_aplicar = seed_aplicar
+    migracao_versionada_aplicar = migracao_aplicar_versionada
+    migracao_listar = migracao_status
+    migracao_desfazer_ultima = migracao_reverter_ultima
+    migracao_compatibilidade_validar = migracao_validar_compatibilidade
+    token_criar = jwt_criar
+    token_verificar = jwt_verificar
+    senha_gerar_hash = senha_hash
+    senha_validar = senha_verificar
+    papel_criar_modelo = rbac_criar
+    papel_atribuir = rbac_atribuir
+    papel_listar_usuario = rbac_papeis_usuario
+    papel_tem = rbac_tem_papel
+    permissao_tem = rbac_tem_permissao
+    metrica_inc = metrica_incrementar
+    traca_iniciar = traco_iniciar
+    traca_evento = traco_evento
+    traca_finalizar = traco_finalizar
+    tracas_snapshot = tracos_snapshot
+    tracas_reset = tracos_reset
+    requisicao = "requisicao"
+    resposta = "resposta"
+    http_obter = http_get
+    http_postar = http_post
+    web_limite_taxa = web_rate_limit
+    web_api_versao = web_api_versionar
+    web_rota_com_contrato = web_rota_contrato
 
     return {
         "exibir": exibir,
@@ -774,6 +1085,8 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
         "escrever_texto_async": escrever_texto_async,
         "http_get": http_get,
         "http_post": http_post,
+        "http_obter": http_obter,
+        "http_postar": http_postar,
         "env_obter": env_obter,
         "env_todos": env_todos,
         "config_carregar": config_carregar,
@@ -786,6 +1099,16 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
         "web_configurar_cors": web_configurar_cors,
         "web_ativar_healthcheck": web_ativar_healthcheck,
         "web_servir_estaticos": web_servir_estaticos,
+        "web_rota": web_rota,
+        "web_rota_contrato": web_rota_contrato,
+        "web_rota_com_contrato": web_rota_com_contrato,
+        "web_middleware": web_middleware,
+        "web_tratador_erro": web_tratador_erro,
+        "web_rate_limit": web_rate_limit,
+        "web_limite_taxa": web_limite_taxa,
+        "web_api_versionar": web_api_versionar,
+        "web_api_versao": web_api_versao,
+        "web_saude_paths": web_saude_paths,
         "web_iniciar": web_iniciar,
         "web_parar": web_parar,
         "pg_conectar": pg_conectar,
@@ -808,6 +1131,10 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
         "orm_buscar_por_id": orm_buscar_por_id,
         "migracao_aplicar": migracao_aplicar,
         "seed_aplicar": seed_aplicar,
+        "migracao_aplicar_versionada": migracao_aplicar_versionada,
+        "migracao_status": migracao_status,
+        "migracao_reverter_ultima": migracao_reverter_ultima,
+        "migracao_validar_compatibilidade": migracao_validar_compatibilidade,
         "banco_conectar": banco_conectar,
         "banco_fechar": banco_fechar,
         "banco_executar": banco_executar,
@@ -827,4 +1154,48 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
         "modelo_atualizar": modelo_atualizar,
         "modelo_buscar_por_id": modelo_buscar_por_id,
         "semente_aplicar": semente_aplicar,
+        "migracao_versionada_aplicar": migracao_versionada_aplicar,
+        "migracao_listar": migracao_listar,
+        "migracao_desfazer_ultima": migracao_desfazer_ultima,
+        "migracao_compatibilidade_validar": migracao_compatibilidade_validar,
+        "jwt_criar": jwt_criar,
+        "jwt_verificar": jwt_verificar,
+        "senha_hash": senha_hash,
+        "senha_verificar": senha_verificar,
+        "rbac_criar": rbac_criar,
+        "rbac_atribuir": rbac_atribuir,
+        "rbac_papeis_usuario": rbac_papeis_usuario,
+        "rbac_tem_papel": rbac_tem_papel,
+        "rbac_tem_permissao": rbac_tem_permissao,
+        "token_criar": token_criar,
+        "token_verificar": token_verificar,
+        "senha_gerar_hash": senha_gerar_hash,
+        "senha_validar": senha_validar,
+        "papel_criar_modelo": papel_criar_modelo,
+        "papel_atribuir": papel_atribuir,
+        "papel_listar_usuario": papel_listar_usuario,
+        "papel_tem": papel_tem,
+        "permissao_tem": permissao_tem,
+        "log_estruturado": log_estruturado,
+        "log_estruturado_json": log_estruturado_json,
+        "metrica_incrementar": metrica_incrementar,
+        "metrica_observar": metrica_observar,
+        "metricas_snapshot": metricas_snapshot,
+        "metricas_reset": metricas_reset,
+        "traco_iniciar": traco_iniciar,
+        "traco_evento": traco_evento,
+        "traco_finalizar": traco_finalizar,
+        "tracos_snapshot": tracos_snapshot,
+        "tracos_reset": tracos_reset,
+        "metrica_inc": metrica_inc,
+        "traca_iniciar": traca_iniciar,
+        "traca_evento": traca_evento,
+        "traca_finalizar": traca_finalizar,
+        "tracas_snapshot": tracas_snapshot,
+        "tracas_reset": tracas_reset,
+        "fila_criar": fila_criar,
+        "fila_enfileirar": fila_enfileirar,
+        "fila_processar": fila_processar,
+        "fila_status": fila_status,
+        "webhook_enviar": webhook_enviar,
     }
