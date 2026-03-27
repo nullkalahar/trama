@@ -6,6 +6,31 @@ A `trama` é uma linguagem de programação em português (pt-BR), de uso geral,
 
 A meta é construir uma linguagem geral primeiro, com base sólida, e evoluir para suportar backend robusto.
 
+## Identidade pt-BR
+
+A `trama` é uma linguagem **nativamente em português do Brasil**.
+
+Regras oficiais de identidade linguística:
+
+- forma canônica da linguagem: **pt-BR**
+- palavras-chave oficiais são em português
+- variações sem acento são aceitas como equivalentes
+- keywords são case-insensitive
+
+Exemplos de equivalência:
+
+- `função` = `funcao`
+- `senão` = `senao`
+- `assíncrona` = `assincrona`
+- `aguarde` = `await` (compatibilidade, mantendo `aguarde` como forma canônica pt-BR)
+
+Palavras-chave oficiais (forma canônica):
+
+- `função`, `retorne`, `se`, `senão`, `enquanto`, `para`, `em`
+- `verdadeiro`, `falso`, `nulo`, `fim`, `pare`, `continue`
+- `tente`, `pegue`, `finalmente`, `lance`, `importe`, `como`
+- `assíncrona`, `aguarde`
+
 
 Isso significa que, além de sintaxe agradável, a `trama` precisa amadurecer em:
 
@@ -30,7 +55,10 @@ Pipeline da linguagem:
 - manual da linguagem v0.4 em [`docs/LINGUAGEM_V0_4.md`](docs/LINGUAGEM_V0_4.md)
 - manual da linguagem v0.5 em [`docs/LINGUAGEM_V0_5.md`](docs/LINGUAGEM_V0_5.md)
 - manual da linguagem v0.6 em [`docs/LINGUAGEM_V0_6.md`](docs/LINGUAGEM_V0_6.md)
-- manual completo consolidado até v0.6 em [`docs/MANUAL_COMPLETO_ATE_V0_6.md`](docs/MANUAL_COMPLETO_ATE_V0_6.md)
+- manual da linguagem v0.7 em [`docs/LINGUAGEM_V0_7.md`](docs/LINGUAGEM_V0_7.md)
+- manual da linguagem v0.8 em [`docs/LINGUAGEM_V0_8.md`](docs/LINGUAGEM_V0_8.md)
+- manual da linguagem v0.9 em [`docs/LINGUAGEM_V0_9.md`](docs/LINGUAGEM_V0_9.md)
+- manual completo consolidado até v0.9 em [`docs/MANUAL_COMPLETO_ATE_V0_9.md`](docs/MANUAL_COMPLETO_ATE_V0_9.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
@@ -95,15 +123,53 @@ Pipeline da linguagem:
   - transações (`pg_transacao_*`, `pg_tx_*`)
   - migrações idempotentes e seed (`migracao_aplicar`, `seed_aplicar`)
   - aliases oficiais em pt-BR (`banco_*`, `consulta_*`, `modelo_*`, `transacao_*`, `semente_aplicar`)
+- v0.7 completa:
+  - autenticação JWT nativa (`jwt_criar`/`jwt_verificar`)
+  - hash/validação de senha (`senha_hash`/`senha_verificar`) com suporte a pbkdf2 e opcional bcrypt/argon2
+  - RBAC com papéis, herança e permissões (`rbac_*` + aliases pt-BR)
+- v0.8 completa:
+  - logs estruturados (`log_estruturado`, `log_estruturado_json`)
+  - métricas (contador/histograma) com snapshot (`metrica_*`, `metricas_snapshot`)
+  - tracing inicial com spans/eventos (`traco_*`, `tracos_snapshot`)
+- v0.9 completa:
+  - test runner oficial para `.trm` (`trama testar`)
+  - lint/format/cobertura para `.trm` (`trama lint`, `trama formatar`, `trama cobertura`)
+  - gerador de template backend (`trama template-backend`)
 
 ### Em andamento
 
-- hardening de runtime e ergonomia para backend (preparação de v0.7+)
+- hardening de runtime e ergonomia para backend (preparação de v1.0)
 
 ### Falta fazer (próximos passos)
 
-- Sprint 5: integração orientada a backend (módulos, libs padrão iniciais, melhoria de erros)
+- fechamento das lacunas de backend complexo para v1.0+
 - publicação do repositório APT em servidor (infra externa + domínio + GPG real)
+
+## Lacunas Para Paridade Backend Complexo
+
+Pontos que ainda faltam para substituir integralmente backends grandes em produção:
+
+- roteamento HTTP com handlers dinâmicos por função (request/response completos)
+- cadeia real de middlewares (auth, validação, rate-limit, erro global)
+- uploads multipart/form-data e processamento de imagem
+- realtime nativo (WebSocket/Socket.IO), salas, presença e eventos
+- jobs e filas para tarefas assíncronas de longa duração
+- cache robusto com TTL/invalidação e estratégia para múltiplas instâncias
+- observabilidade de produção (métricas HTTP/DB, tracing por requisição, logs correlacionados)
+- hardening operacional (graceful shutdown, health/readiness, limites, timeout, retries)
+- testes de integração/e2e/carga para cenários de concorrência alta
+
+## Plano de Paridade Backend (v1.0 -> v1.5)
+
+Ordem de implementação para alcançar backend robusto:
+
+1. Runtime HTTP programável (`request/response`, handlers e middleware chain)
+2. Segurança de borda (auth middleware, RBAC por rota, rate-limit por política)
+3. Persistência avançada (query builder/ORM evoluídos, migrações versionadas, pool tuning)
+4. Realtime (WebSocket), notificações, presença e eventos
+5. Arquivos e mídia (upload multipart, storage local/S3-like, processamento assíncrono)
+6. Operação de produção (observabilidade completa, resiliência, deploy e runbooks)
+7. Testes e qualidade (integração, e2e, carga/soak, contrato de API)
 
 ## Estrutura do Repositório
 
@@ -176,10 +242,15 @@ make run-example
 trama executar arquivo.trm
 trama compilar arquivo.trm -o arquivo.tbc
 trama bytecode arquivo.trm
+trama testar [alvo]
+trama lint [alvo]
+trama formatar [alvo] [--aplicar]
+trama cobertura [alvo]
+trama template-backend <destino>
 trama repl
 ```
 
-## Distribuição (atual: v0.6)
+## Distribuição (atual: v0.9)
 
 Build do binário standalone (obrigatório):
 
@@ -191,15 +262,15 @@ scripts/build_standalone.sh
 Build do pacote Debian:
 
 ```bash
-scripts/package_deb.sh 0.6.0 amd64
-sudo apt install ./build/trama_0.6.0_amd64.deb
+scripts/package_deb.sh 0.9.0 amd64
+sudo apt install ./build/trama_0.9.0_amd64.deb
 ```
 
 Preparar repositório APT:
 
 ```bash
 scripts/init_apt_repo.sh packaging/apt-repo stable main trama <SEU_GPG_KEY_ID>
-scripts/publish_apt_package.sh packaging/apt-repo stable ./build/trama_0.6.0_amd64.deb
+scripts/publish_apt_package.sh packaging/apt-repo stable ./build/trama_0.9.0_amd64.deb
 ```
 
 ## Entrega da v0.1
@@ -249,36 +320,56 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [x] transações
 - [x] migrações idempotentes + seed
 
-### v0.7
-- [ ] JWT + hash de senha (bcrypt/argon2)
-- [ ] autorização por papéis (RBAC)
+### v0.7 (concluída)
+- [x] JWT + hash de senha (bcrypt/argon2)
+- [x] autorização por papéis (RBAC)
 
-### v0.8
-- [ ] logs estruturados
-- [ ] métricas e tracing inicial
-- [ ] práticas de operação para produção
+### v0.8 (concluída)
+- [x] logs estruturados
+- [x] métricas e tracing inicial
+- [x] práticas de operação para produção
 
-### v0.9
-- [ ] test runner oficial
-- [ ] cobertura, lint/format
-- [ ] templates de projeto backend
+### v0.9 (concluída)
+- [x] test runner oficial
+- [x] cobertura, lint/format
+- [x] templates de projeto backend
 
 ### v1.0 (backend pronto para produção)
-- [ ] paridade backend geral em produção
-- [ ] suporte a APIs versionadas, jobs e webhooks
-- [ ] testes de integração e carga com estabilidade operacional
-- [ ] plano de auto-hospedagem concluído (self-hosted)
-- [ ] módulos e sistema de pacotes maduros para o compilador em `trama`
-- [ ] stdlib necessária para compilador/runtime em `trama` (FS, ENV, TIME, HTTP, JSON, processos)
-- [ ] tooling oficial em `trama` (build, test runner, lint/format, debug básico)
-- [ ] estabilidade e performance mínimas para bootstrap seguro
-- [ ] bootstrap gradual concluído: partes críticas migradas de Python para `trama` com fallback removido
+- [ ] runtime HTTP programável: handlers dinâmicos por rota (request/response completos)
+- [ ] middleware chain real (pré/pós), erro global e validação por schema
+- [ ] segurança por rota (JWT/RBAC), rate-limit configurável e proteção de abuso
+- [ ] APIs versionadas e contratos de resposta estáveis
+- [ ] jobs e webhooks com retries, timeout, idempotência e DLQ básica
+- [ ] persistência sólida: transações, migração versionada e evolução de schema segura
+- [ ] testes de integração e carga com metas mínimas de desempenho/estabilidade
+- [ ] guia de auto-hospedagem e operação (SLO, monitoramento, backup/restore)
+
+### v1.1
+- [ ] cache de aplicação completo (TTL, invalidação por chave/padrão, warmup)
+- [ ] circuit breaker/retry/backoff para integrações externas
+- [ ] configuração avançada por ambiente e segredos
+
+### v1.2
+- [ ] uploads multipart/form-data
+- [ ] pipeline de mídia (redimensionamento/conversão/compressão)
+- [ ] abstração de storage (local e provedor remoto tipo S3)
+
+### v1.3
+- [ ] WebSocket nativo com autenticação JWT
+- [ ] salas/canais, presença, typing/read-receipt e broadcast seletivo
+- [ ] fallback de transporte e limites de conexão
+
+### v1.4
+- [ ] observabilidade avançada (métricas HTTP/DB/runtime, tracing por requisição)
+- [ ] logs estruturados com correlação (`request_id`, `trace_id`, `user_id`)
+- [ ] dashboard operacional mínimo e alertas iniciais
 
 ### v1.5 (frontend)
 - [ ] toolkit de UI, estado e renderização
 - [ ] integração HTML/CSS/DOM (ou runtime equivalente)
 - [ ] roteamento SPA + build + hot reload
 - [ ] integração full-stack com backend em `trama`
+- [ ] backend em `trama` apto para substituir aplicações complexas com realtime + mídia + observabilidade
 
 ### v1.5–v1.8 (paridade backend avançada)
 - [ ] REST + realtime (Socket.IO/WebSocket) com autenticação JWT
