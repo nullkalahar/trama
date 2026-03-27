@@ -29,6 +29,7 @@ Pipeline da linguagem:
 - manual da linguagem v0.3 em [`docs/LINGUAGEM_V0_3.md`](docs/LINGUAGEM_V0_3.md)
 - manual da linguagem v0.4 em [`docs/LINGUAGEM_V0_4.md`](docs/LINGUAGEM_V0_4.md)
 - manual da linguagem v0.5 em [`docs/LINGUAGEM_V0_5.md`](docs/LINGUAGEM_V0_5.md)
+- manual da linguagem v0.6 em [`docs/LINGUAGEM_V0_6.md`](docs/LINGUAGEM_V0_6.md)
 - manual completo consolidado até v0.4 em [`docs/MANUAL_COMPLETO_ATE_V0_4.md`](docs/MANUAL_COMPLETO_ATE_V0_4.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
@@ -88,10 +89,16 @@ Pipeline da linguagem:
   - roteamento, middlewares, CORS e fluxo request/response
   - validação de payload e erros padronizados
   - healthcheck e serving de estáticos
+- v0.6 completa:
+  - driver de banco assíncrono (`pg_*`) com DSN `sqlite:///` e compatibilidade inicial `postgres://` via shim
+  - query builder/ORM inicial (`qb_*`, `orm_*`)
+  - transações (`pg_transacao_*`, `pg_tx_*`)
+  - migrações idempotentes e seed (`migracao_aplicar`, `seed_aplicar`)
+  - aliases oficiais em pt-BR (`banco_*`, `consulta_*`, `modelo_*`, `transacao_*`, `semente_aplicar`)
 
 ### Em andamento
 
-- hardening de runtime e ergonomia para backend (preparação de v0.6+)
+- hardening de runtime e ergonomia para backend (preparação de v0.7+)
 
 ### Falta fazer (próximos passos)
 
@@ -166,7 +173,7 @@ trama bytecode arquivo.trm
 trama repl
 ```
 
-## Distribuição (atual: v0.5)
+## Distribuição (atual: v0.6)
 
 Build do binário standalone (obrigatório):
 
@@ -178,15 +185,15 @@ scripts/build_standalone.sh
 Build do pacote Debian:
 
 ```bash
-scripts/package_deb.sh 0.5.0 amd64
-sudo apt install ./build/trama_0.5.0_amd64.deb
+scripts/package_deb.sh 0.6.0 amd64
+sudo apt install ./build/trama_0.6.0_amd64.deb
 ```
 
 Preparar repositório APT:
 
 ```bash
 scripts/init_apt_repo.sh packaging/apt-repo stable main trama <SEU_GPG_KEY_ID>
-scripts/publish_apt_package.sh packaging/apt-repo stable ./build/trama_0.5.0_amd64.deb
+scripts/publish_apt_package.sh packaging/apt-repo stable ./build/trama_0.6.0_amd64.deb
 ```
 
 ## Entrega da v0.1
@@ -231,10 +238,10 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [x] validação de payload e erros padronizados
 - [x] healthcheck e serving de estáticos
 
-### v0.6
-- [ ] driver PostgreSQL async + query builder/ORM inicial
-- [ ] transações
-- [ ] migrações idempotentes + seed
+### v0.6 (concluída)
+- [x] driver PostgreSQL async + query builder/ORM inicial
+- [x] transações
+- [x] migrações idempotentes + seed
 
 ### v0.7
 - [ ] JWT + hash de senha (bcrypt/argon2)

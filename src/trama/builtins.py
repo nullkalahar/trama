@@ -19,6 +19,8 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from collections.abc import Callable
 
+from . import db_runtime
+
 
 def _to_coroutine(awaitable: object):
     if inspect.iscoroutine(awaitable):
@@ -622,6 +624,135 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
             await asyncio.to_thread(runtime.stop)
         return None
 
+    async def pg_conectar(dsn: str) -> object:
+        return await db_runtime.conectar(dsn)
+
+    async def pg_fechar(conn: object) -> None:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        await db_runtime.fechar(conn)
+        return None
+
+    async def pg_executar(
+        conn: object,
+        sql: str,
+        params: list[object] | None = None,
+    ) -> dict[str, object]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.executar(conn, sql, params or [])
+
+    async def pg_consultar(
+        conn: object,
+        sql: str,
+        params: list[object] | None = None,
+    ) -> list[dict[str, object]]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.consultar(conn, sql, params or [])
+
+    async def pg_transacao_iniciar(conn: object) -> object:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.transacao_iniciar(conn)
+
+    async def pg_transacao_commit(tx: object) -> None:
+        if not isinstance(tx, db_runtime.DbTransaction):
+            raise TypeError("transação inválida")
+        await db_runtime.transacao_commit(tx)
+        return None
+
+    async def pg_transacao_rollback(tx: object) -> None:
+        if not isinstance(tx, db_runtime.DbTransaction):
+            raise TypeError("transação inválida")
+        await db_runtime.transacao_rollback(tx)
+        return None
+
+    async def pg_tx_executar(tx: object, sql: str, params: list[object] | None = None) -> dict[str, object]:
+        if not isinstance(tx, db_runtime.DbTransaction):
+            raise TypeError("transação inválida")
+        return await db_runtime.tx_executar(tx, sql, params or [])
+
+    async def pg_tx_consultar(
+        tx: object,
+        sql: str,
+        params: list[object] | None = None,
+    ) -> list[dict[str, object]]:
+        if not isinstance(tx, db_runtime.DbTransaction):
+            raise TypeError("transação inválida")
+        return await db_runtime.tx_consultar(tx, sql, params or [])
+
+    def qb_select(tabela: str, colunas: list[str] | None = None) -> dict[str, object]:
+        return db_runtime.qb_select(tabela, colunas)
+
+    def qb_where_eq(query: dict[str, object], campo: str, valor: object) -> dict[str, object]:
+        return db_runtime.qb_where_eq(query, campo, valor)
+
+    def qb_order_by(query: dict[str, object], campo: str, direcao: str = "ASC") -> dict[str, object]:
+        return db_runtime.qb_order_by(query, campo, direcao)
+
+    def qb_limite(query: dict[str, object], limite: int) -> dict[str, object]:
+        return db_runtime.qb_limite(query, limite)
+
+    def qb_sql(query: dict[str, object]) -> dict[str, object]:
+        return db_runtime.qb_sql(query)
+
+    async def qb_consultar(conn: object, query: dict[str, object]) -> list[dict[str, object]]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.qb_consultar(conn, query)
+
+    async def orm_inserir(conn: object, tabela: str, dados: dict[str, object]) -> int:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.orm_inserir(conn, tabela, dados)
+
+    async def orm_atualizar(
+        conn: object,
+        tabela: str,
+        dados: dict[str, object],
+        where: dict[str, object],
+    ) -> int:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.orm_atualizar(conn, tabela, dados, where)
+
+    async def orm_buscar_por_id(conn: object, tabela: str, id_value: object) -> object:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.orm_buscar_por_id(conn, tabela, id_value)
+
+    async def migracao_aplicar(conn: object, nome: str, sql: str) -> dict[str, object]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.migracao_aplicar(conn, nome, sql)
+
+    async def seed_aplicar(conn: object, nome: str, sql: str) -> dict[str, object]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.seed_aplicar(conn, nome, sql)
+
+    # Aliases oficiais em pt-BR (mantém compatibilidade com nomes anteriores)
+    banco_conectar = pg_conectar
+    banco_fechar = pg_fechar
+    banco_executar = pg_executar
+    banco_consultar = pg_consultar
+    transacao_iniciar = pg_transacao_iniciar
+    transacao_confirmar = pg_transacao_commit
+    transacao_cancelar = pg_transacao_rollback
+    transacao_executar = pg_tx_executar
+    transacao_consultar = pg_tx_consultar
+    consulta_selecionar = qb_select
+    consulta_onde_igual = qb_where_eq
+    consulta_ordenar_por = qb_order_by
+    consulta_limite = qb_limite
+    consulta_sql = qb_sql
+    consulta_executar = qb_consultar
+    modelo_inserir = orm_inserir
+    modelo_atualizar = orm_atualizar
+    modelo_buscar_por_id = orm_buscar_por_id
+    semente_aplicar = seed_aplicar
+
     return {
         "exibir": exibir,
         "log": log,
@@ -657,4 +788,43 @@ def make_builtins(print_fn: Callable[[str], None] | None = None) -> dict[str, Ca
         "web_servir_estaticos": web_servir_estaticos,
         "web_iniciar": web_iniciar,
         "web_parar": web_parar,
+        "pg_conectar": pg_conectar,
+        "pg_fechar": pg_fechar,
+        "pg_executar": pg_executar,
+        "pg_consultar": pg_consultar,
+        "pg_transacao_iniciar": pg_transacao_iniciar,
+        "pg_transacao_commit": pg_transacao_commit,
+        "pg_transacao_rollback": pg_transacao_rollback,
+        "pg_tx_executar": pg_tx_executar,
+        "pg_tx_consultar": pg_tx_consultar,
+        "qb_select": qb_select,
+        "qb_where_eq": qb_where_eq,
+        "qb_order_by": qb_order_by,
+        "qb_limite": qb_limite,
+        "qb_sql": qb_sql,
+        "qb_consultar": qb_consultar,
+        "orm_inserir": orm_inserir,
+        "orm_atualizar": orm_atualizar,
+        "orm_buscar_por_id": orm_buscar_por_id,
+        "migracao_aplicar": migracao_aplicar,
+        "seed_aplicar": seed_aplicar,
+        "banco_conectar": banco_conectar,
+        "banco_fechar": banco_fechar,
+        "banco_executar": banco_executar,
+        "banco_consultar": banco_consultar,
+        "transacao_iniciar": transacao_iniciar,
+        "transacao_confirmar": transacao_confirmar,
+        "transacao_cancelar": transacao_cancelar,
+        "transacao_executar": transacao_executar,
+        "transacao_consultar": transacao_consultar,
+        "consulta_selecionar": consulta_selecionar,
+        "consulta_onde_igual": consulta_onde_igual,
+        "consulta_ordenar_por": consulta_ordenar_por,
+        "consulta_limite": consulta_limite,
+        "consulta_sql": consulta_sql,
+        "consulta_executar": consulta_executar,
+        "modelo_inserir": modelo_inserir,
+        "modelo_atualizar": modelo_atualizar,
+        "modelo_buscar_por_id": modelo_buscar_por_id,
+        "semente_aplicar": semente_aplicar,
     }

@@ -348,3 +348,83 @@ def test_web_server_nativo_rotas_validacao_cors_health_static(tmp_path) -> None:
         "200",
         "conteudo-estatico",
     ]
+
+
+def test_v06_db_driver_query_builder_transacoes_migracoes_seed(tmp_path) -> None:
+    db_file = tmp_path / "trama_v06.db"
+    codigo = (
+        "assíncrona função principal()\n"
+        f"    conn = aguarde pg_conectar(\"sqlite:///{db_file}\")\n"
+        "    aguarde pg_executar(conn, \"CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, ativo INTEGER)\")\n"
+        "    q = qb_select(\"usuarios\", [\"id\", \"nome\"]) \n"
+        "    q = qb_where_eq(q, \"nome\", \"ana\")\n"
+        "    q = qb_order_by(q, \"id\", \"DESC\")\n"
+        "    q = qb_limite(q, 10)\n"
+        "    exibir(qb_sql(q)[\"sql\"] != nulo)\n"
+        "    m1 = aguarde migracao_aplicar(conn, \"001_posts\", \"CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT);\")\n"
+        "    m2 = aguarde migracao_aplicar(conn, \"001_posts\", \"CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT);\")\n"
+        "    exibir(m1[\"aplicada\"])\n"
+        "    exibir(m2[\"aplicada\"])\n"
+        "    s1 = aguarde seed_aplicar(conn, \"seed_ana\", \"INSERT INTO usuarios (nome, ativo) VALUES ('ana', 1);\")\n"
+        "    s2 = aguarde seed_aplicar(conn, \"seed_ana\", \"INSERT INTO usuarios (nome, ativo) VALUES ('ana', 1);\")\n"
+        "    exibir(s1[\"aplicada\"])\n"
+        "    exibir(s2[\"aplicada\"])\n"
+        "    tx = aguarde pg_transacao_iniciar(conn)\n"
+        "    aguarde pg_tx_executar(tx, \"INSERT INTO usuarios (nome, ativo) VALUES (?, ?)\", [\"bia\", 1])\n"
+        "    dentro_tx = aguarde pg_tx_consultar(tx, \"SELECT COUNT(*) AS c FROM usuarios\")\n"
+        "    exibir(dentro_tx[0][\"c\"] >= 2)\n"
+        "    aguarde pg_transacao_rollback(tx)\n"
+        "    apos_rb = aguarde pg_consultar(conn, \"SELECT COUNT(*) AS c FROM usuarios\")\n"
+        "    exibir(apos_rb[0][\"c\"] >= 1)\n"
+        "    tx2 = aguarde pg_transacao_iniciar(conn)\n"
+        "    aguarde pg_tx_executar(tx2, \"INSERT INTO usuarios (nome, ativo) VALUES (?, ?)\", [\"caique\", 1])\n"
+        "    aguarde pg_transacao_commit(tx2)\n"
+        "    apos_commit = aguarde pg_consultar(conn, \"SELECT COUNT(*) AS c FROM usuarios\")\n"
+        "    exibir(apos_commit[0][\"c\"] >= 2)\n"
+        "    novo_id = aguarde orm_inserir(conn, \"usuarios\", {\"nome\": \"dora\", \"ativo\": 1})\n"
+        "    u1 = aguarde orm_buscar_por_id(conn, \"usuarios\", novo_id)\n"
+        "    exibir(u1[\"nome\"])\n"
+        "    aguarde orm_atualizar(conn, \"usuarios\", {\"nome\": \"dora2\"}, {\"id\": novo_id})\n"
+        "    u2 = aguarde orm_buscar_por_id(conn, \"usuarios\", novo_id)\n"
+        "    exibir(u2[\"nome\"])\n"
+        "    aguarde pg_fechar(conn)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == [
+        "True",
+        "True",
+        "False",
+        "True",
+        "False",
+        "True",
+        "True",
+        "True",
+        "dora",
+        "dora2",
+    ]
+
+
+def test_v06_aliases_ptbr_banco(tmp_path) -> None:
+    db_file = tmp_path / "trama_v06_ptbr.db"
+    codigo = (
+        "assíncrona função principal()\n"
+        f"    conn = aguarde banco_conectar(\"sqlite:///{db_file}\")\n"
+        "    aguarde banco_executar(conn, \"CREATE TABLE IF NOT EXISTS itens (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT)\")\n"
+        "    id = aguarde modelo_inserir(conn, \"itens\", {\"nome\": \"ptbr\"})\n"
+        "    q = consulta_selecionar(\"itens\", [\"id\", \"nome\"]) \n"
+        "    q = consulta_onde_igual(q, \"id\", id)\n"
+        "    rows = aguarde consulta_executar(conn, q)\n"
+        "    exibir(rows[0][\"nome\"])\n"
+        "    tx = aguarde transacao_iniciar(conn)\n"
+        "    aguarde transacao_executar(tx, \"INSERT INTO itens (nome) VALUES (?)\", [\"extra\"])\n"
+        "    aguarde transacao_confirmar(tx)\n"
+        "    mig = aguarde migracao_aplicar(conn, \"001_exemplo\", \"CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY AUTOINCREMENT);\")\n"
+        "    sem = aguarde semente_aplicar(conn, \"seed_exemplo\", \"INSERT INTO itens (nome) VALUES ('s1');\")\n"
+        "    exibir(mig[\"aplicada\"])\n"
+        "    exibir(sem[\"aplicada\"])\n"
+        "    aguarde banco_fechar(conn)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["ptbr", "True", "True"]
