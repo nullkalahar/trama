@@ -29,11 +29,21 @@ KEYWORDS: dict[str, str] = {
     "fim": "FIM",
     "pare": "PARE",
     "continue": "CONTINUE",
+    "tente": "TENTE",
+    "pegue": "PEGUE",
+    "finalmente": "FINALMENTE",
+    "lance": "LANCE",
+    "importe": "IMPORTE",
+    "como": "COMO",
 }
 
 SINGLE_CHAR_TOKENS: dict[str, str] = {
     "(": "ABRE_PAREN",
     ")": "FECHA_PAREN",
+    "[": "ABRE_COLCHETE",
+    "]": "FECHA_COLCHETE",
+    "{": "ABRE_CHAVE",
+    "}": "FECHA_CHAVE",
     ",": "VIRGULA",
     ":": "DOIS_PONTOS",
     ".": "PONTO",

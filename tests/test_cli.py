@@ -47,7 +47,7 @@ def test_cli_compilar_gera_json(tmp_path: Path) -> None:
     payload = json.loads(out_file.read_text(encoding="utf-8"))
     assert "entry" in payload
     assert "functions" in payload
-    assert "principal" in payload["functions"]
+    assert any(fn["name"] == "principal" for fn in payload["functions"].values())
 
 
 def test_cli_erro_retorna_1(tmp_path: Path) -> None:

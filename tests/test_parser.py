@@ -4,13 +4,19 @@ from trama.ast_nodes import (
     AssignStmt,
     BinaryExpr,
     CallExpr,
+    DictExpr,
     ExprStmt,
     FunctionDecl,
     Identifier,
     IfStmt,
+    ImportStmt,
+    IndexExpr,
+    ListExpr,
     Literal,
     Program,
     ReturnStmt,
+    ThrowStmt,
+    TryStmt,
     WhileStmt,
 )
 from trama.parser import ParseError, parse
@@ -87,6 +93,44 @@ def test_retorne_sem_valor() -> None:
     ret = func.body[0]
     assert isinstance(ret, ReturnStmt)
     assert ret.value is None
+
+
+def test_parse_try_pegue_finalmente() -> None:
+    codigo = (
+        "tente\n"
+        "    lance \"erro\"\n"
+        "pegue e\n"
+        "    exibir(e)\n"
+        "finalmente\n"
+        "    exibir(\"fim\")\n"
+        "fim\n"
+    )
+    ast = parse(codigo)
+    stmt = ast.declarations[0]
+    assert isinstance(stmt, TryStmt)
+    assert stmt.catch_name == "e"
+    assert stmt.catch_branch is not None
+    assert stmt.finally_branch is not None
+    assert isinstance(stmt.try_branch[0], ThrowStmt)
+
+
+def test_parse_importe_como() -> None:
+    ast = parse('importe "lib/math.trm" como mat\n')
+    stmt = ast.declarations[0]
+    assert isinstance(stmt, ImportStmt)
+    assert stmt.module == "lib/math.trm"
+    assert stmt.alias == "mat"
+
+
+def test_parse_lista_mapa_e_indice() -> None:
+    ast = parse('dados = {"nums": [1, 2, 3]}\nvalor = dados["nums"]\n')
+    stmt1 = ast.declarations[0]
+    stmt2 = ast.declarations[1]
+    assert isinstance(stmt1, AssignStmt)
+    assert isinstance(stmt1.value, DictExpr)
+    assert isinstance(stmt2, AssignStmt)
+    assert isinstance(stmt2.value, IndexExpr)
+    assert isinstance(stmt1.value.entries[0][1], ListExpr)
 
 
 def test_parse_error_em_fim_ausente() -> None:

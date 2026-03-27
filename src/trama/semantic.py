@@ -1,4 +1,4 @@
-"""Análise semântica mínima para a v0.1 da trama."""
+"""Análise semântica mínima para a v0.1+ da trama."""
 
 from __future__ import annotations
 
@@ -10,15 +10,21 @@ from .ast_nodes import (
     BreakStmt,
     CallExpr,
     ContinueStmt,
+    DictExpr,
     Expr,
     ExprStmt,
     FunctionDecl,
     Identifier,
     IfStmt,
+    ImportStmt,
+    IndexExpr,
+    ListExpr,
     Literal,
     Program,
     ReturnStmt,
     Stmt,
+    ThrowStmt,
+    TryStmt,
     UnaryExpr,
     WhileStmt,
 )
@@ -29,7 +35,9 @@ class SemanticError(ValueError):
 
 
 _BUILTIN_ARITY: dict[str, int | None] = {
-    "exibir": None,  # variádica
+    "exibir": None,
+    "json_parse": 1,
+    "json_stringify": 1,
 }
 
 
@@ -41,25 +49,42 @@ class _Context:
 
 def validate_semantics(program: Program) -> None:
     signatures: dict[str, int] = {}
-
-    for decl in program.declarations:
-        if isinstance(decl, FunctionDecl):
-            if decl.name in signatures:
-                raise SemanticError(f"Função '{decl.name}' declarada mais de uma vez.")
-            signatures[decl.name] = len(decl.params)
+    _collect_signatures(program.declarations, signatures)
 
     ctx = _Context(in_function=False, loop_depth=0)
     for decl in program.declarations:
         _validate_stmt(decl, ctx, signatures)
 
 
+def _collect_signatures(stmts: list[Stmt], signatures: dict[str, int]) -> None:
+    for stmt in stmts:
+        if isinstance(stmt, FunctionDecl):
+            signatures[stmt.name] = len(stmt.params)
+            _collect_signatures(stmt.body, signatures)
+        elif isinstance(stmt, IfStmt):
+            _collect_signatures(stmt.then_branch, signatures)
+            if stmt.else_branch:
+                _collect_signatures(stmt.else_branch, signatures)
+        elif isinstance(stmt, WhileStmt):
+            _collect_signatures(stmt.body, signatures)
+        elif isinstance(stmt, TryStmt):
+            _collect_signatures(stmt.try_branch, signatures)
+            if stmt.catch_branch:
+                _collect_signatures(stmt.catch_branch, signatures)
+            if stmt.finally_branch:
+                _collect_signatures(stmt.finally_branch, signatures)
+
+
 def _validate_stmt(stmt: Stmt, ctx: _Context, signatures: dict[str, int]) -> None:
     if isinstance(stmt, FunctionDecl):
-        if ctx.in_function:
-            raise SemanticError("Funções aninhadas ainda não são suportadas na v0.1.")
         child_ctx = _Context(in_function=True, loop_depth=0)
         for inner in stmt.body:
             _validate_stmt(inner, child_ctx, signatures)
+        return
+
+    if isinstance(stmt, ImportStmt):
+        if not stmt.alias:
+            raise SemanticError("Alias de 'importe' não pode ser vazio.")
         return
 
     if isinstance(stmt, IfStmt):
@@ -76,6 +101,21 @@ def _validate_stmt(stmt: Stmt, ctx: _Context, signatures: dict[str, int]) -> Non
         child_ctx = _Context(in_function=ctx.in_function, loop_depth=ctx.loop_depth + 1)
         for inner in stmt.body:
             _validate_stmt(inner, child_ctx, signatures)
+        return
+
+    if isinstance(stmt, TryStmt):
+        for inner in stmt.try_branch:
+            _validate_stmt(inner, _Context(ctx.in_function, ctx.loop_depth), signatures)
+        if stmt.catch_branch is not None:
+            for inner in stmt.catch_branch:
+                _validate_stmt(inner, _Context(ctx.in_function, ctx.loop_depth), signatures)
+        if stmt.finally_branch is not None:
+            for inner in stmt.finally_branch:
+                _validate_stmt(inner, _Context(ctx.in_function, ctx.loop_depth), signatures)
+        return
+
+    if isinstance(stmt, ThrowStmt):
+        _validate_expr(stmt.value, signatures)
         return
 
     if isinstance(stmt, ReturnStmt):
@@ -107,10 +147,7 @@ def _validate_stmt(stmt: Stmt, ctx: _Context, signatures: dict[str, int]) -> Non
 
 
 def _validate_expr(expr: Expr, signatures: dict[str, int]) -> None:
-    if isinstance(expr, Literal):
-        return
-
-    if isinstance(expr, Identifier):
+    if isinstance(expr, (Literal, Identifier)):
         return
 
     if isinstance(expr, UnaryExpr):
@@ -120,6 +157,22 @@ def _validate_expr(expr: Expr, signatures: dict[str, int]) -> None:
     if isinstance(expr, BinaryExpr):
         _validate_expr(expr.left, signatures)
         _validate_expr(expr.right, signatures)
+        return
+
+    if isinstance(expr, ListExpr):
+        for e in expr.elements:
+            _validate_expr(e, signatures)
+        return
+
+    if isinstance(expr, DictExpr):
+        for k, v in expr.entries:
+            _validate_expr(k, signatures)
+            _validate_expr(v, signatures)
+        return
+
+    if isinstance(expr, IndexExpr):
+        _validate_expr(expr.target, signatures)
+        _validate_expr(expr.index, signatures)
         return
 
     if isinstance(expr, CallExpr):

@@ -10,15 +10,21 @@ from .ast_nodes import (
     BreakStmt,
     CallExpr,
     ContinueStmt,
+    DictExpr,
     Expr,
     ExprStmt,
     FunctionDecl,
     Identifier,
     IfStmt,
+    ImportStmt,
+    IndexExpr,
+    ListExpr,
     Literal,
     Program,
     ReturnStmt,
     Stmt,
+    ThrowStmt,
+    TryStmt,
     UnaryExpr,
     WhileStmt,
 )
@@ -75,7 +81,26 @@ class Parser:
             return BreakStmt()
         if self._match("CONTINUE"):
             return ContinueStmt()
+        if self._match("LANCE"):
+            return self._throw_stmt()
+        if self._match("TENTE"):
+            return self._try_stmt()
+        if self._match("IMPORTE"):
+            return self._import_stmt()
         return self._assignment_or_expr_stmt()
+
+    def _import_stmt(self) -> ImportStmt:
+        if self._match("TEXTO"):
+            module = self._previous().lexema
+            default_alias = module.rsplit("/", 1)[-1].removesuffix(".trm")
+        else:
+            ident = self._consume("IDENT", "Esperado nome do módulo ou string no importe.")
+            module = ident.lexema
+            default_alias = ident.lexema
+        alias = default_alias
+        if self._match("COMO"):
+            alias = self._consume("IDENT", "Esperado alias após 'como'.").lexema
+        return ImportStmt(module=module, alias=alias)
 
     def _if_stmt(self) -> IfStmt:
         condition = self._expression()
@@ -99,6 +124,41 @@ class Parser:
         if self._check_any({"NOVA_LINHA", "PONTO_VIRGULA", "EOF", "FIM"}):
             return ReturnStmt(value=None)
         return ReturnStmt(value=self._expression())
+
+    def _throw_stmt(self) -> ThrowStmt:
+        return ThrowStmt(value=self._expression())
+
+    def _try_stmt(self) -> TryStmt:
+        self._consume_optional_separators_or_error("Esperado nova linha após 'tente'.")
+        try_branch = self._parse_block(until={"PEGUE", "FINALMENTE", "FIM"})
+
+        catch_name: str | None = None
+        catch_branch: list[Stmt] | None = None
+        finally_branch: list[Stmt] | None = None
+
+        if self._match("PEGUE"):
+            if self._check("IDENT"):
+                catch_name = self._advance().lexema
+            self._consume_optional_separators_or_error("Esperado nova linha após 'pegue'.")
+            catch_branch = self._parse_block(until={"FINALMENTE", "FIM"})
+
+        if self._match("FINALMENTE"):
+            self._consume_optional_separators_or_error("Esperado nova linha após 'finalmente'.")
+            finally_branch = self._parse_block(until={"FIM"})
+
+        if catch_branch is None and finally_branch is None:
+            token = self._peek()
+            raise ParseError(
+                f"Bloco 'tente' exige 'pegue' e/ou 'finalmente' (linha {token.linha}, coluna {token.coluna})"
+            )
+
+        self._consume("FIM", "Esperado 'fim' para encerrar bloco 'tente'.")
+        return TryStmt(
+            try_branch=try_branch,
+            catch_name=catch_name,
+            catch_branch=catch_branch,
+            finally_branch=finally_branch,
+        )
 
     def _assignment_or_expr_stmt(self) -> Stmt:
         if self._check("IDENT") and self._check_next("IGUAL"):
@@ -169,8 +229,15 @@ class Parser:
                             break
                 self._consume("FECHA_PAREN", "Esperado ')' após argumentos.")
                 expr = CallExpr(callee=expr, arguments=args)
-            else:
-                break
+                continue
+
+            if self._match("ABRE_COLCHETE"):
+                idx = self._expression()
+                self._consume("FECHA_COLCHETE", "Esperado ']' no índice.")
+                expr = IndexExpr(target=expr, index=idx)
+                continue
+
+            break
         return expr
 
     def _primary(self) -> Expr:
@@ -193,6 +260,28 @@ class Parser:
             expr = self._expression()
             self._consume("FECHA_PAREN", "Esperado ')' após expressão.")
             return expr
+        if self._match("ABRE_COLCHETE"):
+            elements: list[Expr] = []
+            if not self._check("FECHA_COLCHETE"):
+                while True:
+                    elements.append(self._expression())
+                    if not self._match("VIRGULA"):
+                        break
+            self._consume("FECHA_COLCHETE", "Esperado ']' no literal de lista.")
+            return ListExpr(elements=elements)
+        if self._match("ABRE_CHAVE"):
+            entries: list[tuple[Expr, Expr]] = []
+            if not self._check("FECHA_CHAVE"):
+                while True:
+                    key = self._expression()
+                    self._consume("DOIS_PONTOS", "Esperado ':' no literal de mapa.")
+                    value = self._expression()
+                    entries.append((key, value))
+                    if not self._match("VIRGULA"):
+                        break
+            self._consume("FECHA_CHAVE", "Esperado '}' no literal de mapa.")
+            return DictExpr(entries=entries)
+
         token = self._peek()
         raise ParseError(f"Expressão inválida na linha {token.linha}, coluna {token.coluna}.")
 

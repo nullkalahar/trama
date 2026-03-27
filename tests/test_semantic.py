@@ -1,6 +1,7 @@
 import pytest
 
 from trama.compiler import CompileError, compile_source
+from trama.parser import ParseError
 
 
 def test_retorne_fora_de_funcao() -> None:
@@ -31,7 +32,12 @@ def test_aridade_funcao_incorreta() -> None:
         compile_source(codigo)
 
 
-def test_funcao_aninhada_nao_suportada_v0_1() -> None:
+def test_try_sem_pegue_ou_finalmente_erro() -> None:
+    with pytest.raises(ParseError, match="exige 'pegue' e/ou 'finalmente'"):
+        compile_source("tente\n    exibir(1)\nfim\n")
+
+
+def test_funcoes_aninhadas_agora_suportadas() -> None:
     codigo = (
         "função principal()\n"
         "    função interna()\n"
@@ -40,5 +46,4 @@ def test_funcao_aninhada_nao_suportada_v0_1() -> None:
         "    exibir(interna())\n"
         "fim\n"
     )
-    with pytest.raises(CompileError, match="Funções aninhadas"):
-        compile_source(codigo)
+    compile_source(codigo)

@@ -47,7 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "executar":
             codigo = _ler_arquivo(args.arquivo)
-            run_source(codigo)
+            run_source(codigo, source_path=args.arquivo)
             return 0
 
         if args.command == "bytecode":

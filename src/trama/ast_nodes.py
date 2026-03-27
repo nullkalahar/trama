@@ -72,6 +72,25 @@ class ExprStmt(Stmt):
 
 
 @dataclass(frozen=True)
+class ImportStmt(Stmt):
+    module: str
+    alias: str
+
+
+@dataclass(frozen=True)
+class TryStmt(Stmt):
+    try_branch: list[Stmt]
+    catch_name: str | None
+    catch_branch: list[Stmt] | None
+    finally_branch: list[Stmt] | None
+
+
+@dataclass(frozen=True)
+class ThrowStmt(Stmt):
+    value: Expr
+
+
+@dataclass(frozen=True)
 class BinaryExpr(Expr):
     left: Expr
     operator: str
@@ -88,6 +107,22 @@ class UnaryExpr(Expr):
 class CallExpr(Expr):
     callee: Expr
     arguments: list[Expr]
+
+
+@dataclass(frozen=True)
+class IndexExpr(Expr):
+    target: Expr
+    index: Expr
+
+
+@dataclass(frozen=True)
+class ListExpr(Expr):
+    elements: list[Expr]
+
+
+@dataclass(frozen=True)
+class DictExpr(Expr):
+    entries: list[tuple[Expr, Expr]]
 
 
 @dataclass(frozen=True)

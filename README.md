@@ -6,9 +6,6 @@ A `trama` é uma linguagem de programação em português (pt-BR), de uso geral,
 
 A meta é construir uma linguagem geral primeiro, com base sólida, e evoluir para suportar backend robusto.
 
-Referência prática de objetivo futuro:
-
-- projeto backend existente em `/home/arara/SugoiDekkai Migração/Ecos de Faerùn/backend`
 
 Isso significa que, além de sintaxe agradável, a `trama` precisa amadurecer em:
 
@@ -28,6 +25,7 @@ Pipeline da linguagem:
 
 - plano técnico documentado em [`docs/PLANO_TRAMA.md`](docs/PLANO_TRAMA.md)
 - manual da linguagem v0.1 em [`docs/LINGUAGEM_V0_1.md`](docs/LINGUAGEM_V0_1.md)
+- manual da linguagem v0.2 em [`docs/LINGUAGEM_V0_2.md`](docs/LINGUAGEM_V0_2.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
@@ -54,6 +52,8 @@ Pipeline da linguagem:
   - `se/senao/senão`, `enquanto`
   - `retorne`, `pare`, `continue`
   - atribuição e chamadas de função
+  - `tente/pegue/finalmente`, `lance`, `importe`
+  - coleções (`[]`, `{}`) e indexação (`obj[chave]`)
 - Sprint 3 completo:
   - compilação AST -> bytecode
   - execução em VM com funções, controle de fluxo e `exibir`
@@ -65,10 +65,15 @@ Pipeline da linguagem:
   - geração de binário standalone
   - geração de pacote `.deb`
   - scripts para inicialização/publicação de repositório APT
+- v0.2 completa:
+  - exceções reais com `tente/pegue/finalmente`
+  - módulos via `importe`
+  - escopos e closures para funções aninhadas
+  - coleções nativas (lista/mapa) e JSON (`json_parse`/`json_stringify`)
 
 ### Em andamento
 
-- refinamento de erros e hardening para casos limite
+- hardening de runtime e ergonomia para backend (preparação de v0.3+)
 
 ### Falta fazer (próximos passos)
 
@@ -143,7 +148,7 @@ trama bytecode arquivo.trm
 trama repl
 ```
 
-## Distribuição v0.1
+## Distribuição (atual: v0.2)
 
 Build do binário standalone (obrigatório):
 
@@ -155,15 +160,15 @@ scripts/build_standalone.sh
 Build do pacote Debian:
 
 ```bash
-scripts/package_deb.sh 0.1.0 amd64
-sudo apt install ./build/trama_0.1.0_amd64.deb
+scripts/package_deb.sh 0.2.0 amd64
+sudo apt install ./build/trama_0.2.0_amd64.deb
 ```
 
 Preparar repositório APT:
 
 ```bash
 scripts/init_apt_repo.sh packaging/apt-repo stable main trama <SEU_GPG_KEY_ID>
-scripts/publish_apt_package.sh packaging/apt-repo stable ./build/trama_0.1.0_amd64.deb
+scripts/publish_apt_package.sh packaging/apt-repo stable ./build/trama_0.2.0_amd64.deb
 ```
 
 ## Entrega da v0.1
@@ -186,11 +191,11 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [x] CLI funcional (`executar`, `bytecode`, `compilar`)
 - [x] distribuição inicial (binário standalone + `.deb`)
 
-### v0.2
-- [ ] exceções reais (`tente/pegue/finalmente`)
-- [ ] módulos/imports estáveis
-- [ ] escopos/closures sólidos
-- [ ] coleções nativas e JSON
+### v0.2 (concluída)
+- [x] exceções reais (`tente/pegue/finalmente`)
+- [x] módulos/imports estáveis
+- [x] escopos/closures sólidos
+- [x] coleções nativas e JSON
 
 ### v0.3
 - [ ] runtime assíncrono oficial

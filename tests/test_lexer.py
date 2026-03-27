@@ -106,6 +106,19 @@ def test_pontuacoes_adicionais() -> None:
     ]
 
 
+def test_tokens_para_try_importe_e_colecoes() -> None:
+    tipos = _tipos("tente\npegue e\nfinalmente\nimporte mod como m\n[a]{\"k\":1}\n")
+    assert "TENTE" in tipos
+    assert "PEGUE" in tipos
+    assert "FINALMENTE" in tipos
+    assert "IMPORTE" in tipos
+    assert "COMO" in tipos
+    assert "ABRE_COLCHETE" in tipos
+    assert "FECHA_COLCHETE" in tipos
+    assert "ABRE_CHAVE" in tipos
+    assert "FECHA_CHAVE" in tipos
+
+
 def test_numero_real_valido() -> None:
     tokens = tokenizar("valor = 10.25\n")
     numero = [t for t in tokens if t.tipo == "NUMERO"][0]
