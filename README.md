@@ -177,85 +177,74 @@ A `v0.1` é considerada pronta quando cumprir:
 - pacote Debian (`.deb`) instalável localmente
 - publicação em repositório APT assinado para permitir `apt install trama`
 
-## Objetivo da v1.0 (Backend)
+## Roadmap Versionado
 
-Para a `trama` ser uma linguagem viável para backend em produção, a v1.0 deve entregar:
+Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 
-- sistema de módulos/imports estável
-- biblioteca padrão de rede/HTTP (cliente e servidor)
-- acesso a banco de dados (mínimo SQL)
-- I/O de arquivos e configuração por ambiente
-- tratamento de erros/exceções robusto
-- concorrência assíncrona (ou modelo equivalente para I/O)
-- logs estruturados e observabilidade básica (métricas/traces iniciais)
-- testes e tooling para projetos backend (runner, cobertura, lint/format)
-- empacotamento e deploy previsíveis (binário, `.deb`, container-friendly)
-- compatibilidade e documentação de migração entre versões
+### v0.1 (concluída)
+- [x] lexer, parser, AST, semântica mínima, compilador e VM
+- [x] CLI funcional (`executar`, `bytecode`, `compilar`)
+- [x] distribuição inicial (binário standalone + `.deb`)
 
-## Objetivo da v1.5 (Frontend)
+### v0.2
+- [ ] exceções reais (`tente/pegue/finalmente`)
+- [ ] módulos/imports estáveis
+- [ ] escopos/closures sólidos
+- [ ] coleções nativas e JSON
 
-Após consolidar backend na v1.0, a v1.5 deve habilitar desenvolvimento frontend com:
+### v0.3
+- [ ] runtime assíncrono oficial
+- [ ] `async/await`, tarefas, timeout e cancelamento
+- [ ] I/O não bloqueante
 
-- toolkit de UI (componentes, estado e ciclo de renderização)
-- integração com HTML/CSS/DOM (ou runtime equivalente)
-- roteamento de aplicação (SPA)
-- consumo de API HTTP no cliente
-- build de assets frontend (dev/prod)
-- hot reload para desenvolvimento
-- integração full-stack com backend em `trama`
-- documentação e templates de projeto frontend
+### v0.4
+- [ ] stdlib backend mínima (HTTP client, FS, ENV, TIME, LOG)
+- [ ] serialização JSON robusta
+- [ ] configuração por ambiente
 
-## Meta v1.5: Substituir o Backend 
+### v0.5
+- [ ] servidor web nativo
+- [ ] roteamento, middlewares, CORS, request/response
+- [ ] validação de payload e erros padronizados
+- [ ] healthcheck e serving de estáticos
 
-Para a `trama` substituir esse backend real até a `v1.5`, precisa atingir paridade funcional nos pontos abaixo:
+### v0.6
+- [ ] driver PostgreSQL async + query builder/ORM inicial
+- [ ] transações
+- [ ] migrações idempotentes + seed
 
-- framework web HTTP com roteamento, middlewares e CORS
-- suporte a API versionada (`/api/v1`) e rotas de webhook
-- autenticação com bearer token (JWT) + hashing de senha (bcrypt)
-- validação/serialização de payloads (equivalente ao uso atual de schemas)
-- ORM/SQL assíncrono com PostgreSQL (queries, filtros, join, upsert, transação)
-- migrações de banco e seed idempotente de dados iniciais (planos/cupons)
-- jobs agendados assíncronos (cron e interval), com execução contínua em produção
-- camada de integração HTTP externa assíncrona (ex.: Evolution API)
-- integração com provedores de pagamento e webhooks (Stripe já ativo; Mercado Pago planejado)
-- regras de negócio de assinatura/plano (free, premium, empresarial) e autorização por plano
-- sincronização em lote cliente-servidor (endpoint de sync com upsert + diff por `updated_at`)
-- gerenciamento de listas de transmissão e membros com limites por plano
-- i18n de mensagens de lembrete e tratamento de timezone por usuário
-- observabilidade mínima para produção: logs estruturados, healthcheck, códigos de erro consistentes
-- servir frontend estático (SPA) no mesmo backend quando necessário
-- deploy container-friendly (Docker), `.deb` e binário standalone
-- suíte de testes de integração cobrindo auth, CRUD, sync, assinatura e jobs
+### v0.7
+- [ ] JWT + hash de senha (bcrypt/argon2)
+- [ ] autorização por papéis (RBAC)
 
-Critério objetivo de aceite:
+### v0.8
+- [ ] logs estruturados
+- [ ] métricas e tracing inicial
+- [ ] práticas de operação para produção
 
-- executar os mesmos fluxos atuais do Sooner (auth, eventos, listas, sync, usuário, assinaturas, webhooks e jobs)
-- manter compatibilidade de contrato HTTP com os clientes atuais (app/web)
-- operar com estabilidade em ambiente real (túnel/proxy + Postgres + serviços externos)
+### v0.9
+- [ ] test runner oficial
+- [ ] cobertura, lint/format
+- [ ] templates de projeto backend
 
-## Meta v1.5–v1.8: 
+### v1.0 (backend pronto para produção)
+- [ ] paridade backend geral em produção
+- [ ] suporte a APIs versionadas, jobs e webhooks
+- [ ] testes de integração e carga com estabilidade operacional
 
-Para a `trama` também substituir esse backend no intervalo `v1.5` a `v1.8`, precisa entregar:
+### v1.5 (frontend)
+- [ ] toolkit de UI, estado e renderização
+- [ ] integração HTML/CSS/DOM (ou runtime equivalente)
+- [ ] roteamento SPA + build + hot reload
+- [ ] integração full-stack com backend em `trama`
 
-- servidor HTTP completo com rotas REST compatíveis com os contratos atuais do app
-- servidor Socket.IO/WebSocket nativo com autenticação JWT por conexão
-- sistema de mensagens privadas em tempo real (conversas, mensagens, upload de arquivo, contador de não lidas, confirmação de leitura)
-- eventos realtime compatíveis: `new_message`, `typing_status`, `read_receipt`, `user_online`, `user_offline`
-- sistema social/gamificado em tempo real (eventos `new_like`, `new_comment`, `new_follower`, `new_alert`)
-- sistema de guildas/comunidades (feed por guilda, posts, comentários, reações, moderação e permissões de membro)
-- APIs administrativas (dashboard, métricas de engajamento em tempo real e campanhas de push)
-- suporte a push notifications end-to-end (registro de token, campanhas, envio e estatísticas)
-- autenticação/autorização robusta (JWT + perfis de permissão: usuário, moderador, administrador)
-- camada de upload de mídia com validação de tipo/tamanho e URLs públicas
-- persistência e cache (banco relacional para domínio principal + estratégia de cache offline/sincronização incremental)
-- observabilidade e operação (métricas de conexões WebSocket, filas/eventos, logs estruturados, healthcheck e backpressure)
-- compatibilidade de deploy (execução atrás de túnel/proxy, Docker, `.deb` e binário standalone)
-
-Critério objetivo de aceite:
-
-- app Flutter atual do BraniMeDB funcionar sem regressão crítica ao trocar o backend para `trama`
-- manter paridade de eventos realtime e contratos REST usados em produção
-- suportar carga de mensagens/conexões simultâneas com estabilidade operacional
+### v1.5–v1.8 (paridade backend avançada)
+- [ ] REST + realtime (Socket.IO/WebSocket) com autenticação JWT
+- [ ] mensagens em tempo real, eventos sociais e alertas
+- [ ] comunidades/guildas com moderação e permissões
+- [ ] APIs administrativas + campanhas de push + métricas
+- [ ] upload de mídia + persistência + cache offline/sync incremental
+- [ ] deploy completo (Docker, `.deb`, standalone) com observabilidade robusta
 
 ## Princípios Técnicos
 
@@ -263,6 +252,7 @@ Critério objetivo de aceite:
 - gramática pequena e sem ambiguidades
 - testes desde o lexer
 - compatibilidade com evolução para backend real
+- documentação de linguagem obrigatória: cada versão deve criar/atualizar o manual da linguagem
 
 ## Licença
 

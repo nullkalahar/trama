@@ -33,3 +33,6 @@ Thumbs.db
 
 # PyInstaller
 *.spec
+
+# Arquivos locais (não versionar)
+.local/
