@@ -1,0 +1,9 @@
+função principal()
+    cfg = config_carregar_ambiente({"host": "127.0.0.1", "porta": 8080, "debug": falso}, "TRAMA_", ["host", "porta"], {"host": "texto", "porta": "inteiro", "debug": "logico"})
+
+    exibir(cfg["host"])
+    exibir(cfg["porta"])
+
+    token = segredo_obter("TRAMA_TOKEN", "sem_token")
+    exibir(segredo_mascarar(token, 4))
+fim

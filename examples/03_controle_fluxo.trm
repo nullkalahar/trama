@@ -1,0 +1,15 @@
+função principal()
+    i = 0
+    soma = 0
+    enquanto i < 10
+        i = i + 1
+        se i == 3
+            continue
+        fim
+        se i == 8
+            pare
+        fim
+        soma = soma + i
+    fim
+    exibir("soma:", soma)
+fim

@@ -1,0 +1,7 @@
+função dobro(x)
+    retorne x * 2
+fim
+
+função triplo(x)
+    retorne x * 3
+fim

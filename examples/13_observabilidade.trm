@@ -1,0 +1,13 @@
+função principal()
+    log_estruturado("info", "iniciando", {"modulo": "demo"})
+
+    metrica_incrementar("requests_total", 1, {"rota": "/demo"})
+    metrica_observar("latencia_ms", 12.5, {"rota": "/demo"})
+
+    span = traco_iniciar("processar_demo", {"correlacao": "abc"})
+    traco_evento(span, "etapa_1", {"ok": verdadeiro})
+    traco_finalizar(span, "ok", nulo)
+
+    exibir(metricas_snapshot()["counters"][0]["nome"])
+    exibir(tracos_snapshot()["spans"][0]["nome"])
+fim

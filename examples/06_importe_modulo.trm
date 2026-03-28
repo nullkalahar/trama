@@ -1,0 +1,6 @@
+importe "modulos/matematica.trm" como mat
+
+função principal()
+    exibir(mat["dobro"](21))
+    exibir(mat["triplo"](7))
+fim

@@ -1,0 +1,15 @@
+assíncrona função passo(nome, segundos)
+    aguarde dormir(segundos)
+    retorne "ok:" + nome
+fim
+
+assíncrona função principal()
+    t1 = criar_tarefa(passo("a", 0.05))
+    t2 = criar_tarefa(passo("b", 0.1))
+
+    r1 = aguarde com_timeout(t1, 1)
+    r2 = aguarde com_timeout(t2, 1)
+
+    exibir(r1)
+    exibir(r2)
+fim

@@ -1,0 +1,12 @@
+função job_boas_vindas(payload)
+    exibir("enviando para:", payload["email"])
+    retorne {"ok": verdadeiro}
+fim
+
+assíncrona função principal()
+    fila = fila_criar("emails")
+    aguarde fila_enfileirar(fila, job_boas_vindas, {"email": "ana@exemplo.com"}, 3, 5, "email:ana")
+    resultado = aguarde fila_processar(fila)
+    exibir(resultado["processados"])
+    exibir(fila_status(fila)["concluidos"])
+fim

@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 import threading
 from typing import Any
 
 from .builtins import make_builtins
-from .bytecode import BytecodeProgram, FunctionCode
+from .bytecode import BytecodeProgram, FunctionCode, program_from_dict
 from .compiler import compile_source
 
 
@@ -447,3 +448,21 @@ def run_source(codigo: str, print_fn: Any | None = None, source_path: str | None
     program = compile_source(codigo)
     vm = VirtualMachine(program=program, print_fn=print_fn, source_path=source_path)
     return vm.execute()
+
+
+def run_bytecode_dict(
+    payload: dict[str, object],
+    print_fn: Any | None = None,
+    source_path: str | None = None,
+) -> object:
+    program = program_from_dict(payload)
+    vm = VirtualMachine(program=program, print_fn=print_fn, source_path=source_path)
+    return vm.execute()
+
+
+def run_bytecode_file(caminho: str, print_fn: Any | None = None) -> object:
+    path = Path(caminho)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise VMError("Arquivo de bytecode inválido: JSON raiz deve ser objeto.")
+    return run_bytecode_dict(payload, print_fn=print_fn, source_path=str(path))

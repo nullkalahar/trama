@@ -1,0 +1,10 @@
+função principal()
+    usuario = {"id": 1, "nome": "Ana", "tags": ["backend", "trama", "ptbr"]}
+
+    txt = json_stringify_pretty(usuario)
+    exibir(txt != nulo)
+
+    obj = json_parse(txt)
+    exibir(obj["nome"])
+    exibir(obj["tags"][1])
+fim

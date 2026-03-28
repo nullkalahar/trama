@@ -58,8 +58,10 @@ Pipeline da linguagem:
 - manual da linguagem v0.7 em [`docs/LINGUAGEM_V0_7.md`](docs/LINGUAGEM_V0_7.md)
 - manual da linguagem v0.8 em [`docs/LINGUAGEM_V0_8.md`](docs/LINGUAGEM_V0_8.md)
 - manual da linguagem v0.9 em [`docs/LINGUAGEM_V0_9.md`](docs/LINGUAGEM_V0_9.md)
+- manual da linguagem v1.1 em [`docs/LINGUAGEM_V1_1.md`](docs/LINGUAGEM_V1_1.md)
 - manual completo consolidado até v0.9 em [`docs/MANUAL_COMPLETO_ATE_V0_9.md`](docs/MANUAL_COMPLETO_ATE_V0_9.md)
 - guia de auto-hospedagem v1.0 em [`docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md`](docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md)
+- guia de auto-hospedagem do compilador v1.0.5 em [`docs/AUTO_HOSPEDAGEM_V1_0_5.md`](docs/AUTO_HOSPEDAGEM_V1_0_5.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
@@ -136,6 +138,10 @@ Pipeline da linguagem:
   - test runner oficial para `.trm` (`trama testar`)
   - lint/format/cobertura para `.trm` (`trama lint`, `trama formatar`, `trama cobertura`)
   - gerador de template backend (`trama template-backend`)
+- v1.0.5 em andamento (auto-hospedagem):
+  - compilador self-host em `.trm` (`selfhost/compilador/mod.trm`)
+  - `trama compilar` operando via pipeline self-host por padrão
+  - verificação automática de paridade (`trama paridade-selfhost`)
 
 ### Em andamento
 
@@ -178,6 +184,7 @@ Ordem de implementação para alcançar backend robusto:
 ```text
 trama/
   docs/
+  selfhost/
   src/trama/
   tests/
   examples/
@@ -243,6 +250,11 @@ make run-example
 ```bash
 trama executar arquivo.trm
 trama compilar arquivo.trm -o arquivo.tbc
+trama compilar-legado arquivo.trm -o arquivo.tbc
+trama semente-compilar arquivo.trm -o arquivo.tbc
+trama autocompilar arquivo.trm -o arquivo.tbc
+trama paridade-selfhost arquivo.trm
+trama executar-tbc arquivo.tbc
 trama bytecode arquivo.trm
 trama testar [alvo]
 trama lint [alvo]
@@ -264,8 +276,14 @@ scripts/build_standalone.sh
 Build do pacote Debian:
 
 ```bash
-scripts/package_deb.sh 0.9.0 amd64
-sudo apt install ./build/trama_0.9.0_amd64.deb
+scripts/package_deb.sh 1.0.0 amd64
+sudo apt install ./build/trama_1.0.0_amd64.deb
+```
+
+Pipeline completo de release self-host:
+
+```bash
+scripts/build_release_selfhost.sh 1.0.0 amd64
 ```
 
 Preparar repositório APT:
@@ -347,16 +365,18 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [x] guia de auto-hospedagem e operação (SLO, monitoramento, backup/restore)
 
 ### v1.0.5 (auto-hospedagem do compilador)
-- [ ] compilador e runtime principais implementados em `.trm` (self-hosted)
-- [ ] pipeline oficial de build compilando componentes centrais a partir de código `.trm`
-- [ ] remoção do papel de implementação primária em `.py` (Python apenas compatibilidade transitória)
-- [ ] suíte de equivalência garantindo paridade entre implementação antiga e self-hosted
+- [x] compilador principal em `.trm` (`selfhost/compilador/mod.trm`)
+- [x] pipeline oficial de build compilando componentes centrais a partir de código `.trm` (`scripts/build_selfhost.sh`)
+- [x] `trama compilar` migrado para pipeline self-host (`compilar-legado` mantido para compatibilidade transitória)
+- [x] suíte de equivalência garantindo paridade entre implementação antiga e self-hosted (`trama paridade-selfhost`)
+- [x] compilador semente mínimo para bootstrap de futuras versões (`trama semente-compilar`)
+- [x] execução de bytecode `.tbc` sem compilador no runtime (`trama executar-tbc`)
 - [ ] release oficial marcada como “Trama compilando Trama”
 
-### v1.1
-- [ ] cache de aplicação completo (TTL, invalidação por chave/padrão, warmup)
-- [ ] circuit breaker/retry/backoff para integrações externas
-- [ ] configuração avançada por ambiente e segredos
+### v1.1 (concluída)
+- [x] cache de aplicação completo (TTL, invalidação por chave/padrão, warmup)
+- [x] circuit breaker/retry/backoff para integrações externas
+- [x] configuração avançada por ambiente e segredos
 
 ### v1.2
 - [ ] uploads multipart/form-data
@@ -372,6 +392,26 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [ ] observabilidade avançada (métricas HTTP/DB/runtime, tracing por requisição)
 - [ ] logs estruturados com correlação (`request_id`, `trace_id`, `user_id`)
 - [ ] dashboard operacional mínimo e alertas iniciais
+
+## Plano Técnico v1.1 (robusto)
+
+Ordem de implementação adotada:
+
+1. configuração/segredos;
+2. cache com TTL/invalidação/warmup;
+3. resiliência com retry/backoff/timeout/circuit breaker;
+4. integração no runtime da linguagem via builtins pt-BR;
+5. testes unitários e integração via programas `.trm`.
+
+Critérios de aceite (DoD):
+
+- API canônica em pt-BR com aliases de compatibilidade transitórios;
+- validação de configuração por obrigatórios + schema de tipos;
+- segredos com leitura segura e mascaramento em logs;
+- cache com namespaces, estatísticas de hit/miss/expiração;
+- resiliência com estado de circuito (`fechado`, `aberto`, `meio_aberto`);
+- testes automatizados cobrindo sucesso, falha, timeout e recuperação;
+- documentação atualizada no roadmap/checklist.
 
 ## Plano de Implementação v1.0 (Completo e Robusto)
 
@@ -501,6 +541,12 @@ Regra obrigatória deste plano: toda superfície de linguagem deve ser canônica
 - [ ] APIs administrativas + campanhas de push + métricas
 - [ ] upload de mídia + persistência + cache offline/sync incremental
 - [ ] deploy completo (Docker, `.deb`, standalone) com observabilidade robusta
+
+### v2.0 (autossuficiência total da linguagem)
+- [ ] fase 1: especificar formato canônico de bytecode e ABI da VM (`bytecode_v1`) com versionamento estável
+- [ ] fase 2: implementar runtime/VM nativa robusta (backend nativo) para executar `.tbc` sem Python
+- [ ] fase 3: portar compilador oficial para `.trm` com bootstrap por compilador semente mínimo
+- [ ] fase 4: remover Python do caminho crítico de build/release e publicar release oficial sem dependência de Python
 
 ## Princípios Técnicos
 

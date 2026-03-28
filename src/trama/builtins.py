@@ -20,10 +20,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from collections.abc import Callable
 
 from . import db_runtime
+from . import cache_runtime
+from . import config_runtime
 from . import jobs_runtime
 from . import observability_runtime
+from . import resiliencia_runtime
 from . import security_runtime
 from . import web_runtime
+from .bytecode import program_to_dict
+from .compiler import compile_source
 
 
 def _to_coroutine(awaitable: object):
@@ -498,6 +503,54 @@ def make_builtins(
         path = Path(caminho)
         return sorted([p.name for p in path.iterdir()])
 
+    def tamanho(valor: object) -> int:
+        if isinstance(valor, (str, bytes, bytearray, list, tuple, dict, set)):
+            return len(valor)
+        raise TypeError("tamanho espera texto, lista, mapa, tupla, bytes ou conjunto")
+
+    def lista_adicionar(lista: object, valor: object) -> int:
+        if not isinstance(lista, list):
+            raise TypeError("lista_adicionar espera lista no primeiro argumento")
+        lista.append(valor)
+        return len(lista)
+
+    def mapa_obter(mapa: object, chave: object, padrao: object | None = None) -> object:
+        if not isinstance(mapa, dict):
+            raise TypeError("mapa_obter espera mapa no primeiro argumento")
+        return mapa.get(chave, padrao)
+
+    def mapa_definir(mapa: object, chave: object, valor: object) -> object:
+        if not isinstance(mapa, dict):
+            raise TypeError("mapa_definir espera mapa no primeiro argumento")
+        mapa[chave] = valor
+        return valor
+
+    def mapa_chaves(mapa: object) -> list[object]:
+        if not isinstance(mapa, dict):
+            raise TypeError("mapa_chaves espera mapa no primeiro argumento")
+        return list(mapa.keys())
+
+    def trama_compilar_fonte(codigo: str) -> dict[str, object]:
+        if not isinstance(codigo, str):
+            raise TypeError("trama_compilar_fonte espera texto")
+        program = compile_source(codigo)
+        return program_to_dict(program)
+
+    def trama_compilar_arquivo(caminho_fonte: str) -> dict[str, object]:
+        if not isinstance(caminho_fonte, str):
+            raise TypeError("trama_compilar_arquivo espera caminho texto")
+        codigo = Path(caminho_fonte).read_text(encoding="utf-8")
+        program = compile_source(codigo)
+        return program_to_dict(program)
+
+    def trama_compilar_para_arquivo(caminho_fonte: str, caminho_saida: str) -> dict[str, object]:
+        payload = trama_compilar_arquivo(caminho_fonte)
+        Path(caminho_saida).write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return {"ok": True, "fonte": caminho_fonte, "saida": caminho_saida}
+
     async def ler_texto_async(caminho: str) -> str:
         path = Path(caminho)
         return await asyncio.to_thread(path.read_text, encoding="utf-8")
@@ -526,16 +579,137 @@ def make_builtins(
         return {k: v for k, v in os.environ.items() if k.startswith(prefixo)}
 
     def config_carregar(padrao: dict[str, object], prefixo: str = "TRAMA_") -> dict[str, object]:
-        if not isinstance(padrao, dict):
-            raise TypeError("config_carregar espera mapa no primeiro argumento")
+        return config_runtime.config_carregar_ambiente(padrao, prefixo=prefixo)
 
-        cfg = dict(padrao)
-        for key, value in os.environ.items():
-            if not key.startswith(prefixo):
-                continue
-            field = key[len(prefixo) :].lower()
-            cfg[field] = _parse_env_value(value)
-        return cfg
+    def config_carregar_ambiente(
+        padrao: dict[str, object],
+        prefixo: str = "TRAMA_",
+        obrigatorios: list[str] | None = None,
+        schema: dict[str, str] | None = None,
+    ) -> dict[str, object]:
+        return config_runtime.config_carregar_ambiente(
+            padrao,
+            prefixo=prefixo,
+            obrigatorios=obrigatorios,
+            schema=schema,
+        )
+
+    def config_validar(
+        config: dict[str, object],
+        obrigatorios: list[str] | None = None,
+        schema: dict[str, str] | None = None,
+    ) -> dict[str, object]:
+        return config_runtime.config_validar(config, obrigatorios=obrigatorios, schema=schema)
+
+    def segredo_obter(
+        nome: str,
+        padrao: object | None = None,
+        obrigatorio: bool = False,
+        permitir_vazio: bool = False,
+    ) -> object:
+        return config_runtime.segredo_obter(
+            nome,
+            padrao=padrao,
+            obrigatorio=obrigatorio,
+            permitir_vazio=permitir_vazio,
+        )
+
+    def segredo_mascarar(valor: object, visivel: int = 2) -> str:
+        return config_runtime.segredo_mascarar(valor, visivel=visivel)
+
+    def cache_definir(
+        chave: str,
+        valor: object,
+        ttl_segundos: float | None = None,
+        namespace: str = "padrao",
+    ) -> object:
+        return cache_runtime.cache_definir(chave, valor, ttl_segundos=ttl_segundos, namespace=namespace)
+
+    def cache_obter(chave: str, padrao: object | None = None, namespace: str = "padrao") -> object:
+        return cache_runtime.cache_obter(chave, padrao=padrao, namespace=namespace)
+
+    def cache_existe(chave: str, namespace: str = "padrao") -> bool:
+        return cache_runtime.cache_existe(chave, namespace=namespace)
+
+    def cache_remover(chave: str, namespace: str = "padrao") -> bool:
+        return cache_runtime.cache_remover(chave, namespace=namespace)
+
+    def cache_invalidar_padrao(padrao: str, namespace: str = "padrao") -> int:
+        return cache_runtime.cache_invalidar_padrao(padrao, namespace=namespace)
+
+    def cache_limpar(namespace: str | None = None) -> int:
+        return cache_runtime.cache_limpar(namespace=namespace)
+
+    def cache_aquecer(
+        itens: dict[str, object] | list[dict[str, object]] | list[list[object]] | list[tuple[object, ...]],
+        ttl_segundos: float | None = None,
+        namespace: str = "padrao",
+    ) -> int:
+        return cache_runtime.cache_aquecer(itens, ttl_segundos=ttl_segundos, namespace=namespace)
+
+    def cache_stats(namespace: str = "padrao") -> dict[str, object]:
+        return cache_runtime.cache_stats(namespace=namespace)
+
+    async def resiliencia_executar(
+        nome: str,
+        operacao_fn: object,
+        argumentos: list[object] | None = None,
+        opcoes: dict[str, object] | None = None,
+    ) -> object:
+        args = list(argumentos or [])
+        opts = dict(opcoes or {})
+        tentativas = int(opts.get("tentativas", 3))
+        timeout_segundos = opts.get("timeout_segundos")
+        max_falhas = int(opts.get("max_falhas", 5))
+        reset_timeout_segundos = float(opts.get("reset_timeout_segundos", 30.0))
+        base_backoff_segundos = float(opts.get("base_backoff_segundos", 0.1))
+        max_backoff_segundos = float(opts.get("max_backoff_segundos", 2.0))
+        jitter_segundos = float(opts.get("jitter_segundos", 0.05))
+
+        nao_retentaveis_map: dict[str, type[BaseException]] = {
+            "ValueError": ValueError,
+            "TypeError": TypeError,
+            "RuntimeError": RuntimeError,
+            "KeyError": KeyError,
+            "AssertionError": AssertionError,
+        }
+        nomes_nao_retentaveis = opts.get("nao_retentaveis", [])
+        nao_retentaveis: tuple[type[BaseException], ...] = tuple(
+            nao_retentaveis_map.get(str(nome), RuntimeError)
+            for nome in (nomes_nao_retentaveis if isinstance(nomes_nao_retentaveis, list) else [])
+        )
+
+        async def _operacao() -> object:
+            if invoke_callable_sync is not None:
+                result = await asyncio.to_thread(invoke_callable_sync, operacao_fn, args)
+            else:
+                if not callable(operacao_fn):
+                    raise TypeError("resiliencia_executar exige função chamável em 'operacao_fn'.")
+                result = operacao_fn(*args)
+            if inspect.isawaitable(result):
+                return await result
+            return result
+
+        timeout_f = None if timeout_segundos is None else float(timeout_segundos)
+        return await resiliencia_runtime.executar(
+            str(nome),
+            _operacao,
+            tentativas=tentativas,
+            timeout_segundos=timeout_f,
+            max_falhas=max_falhas,
+            reset_timeout_segundos=reset_timeout_segundos,
+            base_backoff_segundos=base_backoff_segundos,
+            max_backoff_segundos=max_backoff_segundos,
+            jitter_segundos=jitter_segundos,
+            excecoes_nao_retentaveis=nao_retentaveis,
+        )
+
+    def circuito_status(nome: str) -> dict[str, object]:
+        return resiliencia_runtime.circuito_status(nome)
+
+    def circuito_resetar(nome: str | None = None) -> None:
+        resiliencia_runtime.circuito_reset(nome=nome)
+        return None
 
     def agora_iso() -> str:
         return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
@@ -1063,6 +1237,11 @@ def make_builtins(
     web_limite_taxa = web_rate_limit
     web_api_versao = web_api_versionar
     web_rota_com_contrato = web_rota_contrato
+    segredo_ler = segredo_obter
+    cache_invalida_padrao = cache_invalidar_padrao
+    compilar_trama_fonte = trama_compilar_fonte
+    compilar_trama_arquivo = trama_compilar_arquivo
+    compilar_trama_para_arquivo = trama_compilar_para_arquivo
 
     return {
         "exibir": exibir,
@@ -1081,8 +1260,19 @@ def make_builtins(
         "escrever_texto": escrever_texto,
         "arquivo_existe": arquivo_existe,
         "listar_diretorio": listar_diretorio,
+        "tamanho": tamanho,
+        "lista_adicionar": lista_adicionar,
+        "mapa_obter": mapa_obter,
+        "mapa_definir": mapa_definir,
+        "mapa_chaves": mapa_chaves,
         "ler_texto_async": ler_texto_async,
         "escrever_texto_async": escrever_texto_async,
+        "trama_compilar_fonte": trama_compilar_fonte,
+        "trama_compilar_arquivo": trama_compilar_arquivo,
+        "trama_compilar_para_arquivo": trama_compilar_para_arquivo,
+        "compilar_trama_fonte": compilar_trama_fonte,
+        "compilar_trama_arquivo": compilar_trama_arquivo,
+        "compilar_trama_para_arquivo": compilar_trama_para_arquivo,
         "http_get": http_get,
         "http_post": http_post,
         "http_obter": http_obter,
@@ -1090,6 +1280,23 @@ def make_builtins(
         "env_obter": env_obter,
         "env_todos": env_todos,
         "config_carregar": config_carregar,
+        "config_carregar_ambiente": config_carregar_ambiente,
+        "config_validar": config_validar,
+        "segredo_obter": segredo_obter,
+        "segredo_ler": segredo_ler,
+        "segredo_mascarar": segredo_mascarar,
+        "cache_definir": cache_definir,
+        "cache_obter": cache_obter,
+        "cache_existe": cache_existe,
+        "cache_remover": cache_remover,
+        "cache_invalidar_padrao": cache_invalidar_padrao,
+        "cache_invalida_padrao": cache_invalida_padrao,
+        "cache_limpar": cache_limpar,
+        "cache_aquecer": cache_aquecer,
+        "cache_stats": cache_stats,
+        "resiliencia_executar": resiliencia_executar,
+        "circuito_status": circuito_status,
+        "circuito_resetar": circuito_resetar,
         "agora_iso": agora_iso,
         "timestamp": timestamp,
         "web_criar_app": web_criar_app,

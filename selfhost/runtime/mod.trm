@@ -1,0 +1,11 @@
+função carregar_configuracao(padrao, prefixo)
+    retorne config_carregar(padrao, prefixo)
+fim
+
+função log_info_app(mensagem, contexto)
+    retorne log_estruturado("info", mensagem, contexto)
+fim
+
+função principal()
+    retorne verdadeiro
+fim

@@ -41,6 +41,33 @@ def program_to_dict(program: BytecodeProgram) -> dict[str, object]:
     }
 
 
+def function_from_dict(payload: dict[str, object]) -> FunctionCode:
+    name = str(payload.get("name", ""))
+    params = [str(p) for p in payload.get("params", [])]
+    is_async = bool(payload.get("is_async", False))
+    raw_instructions = payload.get("instructions", [])
+    instructions: list[Instruction] = []
+    for raw in raw_instructions if isinstance(raw_instructions, list) else []:
+        if not isinstance(raw, dict):
+            continue
+        instructions.append(Instruction(op=str(raw.get("op", "")), arg=raw.get("arg")))
+    return FunctionCode(name=name, params=params, is_async=is_async, instructions=instructions)
+
+
+def program_from_dict(payload: dict[str, object]) -> BytecodeProgram:
+    entry_payload = payload.get("entry")
+    if not isinstance(entry_payload, dict):
+        raise ValueError("Bytecode inválido: campo 'entry' ausente.")
+    entry = function_from_dict(entry_payload)
+    functions_payload = payload.get("functions", {})
+    functions: dict[str, FunctionCode] = {}
+    if isinstance(functions_payload, dict):
+        for key, raw_fn in functions_payload.items():
+            if isinstance(raw_fn, dict):
+                functions[str(key)] = function_from_dict(raw_fn)
+    return BytecodeProgram(entry=entry, functions=functions)
+
+
 def format_program(program: BytecodeProgram) -> str:
     lines: list[str] = []
 

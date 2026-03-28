@@ -293,6 +293,35 @@ def test_http_client_async() -> None:
         server.server_close()
 
 
+def test_v11_cache_resiliencia_config_segredos(monkeypatch) -> None:
+    monkeypatch.setenv("TRAMA_MODO", "producao")
+    codigo = (
+        "assíncrona função principal()\n"
+        "    contador = 0\n"
+        "    função consulta()\n"
+        "        contador = contador + 1\n"
+        "        se contador < 3\n"
+        "            lance \"transiente\"\n"
+        "        fim\n"
+        "        retorne \"ok\"\n"
+        "    fim\n"
+        "    valor = aguarde resiliencia_executar(\"svc_vm\", consulta, [], {\"tentativas\": 5, \"base_backoff_segundos\": 0, \"jitter_segundos\": 0})\n"
+        "    exibir(valor)\n"
+        "    exibir(circuito_status(\"svc_vm\")[\"estado\"])\n"
+        "    cache_definir(\"usuario:1\", {\"nome\": \"ana\"}, 5)\n"
+        "    exibir(cache_obter(\"usuario:1\")[\"nome\"])\n"
+        "    cache_invalidar_padrao(\"usuario:*\")\n"
+        "    exibir(cache_existe(\"usuario:1\"))\n"
+        "    cfg = config_carregar_ambiente({\"modo\": \"dev\"}, \"TRAMA_\", [\"modo\"], {\"modo\": \"texto\"})\n"
+        "    exibir(cfg[\"modo\"])\n"
+        "    exibir(segredo_mascarar(\"abcdef\", 2))\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out[0:5] == ["ok", "fechado", "ana", "False", "producao"]
+    assert out[5].endswith("ef")
+
+
 def test_web_server_nativo_rotas_validacao_cors_health_static(tmp_path) -> None:
     static_dir = tmp_path / "publico"
     static_dir.mkdir(parents=True, exist_ok=True)

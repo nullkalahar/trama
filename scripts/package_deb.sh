@@ -15,10 +15,11 @@ if [[ ! -x "dist/trama" ]]; then
 fi
 
 rm -rf "$PKG_DIR"
-mkdir -p "$PKG_DIR/DEBIAN" "$PKG_DIR/usr/bin" "$PKG_DIR/usr/share/doc/trama"
+mkdir -p "$PKG_DIR/DEBIAN" "$PKG_DIR/usr/bin" "$PKG_DIR/usr/share/doc/trama" "$PKG_DIR/usr/share/trama"
 
 install -m 0755 dist/trama "$PKG_DIR/usr/bin/trama"
 install -m 0644 README.md "$PKG_DIR/usr/share/doc/trama/README.md"
+cp -R selfhost "$PKG_DIR/usr/share/trama/selfhost"
 
 cat > "$PKG_DIR/DEBIAN/control" <<CONTROL
 Package: trama

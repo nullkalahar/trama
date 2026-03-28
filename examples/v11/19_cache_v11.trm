@@ -1,0 +1,17 @@
+função principal()
+    cache_limpar()
+    cache_definir("usuario:1", {"nome": "ana"}, 30)
+    exibir(cache_existe("usuario:1"))
+
+    dados = cache_obter("usuario:1")
+    exibir(dados["nome"])
+
+    cache_aquecer({"produto:1": {"nome": "teclado"}, "produto:2": {"nome": "mouse"}})
+    exibir(cache_obter("produto:2")["nome"])
+
+    cache_invalidar_padrao("produto:*")
+    exibir(cache_existe("produto:1"))
+
+    st = cache_stats()
+    exibir(st["hits"] >= 1)
+fim

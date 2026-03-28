@@ -50,6 +50,19 @@ def test_cli_compilar_gera_json(tmp_path: Path) -> None:
     assert any(fn["name"] == "principal" for fn in payload["functions"].values())
 
 
+def test_cli_executar_tbc(tmp_path: Path) -> None:
+    src = _write(tmp_path, "prog.trm", "função principal()\n    exibir(\"tbc\")\nfim\n")
+    out_file = tmp_path / "prog.tbc"
+    code = main(["compilar", str(src), "-o", str(out_file)])
+    assert code == 0
+
+    out = StringIO()
+    with redirect_stdout(out):
+        code = main(["executar-tbc", str(out_file)])
+    assert code == 0
+    assert "tbc" in out.getvalue()
+
+
 def test_cli_erro_retorna_1(tmp_path: Path) -> None:
     src = _write(tmp_path, "erro.trm", "retorne 1\n")
     err = StringIO()

@@ -1,0 +1,17 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_qb_orm.db")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS produtos (id INTEGER PRIMARY KEY, nome TEXT NOT NULL, ativo INTEGER NOT NULL)")
+
+    aguarde modelo_inserir(conn, "produtos", {"nome": "teclado", "ativo": 1})
+    aguarde modelo_inserir(conn, "produtos", {"nome": "mouse", "ativo": 1})
+
+    q = consulta_selecionar("produtos", ["id", "nome", "ativo"])
+    q = consulta_onde_igual(q, "ativo", 1)
+    q = consulta_ordenar_por(q, "id", "ASC")
+    q = consulta_limite(q, 10)
+
+    rows = aguarde consulta_executar(conn, q)
+    exibir(rows[0]["nome"])
+
+    aguarde banco_fechar(conn)
+fim

@@ -1,0 +1,12 @@
+assíncrona função principal()
+    caminho = "/tmp/trama_exemplo_io.txt"
+    escrever_texto(caminho, "linha 1")
+    exibir(arquivo_existe(caminho))
+
+    conteudo_sync = ler_texto(caminho)
+    exibir(conteudo_sync)
+
+    aguarde escrever_texto_async(caminho, "linha 2")
+    conteudo_async = aguarde ler_texto_async(caminho)
+    exibir(conteudo_async)
+fim

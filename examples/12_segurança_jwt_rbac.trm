@@ -1,0 +1,15 @@
+função principal()
+    segredo = "segredo_local_exemplo"
+
+    token = jwt_criar({"sub": "u1", "papel": "admin"}, segredo, 3600)
+    claims = jwt_verificar(token, segredo)
+    exibir(claims["sub"])
+
+    modelo = rbac_criar({"admin": ["usuarios:ler", "usuarios:editar"], "leitor": ["usuarios:ler"]})
+
+    usuarios = {}
+    usuarios = rbac_atribuir(usuarios, "u1", "admin")
+
+    exibir(rbac_tem_permissao(modelo, usuarios, "u1", "usuarios:ler"))
+    exibir(rbac_tem_permissao(modelo, usuarios, "u1", "usuarios:editar"))
+fim

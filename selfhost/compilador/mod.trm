@@ -1,0 +1,23 @@
+função compilar_fonte(codigo)
+    retorne trama_compilar_fonte(codigo)
+fim
+
+função compilar_arquivo(arquivo_fonte, arquivo_saida)
+    retorne trama_compilar_para_arquivo(arquivo_fonte, arquivo_saida)
+fim
+
+função compilar_varios(arquivos)
+    resultados = []
+    indice = 0
+    enquanto indice < tamanho(arquivos)
+        entrada = arquivos[indice]
+        saida = entrada + ".tbc"
+        lista_adicionar(resultados, compilar_arquivo(entrada, saida))
+        indice = indice + 1
+    fim
+    retorne resultados
+fim
+
+função principal()
+    retorne verdadeiro
+fim

@@ -1,0 +1,10 @@
+função principal()
+    tente
+        exibir("início")
+        lance "erro_exemplo"
+    pegue erro
+        exibir("capturado:", erro)
+    finalmente
+        exibir("finalizando")
+    fim
+fim

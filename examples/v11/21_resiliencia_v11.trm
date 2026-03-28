@@ -1,0 +1,16 @@
+assíncrona função principal()
+    contador = 0
+
+    função integra()
+        contador = contador + 1
+        se contador < 3
+            lance "falha_transiente"
+        fim
+        retorne "ok"
+    fim
+
+    valor = aguarde resiliencia_executar("servico_pagamento", integra, [], {"tentativas": 5, "base_backoff_segundos": 0, "jitter_segundos": 0, "max_falhas": 3, "reset_timeout_segundos": 2})
+
+    exibir(valor)
+    exibir(circuito_status("servico_pagamento")["estado"])
+fim

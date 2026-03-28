@@ -19,6 +19,7 @@ fi
   --onefile \
   --name trama \
   --paths src \
+  --add-data "selfhost:selfhost" \
   scripts/standalone_entry.py
 
 echo "Standalone gerado em: $ROOT_DIR/dist/trama"

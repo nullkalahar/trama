@@ -1,0 +1,12 @@
+função criar_somador(base)
+    função somar(x)
+        retorne base + x
+    fim
+    retorne somar
+fim
+
+função principal()
+    soma10 = criar_somador(10)
+    exibir(soma10(5))
+    exibir(soma10(20))
+fim

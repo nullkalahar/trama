@@ -1,0 +1,14 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_migracao_demo.db")
+
+    m1 = aguarde migracao_aplicar(conn, "001_criar_itens", "CREATE TABLE IF NOT EXISTS itens (id INTEGER PRIMARY KEY, nome TEXT NOT NULL)")
+    s1 = aguarde semente_aplicar(conn, "001_seed_itens", "INSERT INTO itens (nome) VALUES ('item_a')")
+
+    exibir(m1["aplicada"])
+    exibir(s1["aplicada"])
+
+    itens = aguarde banco_consultar(conn, "SELECT nome FROM itens")
+    exibir(itens[0]["nome"])
+
+    aguarde banco_fechar(conn)
+fim

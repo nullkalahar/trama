@@ -1,0 +1,3 @@
+função principal()
+    exibir("Olá, Trama!")
+fim

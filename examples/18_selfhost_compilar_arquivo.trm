@@ -1,0 +1,8 @@
+função principal()
+    fonte = "examples/01_ola_mundo.trm"
+    saida = "/tmp/ola_mundo_exemplo.tbc"
+
+    r = trama_compilar_para_arquivo(fonte, saida)
+    exibir(r["ok"])
+    exibir(arquivo_existe(saida))
+fim
