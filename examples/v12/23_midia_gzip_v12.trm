@@ -1,0 +1,7 @@
+função principal()
+    dados = midia_comprimir_gzip("conteudo de teste", 6)
+    exibir(tamanho(dados) > 0)
+    original = midia_descomprimir_gzip(dados)
+    exibir(original)
+    exibir(midia_sha256(dados) != nulo)
+fim

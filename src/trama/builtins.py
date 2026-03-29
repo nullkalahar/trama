@@ -23,9 +23,11 @@ from . import db_runtime
 from . import cache_runtime
 from . import config_runtime
 from . import jobs_runtime
+from . import media_runtime
 from . import observability_runtime
 from . import resiliencia_runtime
 from . import security_runtime
+from . import storage_runtime
 from . import web_runtime
 from .bytecode import program_to_dict
 from .compiler import compile_source
@@ -711,6 +713,97 @@ def make_builtins(
         resiliencia_runtime.circuito_reset(nome=nome)
         return None
 
+    def armazenamento_criar_local(base_dir: str) -> object:
+        return storage_runtime.LocalStorage(Path(base_dir))
+
+    def armazenamento_criar_s3(
+        bucket: str,
+        endpoint_url: str | None = None,
+        access_key: str | None = None,
+        secret_key: str | None = None,
+        region: str | None = None,
+        prefixo: str = "",
+    ) -> object:
+        return storage_runtime.S3CompatStorage(
+            bucket=bucket,
+            endpoint_url=endpoint_url,
+            access_key=access_key,
+            secret_key=secret_key,
+            region=region,
+            prefixo=prefixo,
+        )
+
+    def _as_storage(storage: object) -> object:
+        if isinstance(storage, (storage_runtime.LocalStorage, storage_runtime.S3CompatStorage)):
+            return storage
+        raise TypeError("storage inválido")
+
+    def armazenamento_salvar(
+        storage: object,
+        chave: str,
+        conteudo: object,
+        content_type: str | None = None,
+        metadata: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        st = _as_storage(storage)
+        return st.put(chave, conteudo, content_type=content_type, metadata=metadata)
+
+    def armazenamento_ler(storage: object, chave: str) -> dict[str, object]:
+        st = _as_storage(storage)
+        return st.get(chave)
+
+    def armazenamento_remover(storage: object, chave: str) -> bool:
+        st = _as_storage(storage)
+        return bool(st.delete(chave))
+
+    def armazenamento_listar(storage: object, prefixo: str = "") -> list[str]:
+        st = _as_storage(storage)
+        return list(st.list(prefix=prefixo))
+
+    def armazenamento_url(storage: object, chave: str, expira_em: int = 3600) -> str:
+        st = _as_storage(storage)
+        if isinstance(st, storage_runtime.S3CompatStorage):
+            return st.url(chave, expires_in=expira_em)
+        return st.url(chave)
+
+    def midia_ler_arquivo(caminho: str) -> bytes:
+        return media_runtime.midia_ler_arquivo(caminho)
+
+    def midia_salvar_arquivo(caminho: str, conteudo: object) -> dict[str, object]:
+        return media_runtime.midia_salvar_arquivo(caminho, conteudo)
+
+    def midia_comprimir_gzip(conteudo: object, nivel: int = 6) -> bytes:
+        return media_runtime.midia_comprimir_gzip(conteudo, nivel=nivel)
+
+    def midia_descomprimir_gzip(conteudo: object) -> bytes:
+        return media_runtime.midia_descomprimir_gzip(conteudo)
+
+    def midia_sha256(conteudo: object) -> str:
+        return media_runtime.midia_sha256(conteudo)
+
+    def midia_redimensionar_imagem(
+        conteudo: object,
+        largura: int,
+        altura: int,
+        manter_aspecto: bool = True,
+        formato_saida: str | None = None,
+        qualidade: int = 85,
+    ) -> dict[str, object]:
+        return media_runtime.midia_redimensionar_imagem(
+            conteudo,
+            largura,
+            altura,
+            manter_aspecto=manter_aspecto,
+            formato_saida=formato_saida,
+            qualidade=qualidade,
+        )
+
+    def midia_converter_imagem(conteudo: object, formato_saida: str, qualidade: int = 85) -> dict[str, object]:
+        return media_runtime.midia_converter_imagem(conteudo, formato_saida, qualidade=qualidade)
+
+    def midia_pipeline(conteudo: object, opcoes: dict[str, object] | None = None) -> dict[str, object]:
+        return media_runtime.midia_pipeline(conteudo, opcoes=opcoes)
+
     def agora_iso() -> str:
         return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
@@ -1239,6 +1332,10 @@ def make_builtins(
     web_rota_com_contrato = web_rota_contrato
     segredo_ler = segredo_obter
     cache_invalida_padrao = cache_invalidar_padrao
+    armazenamento_local_criar = armazenamento_criar_local
+    armazenamento_s3_criar = armazenamento_criar_s3
+    midia_gzip_comprimir = midia_comprimir_gzip
+    midia_gzip_descomprimir = midia_descomprimir_gzip
     compilar_trama_fonte = trama_compilar_fonte
     compilar_trama_arquivo = trama_compilar_arquivo
     compilar_trama_para_arquivo = trama_compilar_para_arquivo
@@ -1297,6 +1394,25 @@ def make_builtins(
         "resiliencia_executar": resiliencia_executar,
         "circuito_status": circuito_status,
         "circuito_resetar": circuito_resetar,
+        "armazenamento_criar_local": armazenamento_criar_local,
+        "armazenamento_criar_s3": armazenamento_criar_s3,
+        "armazenamento_local_criar": armazenamento_local_criar,
+        "armazenamento_s3_criar": armazenamento_s3_criar,
+        "armazenamento_salvar": armazenamento_salvar,
+        "armazenamento_ler": armazenamento_ler,
+        "armazenamento_remover": armazenamento_remover,
+        "armazenamento_listar": armazenamento_listar,
+        "armazenamento_url": armazenamento_url,
+        "midia_ler_arquivo": midia_ler_arquivo,
+        "midia_salvar_arquivo": midia_salvar_arquivo,
+        "midia_comprimir_gzip": midia_comprimir_gzip,
+        "midia_descomprimir_gzip": midia_descomprimir_gzip,
+        "midia_gzip_comprimir": midia_gzip_comprimir,
+        "midia_gzip_descomprimir": midia_gzip_descomprimir,
+        "midia_sha256": midia_sha256,
+        "midia_redimensionar_imagem": midia_redimensionar_imagem,
+        "midia_converter_imagem": midia_converter_imagem,
+        "midia_pipeline": midia_pipeline,
         "agora_iso": agora_iso,
         "timestamp": timestamp,
         "web_criar_app": web_criar_app,

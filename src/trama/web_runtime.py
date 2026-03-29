@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from email.parser import BytesParser
+from email.policy import default
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import mimetypes
@@ -15,6 +17,59 @@ from urllib.parse import parse_qs, urlparse
 import uuid
 
 from . import security_runtime
+
+
+def _parse_multipart_form_data(content_type: str, data: bytes) -> tuple[dict[str, object], dict[str, object]]:
+    ctype = content_type.lower()
+    if "multipart/form-data" not in ctype:
+        return {}, {}
+    if "boundary=" not in ctype:
+        raise ValueError("multipart/form-data sem boundary.")
+
+    raw = (
+        f"Content-Type: {content_type}\r\n"
+        "MIME-Version: 1.0\r\n"
+        "\r\n"
+    ).encode("utf-8") + data
+    msg = BytesParser(policy=default).parsebytes(raw)
+    if not msg.is_multipart():
+        return {}, {}
+
+    form: dict[str, object] = {}
+    files: dict[str, object] = {}
+    for part in msg.iter_parts():
+        name = part.get_param("name", header="content-disposition")
+        if not name:
+            continue
+        filename = part.get_param("filename", header="content-disposition")
+        payload = part.get_payload(decode=True) or b""
+        if filename:
+            entry = {
+                "campo": str(name),
+                "nome_arquivo": str(filename),
+                "content_type": str(part.get_content_type() or "application/octet-stream"),
+                "tamanho": len(payload),
+                "bytes": payload,
+            }
+            if name in files:
+                atual = files[name]
+                if isinstance(atual, list):
+                    atual.append(entry)
+                else:
+                    files[name] = [atual, entry]
+            else:
+                files[name] = [entry]
+        else:
+            value = payload.decode("utf-8", errors="replace")
+            if name in form:
+                atual = form[name]
+                if isinstance(atual, list):
+                    atual.append(value)
+                else:
+                    form[name] = [atual, value]
+            else:
+                form[name] = value
+    return form, files
 
 
 def _route_to_regex(path: str) -> tuple[re.Pattern[str], list[str]]:
@@ -189,12 +244,14 @@ class WebRuntime:
                     h["X-Request-Id"] = request_id
                 self._send_bytes(200, data, mime or "application/octet-stream", h)
 
-            def _read_body(self) -> tuple[bytes, dict[str, object] | None, tuple[int, dict[str, object]] | None]:
+            def _read_body(
+                self,
+            ) -> tuple[bytes, dict[str, object] | None, dict[str, object], dict[str, object], tuple[int, dict[str, object]] | None]:
                 raw_len = self.headers.get("Content-Length", "0")
                 try:
                     length = int(raw_len)
                 except ValueError:
-                    return b"", None, (
+                    return b"", None, {}, {}, (
                         400,
                         {
                             "ok": False,
@@ -206,9 +263,9 @@ class WebRuntime:
                         },
                     )
                 if length <= 0:
-                    return b"", {}, None
+                    return b"", {}, {}, {}, None
                 if length > 5 * 1024 * 1024:
-                    return b"", None, (
+                    return b"", None, {}, {}, (
                         413,
                         {
                             "ok": False,
@@ -220,16 +277,33 @@ class WebRuntime:
                         },
                     )
                 data = self.rfile.read(length)
-                ctype = (self.headers.get("Content-Type") or "").lower()
-                if "application/json" not in ctype:
-                    return data, {}, None
+                ctype = (self.headers.get("Content-Type") or "")
+                ctype_l = ctype.lower()
+                if "multipart/form-data" in ctype_l:
+                    try:
+                        form, files = _parse_multipart_form_data(ctype, data)
+                    except Exception as exc:  # noqa: BLE001
+                        return b"", None, {}, {}, (
+                            400,
+                            {
+                                "ok": False,
+                                "erro": {
+                                    "codigo": "MULTIPART_INVALIDO",
+                                    "mensagem": "Corpo multipart/form-data inválido.",
+                                    "detalhes": str(exc),
+                                },
+                            },
+                        )
+                    return data, {}, form, files, None
+                if "application/json" not in ctype_l:
+                    return data, {}, {}, {}, None
                 text = data.decode("utf-8", errors="replace")
                 if not text.strip():
-                    return data, {}, None
+                    return data, {}, {}, {}, None
                 try:
                     parsed = json.loads(text)
                 except json.JSONDecodeError as exc:
-                    return data, None, (
+                    return data, None, {}, {}, (
                         400,
                         {
                             "ok": False,
@@ -241,7 +315,7 @@ class WebRuntime:
                         },
                     )
                 if not isinstance(parsed, dict):
-                    return data, None, (
+                    return data, None, {}, {}, (
                         422,
                         {
                             "ok": False,
@@ -252,7 +326,7 @@ class WebRuntime:
                             },
                         },
                     )
-                return data, parsed, None
+                return data, parsed, {}, {}, None
 
             def _route_match(self, method: str, path: str) -> tuple[WebRoute | None, dict[str, str]]:
                 for r in app.routes:
@@ -313,6 +387,14 @@ class WebRuntime:
                 for k in list(schema.get("parametros_obrigatorios", [])):
                     if not isinstance(params, dict) or k not in params:
                         missing.append(f"parametros.{k}")
+                form = req.get("formulario", {})
+                for k in list(schema.get("form_obrigatorio", [])):
+                    if not isinstance(form, dict) or k not in form:
+                        missing.append(f"formulario.{k}")
+                files = req.get("arquivos", {})
+                for k in list(schema.get("arquivos_obrigatorios", [])):
+                    if not isinstance(files, dict) or k not in files:
+                        missing.append(f"arquivos.{k}")
                 return missing
 
             def _apply_auth(
@@ -480,7 +562,7 @@ class WebRuntime:
                         )
                         return
 
-                raw_body, body, body_err = self._read_body()
+                raw_body, body, form_data, files_data, body_err = self._read_body()
                 if body_err:
                     headers = {"X-Request-Id": request_id} if request_id else None
                     self._send_json(body_err[0], body_err[1], headers)
@@ -494,6 +576,8 @@ class WebRuntime:
                     "parametros": path_params,
                     "cabecalhos": headers_map,
                     "corpo": body or {},
+                    "formulario": form_data or {},
+                    "arquivos": files_data or {},
                     "corpo_raw": raw_body,
                     "ip": self.client_address[0] if self.client_address else "0.0.0.0",
                     "request_id": request_id,
@@ -503,6 +587,8 @@ class WebRuntime:
                 req["params"] = req["parametros"]
                 req["headers"] = req["cabecalhos"]
                 req["body"] = req["corpo"]
+                req["form"] = req["formulario"]
+                req["files"] = req["arquivos"]
 
                 ok_rl, rl_err = self._apply_rate_limit(self.command, path, request_id, req)
                 if not ok_rl and rl_err is not None:

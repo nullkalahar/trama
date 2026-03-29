@@ -322,6 +322,26 @@ def test_v11_cache_resiliencia_config_segredos(monkeypatch) -> None:
     assert out[5].endswith("ef")
 
 
+def test_v12_storage_media_local(tmp_path) -> None:
+    storage_dir = tmp_path / "storage"
+    codigo = (
+        "função principal()\n"
+        f"    s = armazenamento_criar_local(\"{storage_dir}\")\n"
+        "    compactado = midia_comprimir_gzip(\"ola mundo\", 6)\n"
+        "    r1 = armazenamento_salvar(s, \"docs/a.txt.gz\", compactado, \"application/gzip\", {\"origem\": \"teste\"})\n"
+        "    exibir(r1[\"ok\"])\n"
+        "    r2 = armazenamento_ler(s, \"docs/a.txt.gz\")\n"
+        "    exibir(r2[\"size\"] > 0)\n"
+        "    texto = midia_descomprimir_gzip(r2[\"bytes\"])\n"
+        "    exibir(texto)\n"
+        "    exibir(armazenamento_listar(s, \"docs\")[0])\n"
+        "    exibir(armazenamento_remover(s, \"docs/a.txt.gz\"))\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["True", "True", "b'ola mundo'", "docs/a.txt.gz", "True"]
+
+
 def test_web_server_nativo_rotas_validacao_cors_health_static(tmp_path) -> None:
     static_dir = tmp_path / "publico"
     static_dir.mkdir(parents=True, exist_ok=True)

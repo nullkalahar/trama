@@ -31,6 +31,9 @@ trama executar examples/01_ola_mundo.trm
 - `v11/19_cache_v11.trm`: cache v1.1
 - `v11/20_config_segredos_v11.trm`: config/segredos v1.1
 - `v11/21_resiliencia_v11.trm`: retry/backoff/circuit breaker v1.1
+- `v12/22_storage_local_v12.trm`: storage local v1.2
+- `v12/23_midia_gzip_v12.trm`: pipeline de mídia (gzip) v1.2
+- `v12/24_multipart_schema_v12.trm`: upload multipart com schema v1.2
 
 ## Observações
 

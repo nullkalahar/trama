@@ -1,0 +1,8 @@
+função principal()
+    storage = armazenamento_criar_local("/tmp/trama_storage_v12")
+    r = armazenamento_salvar(storage, "docs/arquivo.txt", "conteudo em trama", "text/plain", {"origem": "exemplo"})
+    exibir(r["ok"])
+    g = armazenamento_ler(storage, "docs/arquivo.txt")
+    exibir(g["size"] > 0)
+    exibir(armazenamento_listar(storage, "docs")[0])
+fim

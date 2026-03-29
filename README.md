@@ -59,7 +59,8 @@ Pipeline da linguagem:
 - manual da linguagem v0.8 em [`docs/LINGUAGEM_V0_8.md`](docs/LINGUAGEM_V0_8.md)
 - manual da linguagem v0.9 em [`docs/LINGUAGEM_V0_9.md`](docs/LINGUAGEM_V0_9.md)
 - manual da linguagem v1.1 em [`docs/LINGUAGEM_V1_1.md`](docs/LINGUAGEM_V1_1.md)
-- manual completo consolidado até v0.9 em [`docs/MANUAL_COMPLETO_ATE_V0_9.md`](docs/MANUAL_COMPLETO_ATE_V0_9.md)
+- manual da linguagem v1.2 em [`docs/LINGUAGEM_V1_2.md`](docs/LINGUAGEM_V1_2.md)
+- manual completo consolidado até v1.2 em [`docs/MANUAL_COMPLETO_ATE_V1_2.md`](docs/MANUAL_COMPLETO_ATE_V1_2.md)
 - guia de auto-hospedagem v1.0 em [`docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md`](docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md)
 - guia de auto-hospedagem do compilador v1.0.5 em [`docs/AUTO_HOSPEDAGEM_V1_0_5.md`](docs/AUTO_HOSPEDAGEM_V1_0_5.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
@@ -378,10 +379,10 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [x] circuit breaker/retry/backoff para integrações externas
 - [x] configuração avançada por ambiente e segredos
 
-### v1.2
-- [ ] uploads multipart/form-data
-- [ ] pipeline de mídia (redimensionamento/conversão/compressão)
-- [ ] abstração de storage (local e provedor remoto tipo S3)
+### v1.2 (concluída)
+- [x] uploads multipart/form-data
+- [x] pipeline de mídia (redimensionamento/conversão/compressão)
+- [x] abstração de storage (local e provedor remoto tipo S3)
 
 ### v1.3
 - [ ] WebSocket nativo com autenticação JWT
@@ -412,6 +413,26 @@ Critérios de aceite (DoD):
 - resiliência com estado de circuito (`fechado`, `aberto`, `meio_aberto`);
 - testes automatizados cobrindo sucesso, falha, timeout e recuperação;
 - documentação atualizada no roadmap/checklist.
+
+## Plano Técnico v1.2 (robusto)
+
+Ordem de implementação adotada:
+
+1. parsing multipart/form-data no runtime HTTP com validação por schema;
+2. pipeline de mídia com compressão gzip e processamento de imagem (quando Pillow disponível);
+3. camada de storage abstrata com backend local e backend S3-compatível;
+4. integração total via builtins canônicos pt-BR;
+5. testes unitários e integração HTTP multipart.
+
+Critérios de aceite (DoD):
+
+- `requisicao` expõe `formulario` e `arquivos` para handlers;
+- schema suporta `form_obrigatorio` e `arquivos_obrigatorios`;
+- storage local bloqueia path traversal e suporta put/get/list/delete/url;
+- storage S3-compatível com upload/download/list/delete e URL assinada;
+- pipeline de mídia com gzip e hash; operações de imagem com erro controlado sem dependência opcional;
+- testes automatizados cobrindo upload multipart, storage e mídia;
+- documentação de versão atualizada.
 
 ## Plano de Implementação v1.0 (Completo e Robusto)
 
