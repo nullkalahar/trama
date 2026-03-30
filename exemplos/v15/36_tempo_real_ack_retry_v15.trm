@@ -1,0 +1,18 @@
+função chat(req)
+    se req["evento"] == "mensagem"
+        se req["mensagem"]["tipo"] == "chat"
+            retorne {"destino": "sala", "sala": "lobby", "evento": "chat_msg", "dados": {"texto": req["mensagem"]["texto"]}, "exigir_ack": verdadeiro}
+        fim
+    fim
+    retorne {"aceitar": verdadeiro}
+fim
+
+assíncrona função principal()
+    app = web_criar_app()
+    web_tempo_real_rota(app, "/ws/chat-ack", chat, {"jwt_segredo": "segredo-v15"})
+    web_tempo_real_ativar_fallback(app, "/tempo-real/fallback", 1.0)
+    s = aguarde web_iniciar(app, "127.0.0.1", 8081)
+    exibir("Servidor v1.5 ativo em:", s["base_url"])
+    exibir("Use fallback /conectar, /enviar e /receber para testar ack/retry")
+    aguarde web_parar(s)
+fim

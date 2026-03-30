@@ -1,0 +1,9 @@
+função principal()
+    c1 = comunidade_criar("Guilda One", "A")
+    c2 = comunidade_criar("Guilda Two", "B")
+    exibir(c1["ok"])
+    exibir(c2["ok"])
+
+    lista = comunidade_listar()
+    exibir(tamanho(lista) >= 2)
+fim

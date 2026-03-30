@@ -1,0 +1,15 @@
+função principal()
+    e1 = sync_registrar_evento("feed", "m1", "criar", {"txt": "ola"})
+    e2 = sync_registrar_evento("feed", "m1", "atualizar", {"txt": "ola mundo"})
+    exibir(e1["cursor"])
+    exibir(e2["cursor"])
+
+    lote = sync_consumir("feed", 0, 50)
+    exibir(tamanho(lote["itens"]))
+    exibir(sync_cursor_atual("feed"))
+
+    cache_offline_salvar("feed_local", "m1", {"txt": "local"})
+    cache_offline_salvar("feed_local", "m1", {"txt": "local v2"})
+    item = cache_offline_obter("feed_local", "m1")
+    exibir(item["item"]["versao"])
+fim

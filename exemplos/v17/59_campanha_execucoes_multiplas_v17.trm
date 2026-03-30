@@ -1,0 +1,12 @@
+função principal()
+    camp = campanha_criar("MultiExec", {"titulo": "Ping"}, {"all": verdadeiro})
+
+    e1 = campanha_executar(camp["id"], ["u1", "u2"])
+    e2 = campanha_executar(camp["id"], ["u3"])
+
+    exibir(e1["execucao"]["enviados"])
+    exibir(e2["execucao"]["enviados"])
+
+    st = campanha_status(camp["id"])
+    exibir(tamanho(st["campanha"]["execucoes"]) == 2)
+fim

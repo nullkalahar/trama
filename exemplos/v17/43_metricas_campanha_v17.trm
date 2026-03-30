@@ -1,0 +1,7 @@
+função principal()
+    metricas_reset()
+    c = campanha_criar("Metrica", {"titulo": "X"})
+    campanha_executar(c["id"], ["u1"])
+    m = metricas_snapshot()
+    exibir(m != nulo)
+fim

@@ -1,0 +1,6 @@
+função principal()
+    local = {"id": "m1", "txt": "local", "atualizado_em": 10}
+    remoto = {"id": "m1", "txt": "remoto", "atualizado_em": 20}
+    r = sync_resolver_conflito(local, remoto, "last_write_wins")
+    exibir(r["vencedor"]["txt"])
+fim

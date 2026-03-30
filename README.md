@@ -570,12 +570,51 @@ Regra obrigatória deste plano: toda superfície de linguagem deve ser canônica
 - toda API nova deve ter nome canônico em pt-BR e exemplos oficiais em pt-BR.
 
 ## v1.5–v1.8 (paridade backend avançada)
-- [ ] REST + realtime (Socket.IO/WebSocket) com autenticação JWT
-- [ ] mensagens em tempo real, eventos sociais e alertas
-- [ ] comunidades/guildas com moderação e permissões
-- [ ] APIs administrativas + campanhas de push + métricas
-- [ ] upload de mídia + persistência + cache offline/sync incremental
-- [ ] deploy completo (Docker, `.deb`, standalone) com observabilidade robusta
+- [x] REST + realtime (Socket.IO/WebSocket) com autenticação JWT
+- [x] mensagens em tempo real, eventos sociais e alertas
+- [x] comunidades/guildas com moderação e permissões
+- [x] APIs administrativas + campanhas de push + métricas
+- [x] upload de mídia + persistência + cache offline/sync incremental
+- [x] deploy completo (Docker, `.deb`, standalone) com observabilidade robusta
+
+### Entregas v1.5
+
+- realtime avançado em `web_runtime` com:
+  - `ack/nack`, `retry`, reenvio e `id_mensagem`/ordenação por canal.
+  - compatibilidade Socket.IO mínima (`42["evento",{...}]`) sem quebrar WebSocket nativo.
+  - autenticação JWT no handshake e por rota de tempo real.
+- builtins canônicos pt-BR:
+  - `web_tempo_real_publicar`, `web_tempo_real_confirmar_ack`, `web_tempo_real_reenviar_pendentes`.
+  - aliases de compatibilidade: `web_realtime_publicar`, `web_realtime_confirmar_ack`, `web_realtime_reenviar_pendentes`.
+
+### Entregas v1.6
+
+- domínio social completo em pt-BR:
+  - comunidades, canais, cargos, membros e checagem de permissões.
+  - moderação: `reportar`, `banir`, `mutar`, `expulsar`, `soft_delete`.
+- builtins canônicos:
+  - `comunidade_criar`, `comunidade_obter`, `comunidade_listar`, `canal_criar`, `cargo_criar`, `membro_entrar`, `membro_sair`, `membro_atribuir_cargo`, `comunidade_permissao_tem`, `moderacao_acao`, `moderacao_listar`.
+
+### Entregas v1.7
+
+- APIs administrativas e campanhas:
+  - trilha de auditoria administrativa.
+  - campanhas push com criação, agendamento, execução, status e listagem.
+- métricas operacionais:
+  - emissão de métricas de runtime para eventos administrativos e campanhas.
+- builtins canônicos:
+  - `admin_auditoria_registrar`, `admin_auditoria_listar`, `campanha_criar`, `campanha_agendar`, `campanha_executar`, `campanha_status`, `campanha_listar`.
+
+### Entregas v1.8
+
+- upload/persistência/mídia:
+  - integração com storage local/S3 compatível e pipeline de mídia.
+- cache offline + sync incremental:
+  - `sync_registrar_evento`, `sync_consumir`, `sync_cursor_atual`, `sync_resolver_conflito`.
+  - `cache_offline_salvar`, `cache_offline_obter`, `cache_offline_listar`.
+- deploy e operação:
+  - `Dockerfile`, `docker-compose.yml`, `scripts/healthcheck_http.sh`, `scripts/smoke_deploy.sh`.
+  - pipeline existente de standalone + `.deb` mantido.
 
 ## v2.0 (autossuficiência total da linguagem)
 - [ ] fase 1: especificar formato canônico de bytecode e ABI da VM (`bytecode_v1`) com versionamento estável

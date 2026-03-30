@@ -1,0 +1,8 @@
+função principal()
+    admin_auditoria_registrar("job_iniciado", "admin-x", {"job": "sync"})
+    admin_auditoria_registrar("job_metade", "admin-x", {"progresso": 50})
+    admin_auditoria_registrar("job_finalizado", "admin-x", {"progresso": 100})
+
+    logs = admin_auditoria_listar(10)
+    exibir(tamanho(logs) >= 3)
+fim

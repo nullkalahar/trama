@@ -1,0 +1,10 @@
+função principal()
+    c = comunidade_criar("Moderação", "Pipeline")
+    cid = c["id"]
+    membro_entrar(cid, "u42")
+
+    exibir(moderacao_acao(cid, "reportar", "u42", "mod1", "spam")["ok"])
+    exibir(moderacao_acao(cid, "mutar", "u42", "mod1", "flood")["ok"])
+    exibir(moderacao_acao(cid, "banir", "u42", "mod1", "reincidencia")["ok"])
+    exibir(tamanho(moderacao_listar(cid)) == 3)
+fim

@@ -1,0 +1,11 @@
+função principal()
+    st = armazenamento_criar_local(".local/tmp/midia_v18")
+    arq = armazenamento_salvar(st, "imagens/foto.txt", "conteudo de teste", "text/plain", {"origem": "exemplo"})
+    exibir(arq["chave"])
+    lido = armazenamento_ler(st, "imagens/foto.txt")
+    exibir(lido["metadata"]["origem"])
+
+    gz = midia_comprimir_gzip("payload")
+    de = midia_descomprimir_gzip(gz)
+    exibir(de == "payload")
+fim

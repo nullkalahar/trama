@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  trama:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: trama:dev
+    container_name: trama-dev
+    command: ["trama", "--help"]
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "trama", "--help"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

@@ -1,0 +1,17 @@
+função principal()
+    c = comunidade_criar("Guilda Trama", "Comunidade de backend")
+    cid = c["id"]
+    exibir(c["ok"])
+
+    canal = canal_criar(cid, "geral", "texto")
+    cargo = cargo_criar(cid, "moderador", ["admin:*", "mod:banir", "mod:mutar"])
+    exibir(canal["ok"])
+    exibir(cargo["ok"])
+
+    exibir(membro_entrar(cid, "u1")["ok"])
+    exibir(membro_atribuir_cargo(cid, "u1", cargo["id"])["ok"])
+    exibir(comunidade_permissao_tem(cid, "u1", "mod:banir"))
+
+    exibir(moderacao_acao(cid, "mutar", "u1", "admin", "flood")["ok"])
+    exibir(tamanho(moderacao_listar(cid)) >= 1)
+fim

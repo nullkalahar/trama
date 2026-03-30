@@ -25,9 +25,12 @@ from . import config_runtime
 from . import jobs_runtime
 from . import media_runtime
 from . import observability_runtime
+from . import campanhas_runtime
 from . import resiliencia_runtime
 from . import security_runtime
+from . import social_runtime
 from . import storage_runtime
+from . import sync_runtime
 from . import web_runtime
 from .bytecode import program_to_dict
 from .compiler import compile_source
@@ -1035,6 +1038,160 @@ def make_builtins(
         web_app = _as_app(app)
         return web_app.tempo_real.snapshot(canal)
 
+    def web_tempo_real_publicar(
+        app: object,
+        canal: str,
+        evento: str,
+        dados: object | None = None,
+        opcoes: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        web_app = _as_app(app)
+        opts = dict(opcoes or {})
+        return web_app.tempo_real.publicar_mensagem(
+            canal=canal,
+            evento=evento,
+            dados=dados if dados is not None else {},
+            sala=str(opts.get("sala")) if opts.get("sala") is not None else None,
+            id_usuario=str(opts.get("id_usuario") or opts.get("user_id")) if (opts.get("id_usuario") is not None or opts.get("user_id") is not None) else None,
+            id_conexao=str(opts.get("id_conexao") or opts.get("connection_id")) if (opts.get("id_conexao") is not None or opts.get("connection_id") is not None) else None,
+            exigir_ack=bool(opts.get("exigir_ack", False)),
+        )
+
+    def web_tempo_real_confirmar_ack(
+        app: object,
+        canal: str,
+        id_mensagem: str,
+        id_conexao: str,
+        status: str = "ack",
+    ) -> dict[str, object]:
+        web_app = _as_app(app)
+        return web_app.tempo_real.confirmar_ack(canal, id_mensagem, id_conexao, status=status)
+
+    def web_tempo_real_reenviar_pendentes(
+        app: object,
+        canal: str,
+        id_mensagem: str | None = None,
+    ) -> dict[str, object]:
+        web_app = _as_app(app)
+        return web_app.tempo_real.reenviar_pendentes(canal, id_mensagem=id_mensagem)
+
+    def comunidade_criar(
+        nome: str,
+        descricao: str = "",
+        visibilidade: str = "publica",
+    ) -> dict[str, object]:
+        return social_runtime.comunidade_criar(nome, descricao=descricao, visibilidade=visibilidade)
+
+    def comunidade_obter(comunidade_id: str) -> dict[str, object]:
+        return social_runtime.comunidade_obter(comunidade_id)
+
+    def comunidade_listar() -> list[dict[str, object]]:
+        return social_runtime.comunidade_listar()
+
+    def canal_criar(comunidade_id: str, nome: str, tipo: str = "texto") -> dict[str, object]:
+        return social_runtime.canal_criar(comunidade_id, nome=nome, tipo=tipo)
+
+    def cargo_criar(
+        comunidade_id: str,
+        nome: str,
+        permissoes: list[str] | None = None,
+    ) -> dict[str, object]:
+        return social_runtime.cargo_criar(comunidade_id, nome=nome, permissoes=permissoes)
+
+    def membro_entrar(comunidade_id: str, usuario_id: str) -> dict[str, object]:
+        return social_runtime.membro_entrar(comunidade_id, usuario_id)
+
+    def membro_sair(comunidade_id: str, usuario_id: str) -> dict[str, object]:
+        return social_runtime.membro_sair(comunidade_id, usuario_id)
+
+    def membro_atribuir_cargo(comunidade_id: str, usuario_id: str, cargo_id: str) -> dict[str, object]:
+        return social_runtime.membro_atribuir_cargo(comunidade_id, usuario_id, cargo_id)
+
+    def comunidade_permissao_tem(
+        comunidade_id: str,
+        usuario_id: str,
+        permissao: str,
+        canal_id: str | None = None,
+    ) -> bool:
+        return social_runtime.permissao_tem(comunidade_id, usuario_id, permissao, canal_id=canal_id)
+
+    def moderacao_acao(
+        comunidade_id: str,
+        acao: str,
+        usuario_id: str,
+        ator_id: str,
+        motivo: str = "",
+    ) -> dict[str, object]:
+        return social_runtime.moderacao_acao(comunidade_id, acao, usuario_id, ator_id, motivo=motivo)
+
+    def moderacao_listar(comunidade_id: str) -> list[dict[str, object]]:
+        return social_runtime.moderacao_listar(comunidade_id)
+
+    def admin_auditoria_registrar(
+        evento: str,
+        ator_id: str,
+        detalhes: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        return campanhas_runtime.auditoria_registrar(evento, ator_id, detalhes=detalhes)
+
+    def admin_auditoria_listar(limite: int = 100) -> list[dict[str, object]]:
+        return campanhas_runtime.auditoria_listar(limite=limite)
+
+    def campanha_criar(
+        nome: str,
+        conteudo: dict[str, object],
+        segmento: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        return campanhas_runtime.campanha_criar(nome, conteudo, segmento=segmento)
+
+    def campanha_agendar(campanha_id: str, ts_execucao: float) -> dict[str, object]:
+        return campanhas_runtime.campanha_agendar(campanha_id, ts_execucao)
+
+    def campanha_executar(campanha_id: str, destinatarios: list[str]) -> dict[str, object]:
+        return campanhas_runtime.campanha_executar(campanha_id, destinatarios)
+
+    def campanha_status(campanha_id: str) -> dict[str, object]:
+        return campanhas_runtime.campanha_status(campanha_id)
+
+    def campanha_listar() -> list[dict[str, object]]:
+        return campanhas_runtime.campanha_listar()
+
+    def sync_registrar_evento(
+        colecao: str,
+        entidade_id: str,
+        operacao: str,
+        dados: dict[str, object],
+        origem: str = "servidor",
+    ) -> dict[str, object]:
+        return sync_runtime.sync_registrar_evento(colecao, entidade_id, operacao, dados, origem=origem)
+
+    def sync_consumir(colecao: str, cursor_desde: int = 0, limite: int = 100) -> dict[str, object]:
+        return sync_runtime.sync_consumir(colecao, cursor_desde=cursor_desde, limite=limite)
+
+    def sync_cursor_atual(colecao: str) -> int:
+        return sync_runtime.sync_cursor_atual(colecao)
+
+    def sync_resolver_conflito(
+        local: dict[str, object],
+        remoto: dict[str, object],
+        estrategia: str = "last_write_wins",
+    ) -> dict[str, object]:
+        return sync_runtime.sync_resolver_conflito(local, remoto, estrategia=estrategia)
+
+    def cache_offline_salvar(
+        namespace: str,
+        chave: str,
+        valor: object,
+        versao: int | None = None,
+    ) -> dict[str, object]:
+        return sync_runtime.cache_offline_salvar(namespace, chave, valor, versao=versao)
+
+    def cache_offline_obter(namespace: str, chave: str) -> dict[str, object]:
+        return sync_runtime.cache_offline_obter(namespace, chave)
+
+    def cache_offline_listar(namespace: str) -> dict[str, object]:
+        return sync_runtime.cache_offline_listar(namespace)
+
     async def web_iniciar(
         app: object,
         host: str = "127.0.0.1",
@@ -1419,6 +1576,9 @@ def make_builtins(
     web_realtime_emitir_usuario = web_tempo_real_emitir_usuario
     web_realtime_emitir_conexao = web_tempo_real_emitir_conexao
     web_realtime_status = web_tempo_real_status
+    web_realtime_publicar = web_tempo_real_publicar
+    web_realtime_confirmar_ack = web_tempo_real_confirmar_ack
+    web_realtime_reenviar_pendentes = web_tempo_real_reenviar_pendentes
     segredo_ler = segredo_obter
     cache_invalida_padrao = cache_invalidar_padrao
     armazenamento_local_criar = armazenamento_criar_local
@@ -1428,6 +1588,21 @@ def make_builtins(
     compilar_trama_fonte = trama_compilar_fonte
     compilar_trama_arquivo = trama_compilar_arquivo
     compilar_trama_para_arquivo = trama_compilar_para_arquivo
+    community_create = comunidade_criar
+    community_get = comunidade_obter
+    channel_create = canal_criar
+    role_create = cargo_criar
+    member_join = membro_entrar
+    member_leave = membro_sair
+    moderation_action = moderacao_acao
+    moderation_list = moderacao_listar
+    campaign_create = campanha_criar
+    campaign_schedule = campanha_agendar
+    campaign_run = campanha_executar
+    campaign_status = campanha_status
+    sync_register_event = sync_registrar_evento
+    sync_consume = sync_consumir
+    sync_conflict_resolve = sync_resolver_conflito
 
     return {
         "exibir": exibir,
@@ -1530,6 +1705,9 @@ def make_builtins(
         "web_tempo_real_emitir_usuario": web_tempo_real_emitir_usuario,
         "web_tempo_real_emitir_conexao": web_tempo_real_emitir_conexao,
         "web_tempo_real_status": web_tempo_real_status,
+        "web_tempo_real_publicar": web_tempo_real_publicar,
+        "web_tempo_real_confirmar_ack": web_tempo_real_confirmar_ack,
+        "web_tempo_real_reenviar_pendentes": web_tempo_real_reenviar_pendentes,
         "web_socket_rota": web_socket_rota,
         "web_websocket_rota": web_websocket_rota,
         "web_realtime_rota": web_realtime_rota,
@@ -1539,8 +1717,51 @@ def make_builtins(
         "web_realtime_emitir_usuario": web_realtime_emitir_usuario,
         "web_realtime_emitir_conexao": web_realtime_emitir_conexao,
         "web_realtime_status": web_realtime_status,
+        "web_realtime_publicar": web_realtime_publicar,
+        "web_realtime_confirmar_ack": web_realtime_confirmar_ack,
+        "web_realtime_reenviar_pendentes": web_realtime_reenviar_pendentes,
         "web_iniciar": web_iniciar,
         "web_parar": web_parar,
+        "comunidade_criar": comunidade_criar,
+        "comunidade_obter": comunidade_obter,
+        "comunidade_listar": comunidade_listar,
+        "canal_criar": canal_criar,
+        "cargo_criar": cargo_criar,
+        "membro_entrar": membro_entrar,
+        "membro_sair": membro_sair,
+        "membro_atribuir_cargo": membro_atribuir_cargo,
+        "comunidade_permissao_tem": comunidade_permissao_tem,
+        "moderacao_acao": moderacao_acao,
+        "moderacao_listar": moderacao_listar,
+        "admin_auditoria_registrar": admin_auditoria_registrar,
+        "admin_auditoria_listar": admin_auditoria_listar,
+        "campanha_criar": campanha_criar,
+        "campanha_agendar": campanha_agendar,
+        "campanha_executar": campanha_executar,
+        "campanha_status": campanha_status,
+        "campanha_listar": campanha_listar,
+        "sync_registrar_evento": sync_registrar_evento,
+        "sync_consumir": sync_consumir,
+        "sync_cursor_atual": sync_cursor_atual,
+        "sync_resolver_conflito": sync_resolver_conflito,
+        "cache_offline_salvar": cache_offline_salvar,
+        "cache_offline_obter": cache_offline_obter,
+        "cache_offline_listar": cache_offline_listar,
+        "community_create": community_create,
+        "community_get": community_get,
+        "channel_create": channel_create,
+        "role_create": role_create,
+        "member_join": member_join,
+        "member_leave": member_leave,
+        "moderation_action": moderation_action,
+        "moderation_list": moderation_list,
+        "campaign_create": campaign_create,
+        "campaign_schedule": campaign_schedule,
+        "campaign_run": campaign_run,
+        "campaign_status": campaign_status,
+        "sync_register_event": sync_register_event,
+        "sync_consume": sync_consume,
+        "sync_conflict_resolve": sync_conflict_resolve,
         "pg_conectar": pg_conectar,
         "pg_fechar": pg_fechar,
         "pg_executar": pg_executar,

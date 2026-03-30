@@ -1,0 +1,7 @@
+função principal()
+    camp = campanha_criar("Segmentada", {"titulo": "Promo"}, {"pais": "BR", "plano": "pro"})
+    exibir(camp["ok"])
+
+    exibir(campanha_agendar(camp["id"], timestamp() + 300)["ok"])
+    exibir(campanha_status(camp["id"])["campanha"]["status"])
+fim

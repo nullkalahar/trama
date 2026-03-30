@@ -1,0 +1,8 @@
+função principal()
+    c = comunidade_criar("Guilda A", "")
+    cid = c["id"]
+    membro_entrar(cid, "u2")
+    exibir(moderacao_acao(cid, "reportar", "u2", "u9", "conteudo indevido")["ok"])
+    exibir(moderacao_acao(cid, "banir", "u2", "u9", "reincidencia")["ok"])
+    exibir(tamanho(moderacao_listar(cid)) == 2)
+fim

@@ -1,0 +1,12 @@
+função principal()
+    sync_registrar_evento("msgs", "m1", "criar", {"txt": "1"})
+    sync_registrar_evento("msgs", "m2", "criar", {"txt": "2"})
+    sync_registrar_evento("msgs", "m3", "criar", {"txt": "3"})
+
+    p1 = sync_consumir("msgs", 0, 2)
+    exibir(tamanho(p1["itens"]))
+
+    p2 = sync_consumir("msgs", p1["cursor_ate"], 2)
+    exibir(tamanho(p2["itens"]))
+    exibir(sync_cursor_atual("msgs") >= p2["cursor_ate"])
+fim

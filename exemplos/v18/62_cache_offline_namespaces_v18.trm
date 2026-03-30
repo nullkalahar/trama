@@ -1,0 +1,12 @@
+função principal()
+    cache_offline_salvar("feed", "u1", {"itens": [1,2]})
+    cache_offline_salvar("perfil", "u1", {"nome": "Ana"})
+
+    a = cache_offline_obter("feed", "u1")
+    b = cache_offline_obter("perfil", "u1")
+
+    exibir(a["ok"])
+    exibir(b["ok"])
+    exibir(a["item"]["versao"])
+    exibir(b["item"]["versao"])
+fim

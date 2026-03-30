@@ -1,6 +1,6 @@
 # Exemplos da Trama
 
-Este diretório traz exemplos cobrindo recursos da linguagem do v0.1 ao v1.4.
+Este diretório traz exemplos cobrindo recursos da linguagem do v0.1 ao v1.8.
 
 ## Como executar
 
@@ -45,6 +45,37 @@ trama executar exemplos/01_ola_mundo.trm
 - `v13/34_tempo_real_status_admin_v13.trm`: status administrativo
 - `v13/35_tempo_real_backend_integrado_v13.trm`: backend integrado com realtime
 - `v14/25_observabilidade_dashboard_v14.trm`: correlação (`id_requisicao/id_traco/id_usuario`), dashboard e alertas v1.4
+- `v15/36_tempo_real_ack_retry_v15.trm`: realtime com ack/retry/reenvio
+- `v15/37_socketio_compat_v15.trm`: compatibilidade Socket.IO mínima
+- `v15/38_eventos_sociais_alertas_v15.trm`: eventos sociais e alertas em tempo real
+- `v15/48_realtime_publicar_ack_manual_v15.trm`: publicação com ACK manual
+- `v15/49_realtime_nack_reenvio_v15.trm`: reenvio de pendências ACK
+- `v15/50_realtime_socketio_evento_custom_v15.trm`: evento custom compat Socket.IO
+- `v15/51_realtime_status_multicanais_v15.trm`: status administrativo multi-canais
+- `v15/52_realtime_fallback_jwt_eventos_v15.trm`: fallback JWT ponta a ponta
+- `v16/39_comunidades_guildas_v16.trm`: comunidades/guildas, cargos e permissões
+- `v16/40_moderacao_completa_v16.trm`: moderação (report/ban/mute) em comunidade
+- `v16/53_social_multicomunidades_v16.trm`: múltiplas comunidades
+- `v16/54_social_canais_cargos_v16.trm`: criação de canais/cargos
+- `v16/55_social_moderacao_pipeline_v16.trm`: pipeline de moderação
+- `v16/56_social_permissoes_por_cargo_v16.trm`: permissões por cargo
+- `v17/41_admin_auditoria_v17.trm`: APIs administrativas com auditoria
+- `v17/42_campanhas_push_v17.trm`: campanhas push (criar/agendar/executar/status)
+- `v17/43_metricas_campanha_v17.trm`: métricas operacionais de campanhas
+- `v17/57_admin_auditoria_lote_v17.trm`: auditoria em lote
+- `v17/58_campanha_segmentada_v17.trm`: campanha segmentada
+- `v17/59_campanha_execucoes_multiplas_v17.trm`: múltiplas execuções por campanha
+- `v17/60_admin_metricas_snapshot_v17.trm`: métricas de runtime/admin
+- `v18/44_upload_midia_persistencia_v18.trm`: upload/persistência de mídia com storage
+- `v18/45_sync_incremental_offline_v18.trm`: sync incremental por cursor + cache offline
+- `v18/46_sync_conflito_v18.trm`: resolução de conflito em sincronização offline
+- `v18/47_deploy_observabilidade_v18.trm`: endpoint de observabilidade e alertas
+- `v18/61_sync_cursor_paginado_v18.trm`: paginação por cursor
+- `v18/62_cache_offline_namespaces_v18.trm`: cache offline por namespace
+- `v18/63_sync_conflito_estrategias_v18.trm`: estratégias de conflito
+- `v18/64_storage_lista_url_v18.trm`: listagem/url de storage local
+- `v18/65_deploy_health_paths_v18.trm`: endpoints de saúde (saude/pronto/vivo)
+- `v18/66_observabilidade_alerta_custom_v18.trm`: alerta customizado de erro/latência
 - `sintaxe/01_expressoes_multilinha.trm`: lista/mapa/chamada multilinha
 - `sintaxe/02_encadeamento_multilinha.trm`: encadeamento com indexação multilinha
 - `anilist/README_ANILIST_EXEMPLOS.md`: coleção completa de integrações AniList (anime/mangá + DB em `.local/tests/anilist/`)
@@ -66,6 +97,9 @@ Em `exemplos/backend/` há uma coleção completa para cenários de backend:
 - `backend/11_resiliencia_retry_circuito.trm`: retry/circuit breaker
 - `backend/12_storage_local_upload.trm`: armazenamento local
 - `backend/13_backend_completo_integrado.trm`: fluxo backend integrado
+- `backend/14_realtime_social_push_integrado_v18.trm`: realtime + social + campanha
+- `backend/15_sync_offline_api_v18.trm`: sync incremental + cache offline
+- `backend/16_admin_ops_dashboard_v18.trm`: operação com dashboard/alertas
 
 ## Observações
 

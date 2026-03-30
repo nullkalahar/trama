@@ -232,3 +232,63 @@ def test_v13_fallback_e_limites() -> None:
         assert ds_payload["ok"] is True
     finally:
         rt.stop()
+
+
+def test_v15_ack_reenvio_e_socketio_minimo() -> None:
+    app = web_runtime.WebApp()
+
+    def handler(req: dict[str, object]) -> dict[str, object]:
+        if req.get("evento") == "mensagem":
+            msg = req.get("mensagem", {})
+            if isinstance(msg, dict) and msg.get("tipo") == "chat":
+                return {
+                    "destino": "sala",
+                    "sala": "lobby",
+                    "evento": "chat_msg",
+                    "dados": {"txt": msg.get("txt")},
+                    "exigir_ack": True,
+                }
+        return {"aceitar": True}
+
+    app.tempo_real.registrar_rota("/ws/v15", handler, {})
+    rt = _start_runtime(app)
+    try:
+        c1, code1 = _ws_connect("127.0.0.1", rt.port, "/ws/v15")
+        c2, code2 = _ws_connect("127.0.0.1", rt.port, "/ws/v15")
+        assert code1 == 101
+        assert code2 == 101
+        _ = _ws_recv_json_event(c1, "conectado")
+        _ = _ws_recv_json_event(c2, "conectado")
+
+        _ws_send_json(c1, {"tipo": "entrar_sala", "sala": "lobby"})
+        _ws_send_json(c2, {"tipo": "entrar_sala", "sala": "lobby"})
+        _ = _ws_recv_json_event(c1, "entrar_sala")
+        _ = _ws_recv_json_event(c2, "entrar_sala")
+
+        # Compat Socket.IO mínima: 42["chat",{...}]
+        _ws_send_json(c1, {"tipo": "chat", "txt": "json"})
+        sio_payload = json.dumps(["chat", {"txt": "sio"}], ensure_ascii=False).encode("utf-8")
+        ln = len(sio_payload) + 2
+        mask = os.urandom(4)
+        header = bytes([0x81, 0x80 | ln])
+        raw = b"42" + sio_payload
+        masked = bytes(b ^ mask[i % 4] for i, b in enumerate(raw))
+        c1.sendall(header + mask + masked)
+
+        ev1 = _ws_recv_json_event(c2, "chat_msg")
+        assert "id_mensagem" in ev1
+        assert ev1.get("exigir_ack") is True
+        msg_id = str(ev1["id_mensagem"])
+
+        _ws_send_json(c2, {"tipo": "ack", "id_mensagem": msg_id})
+        ack_res = _ws_recv_json_event(c2, "ack_resultado")
+        assert ack_res["dados"]["ok"] is True
+
+        reenviar = app.tempo_real.reenviar_pendentes("/ws/v15", id_mensagem=msg_id)
+        assert reenviar["ok"] is True
+        assert "reenvios" in reenviar
+
+        c1.close()
+        c2.close()
+    finally:
+        rt.stop()

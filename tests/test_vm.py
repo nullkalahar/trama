@@ -870,3 +870,76 @@ def test_parser_multilinha_erro_delimitador_nao_fechado() -> None:
     )
     with pytest.raises(Exception, match="Esperado '\\}' no literal de mapa"):
         compile_source(codigo)
+
+
+def test_v15_v18_social_admin_sync_e_realtime_avancado() -> None:
+    codigo = (
+        "função h(req)\n"
+        "    retorne {\"aceitar\": verdadeiro}\n"
+        "fim\n"
+        "função principal()\n"
+        "    c = comunidade_criar(\"Guilda Trama\", \"Teste\")\n"
+        "    cid = c[\"id\"]\n"
+        "    exibir(c[\"ok\"])\n"
+        "    exibir(canal_criar(cid, \"geral\")[\"ok\"])\n"
+        "    cargo = cargo_criar(cid, \"mod\", [\"admin:*\"])\n"
+        "    exibir(cargo[\"ok\"])\n"
+        "    exibir(membro_entrar(cid, \"u1\")[\"ok\"])\n"
+        "    exibir(membro_atribuir_cargo(cid, \"u1\", cargo[\"id\"])[\"ok\"])\n"
+        "    exibir(comunidade_permissao_tem(cid, \"u1\", \"qualquer:permissao\"))\n"
+        "    exibir(moderacao_acao(cid, \"mutar\", \"u1\", \"admin\")[\"ok\"])\n"
+        "    exibir(tamanho(moderacao_listar(cid)) >= 1)\n"
+        "    exibir(admin_auditoria_registrar(\"teste\", \"admin\")[\"ok\"])\n"
+        "    camp = campanha_criar(\"push\", {\"titulo\": \"oi\"}, {\"pais\": \"BR\"})\n"
+        "    exibir(camp[\"ok\"])\n"
+        "    exibir(campanha_agendar(camp[\"id\"], timestamp() + 60)[\"ok\"])\n"
+        "    exec = campanha_executar(camp[\"id\"], [\"u1\", \"u2\"])\n"
+        "    exibir(exec[\"ok\"])\n"
+        "    exibir(exec[\"execucao\"][\"enviados\"])\n"
+        "    exibir(campanha_status(camp[\"id\"])[\"ok\"])\n"
+        "    e1 = sync_registrar_evento(\"posts\", \"p1\", \"criar\", {\"v\": 1})\n"
+        "    e2 = sync_registrar_evento(\"posts\", \"p1\", \"atualizar\", {\"v\": 2})\n"
+        "    exibir(e2[\"cursor\"] > e1[\"cursor\"])\n"
+        "    lote = sync_consumir(\"posts\", 0, 10)\n"
+        "    exibir(tamanho(lote[\"itens\"]) >= 2)\n"
+        "    exibir(sync_cursor_atual(\"posts\") >= e2[\"cursor\"])\n"
+        "    conf = sync_resolver_conflito({\"atualizado_em\": 1, \"v\": \"l\"}, {\"atualizado_em\": 2, \"v\": \"r\"})\n"
+        "    exibir(conf[\"vencedor\"][\"v\"])\n"
+        "    v1 = cache_offline_salvar(\"feed\", \"u1\", {\"ok\": verdadeiro})[\"versao\"]\n"
+        "    v2 = cache_offline_salvar(\"feed\", \"u1\", {\"ok\": verdadeiro})[\"versao\"]\n"
+        "    exibir(v2 > v1)\n"
+        "    exibir(cache_offline_obter(\"feed\", \"u1\")[\"item\"][\"versao\"] >= v2)\n"
+        "    app = web_criar_app()\n"
+        "    web_tempo_real_rota(app, \"/ws/v15\", h)\n"
+        "    pub = web_tempo_real_publicar(app, \"/ws/v15\", \"evt\", {\"ok\": verdadeiro}, {\"exigir_ack\": verdadeiro})\n"
+        "    exibir(pub[\"ack\"])\n"
+        "    exibir(pub[\"destinos\"])\n"
+        "    exibir(web_tempo_real_reenviar_pendentes(app, \"/ws/v15\", pub[\"id_mensagem\"])[\"ok\"])\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == [
+        "True",
+        "True",
+        "True",
+        "True",
+        "True",
+        "True",
+        "True",
+        "True",
+        "True",
+        "True",
+        "True",
+        "True",
+        "2",
+        "True",
+        "True",
+        "True",
+        "True",
+        "r",
+        "True",
+        "True",
+        "True",
+        "0",
+        "True",
+    ]

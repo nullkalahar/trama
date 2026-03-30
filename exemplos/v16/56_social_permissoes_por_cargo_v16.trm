@@ -1,0 +1,10 @@
+função principal()
+    c = comunidade_criar("Permissões", "RBAC social")
+    cid = c["id"]
+    cargo = cargo_criar(cid, "editor", ["post:criar", "post:editar"])
+    membro_entrar(cid, "u7")
+    membro_atribuir_cargo(cid, "u7", cargo["id"])
+
+    exibir(comunidade_permissao_tem(cid, "u7", "post:criar"))
+    exibir(comunidade_permissao_tem(cid, "u7", "post:deletar"))
+fim

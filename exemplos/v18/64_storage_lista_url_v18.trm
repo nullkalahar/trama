@@ -1,0 +1,9 @@
+função principal()
+    st = armazenamento_criar_local(".local/tmp/exemplos_v18_storage")
+    armazenamento_salvar(st, "docs/a.txt", "A")
+    armazenamento_salvar(st, "docs/b.txt", "B")
+
+    itens = armazenamento_listar(st, "docs/")
+    exibir(tamanho(itens))
+    exibir(armazenamento_url(st, "docs/a.txt") != "")
+fim

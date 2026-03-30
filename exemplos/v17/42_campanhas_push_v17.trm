@@ -1,0 +1,13 @@
+função principal()
+    c = campanha_criar(
+        "Campanha Lançamento",
+        {"titulo": "Novo recurso", "mensagem": "Confira agora"},
+        {"segmento": "ativos_7d"}
+    )
+    exibir(c["ok"])
+    exibir(campanha_agendar(c["id"], timestamp() + 120)["ok"])
+    exec = campanha_executar(c["id"], ["u1", "u2", "u3"])
+    exibir(exec["ok"])
+    exibir(exec["execucao"]["enviados"])
+    exibir(campanha_status(c["id"])["campanha"]["status"])
+fim

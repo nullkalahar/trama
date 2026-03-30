@@ -1,0 +1,10 @@
+função principal()
+    sync_registrar_evento("tarefas", "t1", "criar", {"titulo": "A"})
+    sync_registrar_evento("tarefas", "t1", "atualizar", {"titulo": "B"})
+
+    lote = sync_consumir("tarefas", 0, 10)
+    exibir(tamanho(lote["itens"]))
+
+    cache_offline_salvar("tarefas_local", "t1", {"titulo": "B"})
+    exibir(cache_offline_obter("tarefas_local", "t1")["ok"])
+fim

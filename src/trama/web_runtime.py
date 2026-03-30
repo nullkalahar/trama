@@ -195,6 +195,8 @@ class TempoRealHub:
             "janela_rate_segundos": 60.0,
             "heartbeat_segundos": 30.0,
         }
+        self.ordenacao_canal: dict[str, int] = {}
+        self.pendencias_ack: dict[str, dict[str, dict[str, object]]] = {}
 
     def registrar_rota(self, caminho: str, handler: object, opcoes: dict[str, object] | None = None) -> None:
         path = caminho if caminho.startswith("/") else f"/{caminho}"
@@ -229,6 +231,7 @@ class TempoRealHub:
                         "canal": c,
                         "conexoes_ativas": len(conns),
                         "salas": {s: len(ids) for s, ids in salas.items()},
+                        "pendencias_ack": len(self.pendencias_ack.get(c, {})),
                     }
                 )
             return {
@@ -379,6 +382,105 @@ class TempoRealHub:
                 labels={"canal": canal, "evento": evento},
             )
             return len(destinos)
+
+    def publicar_mensagem(
+        self,
+        canal: str,
+        evento: str,
+        dados: object | None = None,
+        *,
+        sala: str | None = None,
+        id_usuario: str | None = None,
+        id_conexao: str | None = None,
+        exigir_ack: bool = False,
+        origem: TempoRealConexao | None = None,
+    ) -> dict[str, object]:
+        with self._lock:
+            ordem = int(self.ordenacao_canal.get(canal, 0) + 1)
+            self.ordenacao_canal[canal] = ordem
+            id_mensagem = uuid.uuid4().hex
+            destinos = self._selecionar_destinos_locked(canal, id_conexao=id_conexao, id_usuario=id_usuario, sala=sala)
+            envelope = {
+                "ok": True,
+                "evento": str(evento),
+                "dados": dados if dados is not None else {},
+                "canal": canal,
+                "sala": sala,
+                "id_mensagem": id_mensagem,
+                "message_id": id_mensagem,
+                "ordem": ordem,
+                "seq": ordem,
+                "exigir_ack": bool(exigir_ack),
+                "id_usuario_origem": origem.id_usuario if origem else None,
+                "id_conexao_origem": origem.id_conexao if origem else None,
+                "ts": time.time(),
+            }
+            for d in destinos:
+                d.enfileirar(envelope)
+            if exigir_ack:
+                pend = self.pendencias_ack.setdefault(canal, {})
+                pend[id_mensagem] = {
+                    "envelope": envelope,
+                    "pendentes": {d.id_conexao for d in destinos},
+                    "confirmados": set(),
+                    "tentativas_reenvio": 0,
+                    "criado_em": time.time(),
+                }
+            observability_runtime.registrar_runtime_metrica(
+                "tempo_real",
+                "mensagem_publicada",
+                valor=len(destinos),
+                labels={"canal": canal, "evento": evento, "ack": str(bool(exigir_ack)).lower()},
+            )
+            return {"id_mensagem": id_mensagem, "ordem": ordem, "destinos": len(destinos), "ack": bool(exigir_ack)}
+
+    def confirmar_ack(self, canal: str, id_mensagem: str, id_conexao: str, status: str = "ack") -> dict[str, object]:
+        with self._lock:
+            pend = self.pendencias_ack.get(canal, {})
+            item = pend.get(str(id_mensagem))
+            if item is None:
+                return {"ok": False, "codigo": "MENSAGEM_NAO_ENCONTRADA"}
+            pendentes = set(item.get("pendentes", set()))
+            confirmados = set(item.get("confirmados", set()))
+            if str(id_conexao) in pendentes:
+                pendentes.remove(str(id_conexao))
+            confirmados.add(str(id_conexao))
+            item["pendentes"] = pendentes
+            item["confirmados"] = confirmados
+            item["ultimo_status"] = str(status)
+            if not pendentes:
+                del pend[str(id_mensagem)]
+            observability_runtime.registrar_runtime_metrica(
+                "tempo_real",
+                "ack_recebido",
+                labels={"canal": canal, "status": str(status)},
+            )
+            return {"ok": True, "pendentes": len(pendentes), "confirmados": len(confirmados)}
+
+    def reenviar_pendentes(self, canal: str, id_mensagem: str | None = None) -> dict[str, object]:
+        with self._lock:
+            pend = self.pendencias_ack.get(canal, {})
+            ids = [str(id_mensagem)] if id_mensagem else list(pend.keys())
+            reenvios = 0
+            for mid in ids:
+                item = pend.get(mid)
+                if item is None:
+                    continue
+                env = dict(item.get("envelope", {}))
+                alvos = set(item.get("pendentes", set()))
+                for cid in alvos:
+                    c = self.conexoes.get(canal, {}).get(cid)
+                    if c is not None:
+                        c.enfileirar(env)
+                        reenvios += 1
+                item["tentativas_reenvio"] = int(item.get("tentativas_reenvio", 0)) + 1
+            observability_runtime.registrar_runtime_metrica(
+                "tempo_real",
+                "reenvio_pendente",
+                valor=reenvios,
+                labels={"canal": canal},
+            )
+            return {"ok": True, "reenvios": reenvios}
 
     def receber_fallback(
         self,
@@ -793,6 +895,8 @@ class WebRuntime:
                 rota_info: dict[str, object],
             ) -> None:
                 tipo = str(msg.get("tipo") or msg.get("type") or "")
+                if "socketio_evento" in msg and not tipo:
+                    tipo = str(msg.get("socketio_evento") or "")
                 if not app.tempo_real.validar_rate(c):
                     self._emitir_evento_ws(c, {"ok": False, "erro": {"codigo": "RATE_MENSAGENS_EXCEDIDO"}})
                     return
@@ -823,22 +927,39 @@ class WebRuntime:
                     sala = str(msg.get("sala") or "")
                     app.tempo_real.emitir(c.canal, "read_receipt", {"sala": sala, "mensagem_id": msg.get("mensagem_id"), "id_usuario": c.id_usuario}, sala=sala, origem=c)
                     return
+                if tipo in {"ack", "confirmar_ack"}:
+                    id_mensagem = str(msg.get("id_mensagem") or msg.get("message_id") or "")
+                    status_ack = str(msg.get("status") or "ack")
+                    out_ack = app.tempo_real.confirmar_ack(c.canal, id_mensagem, c.id_conexao, status=status_ack)
+                    self._emitir_evento_ws(c, {"ok": bool(out_ack.get("ok")), "evento": "ack_resultado", "dados": out_ack})
+                    return
+                if tipo in {"nack", "solicitar_reenvio"}:
+                    id_mensagem = str(msg.get("id_mensagem") or msg.get("message_id") or "")
+                    out_re = app.tempo_real.reenviar_pendentes(c.canal, id_mensagem=id_mensagem)
+                    self._emitir_evento_ws(c, {"ok": True, "evento": "reenvio_resultado", "dados": out_re})
+                    return
                 if tipo == "broadcast_sala":
                     sala = str(msg.get("sala") or "")
                     evento = str(msg.get("evento") or "mensagem")
-                    qtd = app.tempo_real.emitir(c.canal, evento, msg.get("dados", {}), sala=sala, origem=c)
+                    exigir_ack = bool(msg.get("exigir_ack", False))
+                    out_pub = app.tempo_real.publicar_mensagem(c.canal, evento, msg.get("dados", {}), sala=sala, origem=c, exigir_ack=exigir_ack)
+                    qtd = int(out_pub.get("destinos", 0))
                     self._emitir_evento_ws(c, {"ok": True, "evento": "broadcast_sala", "destinos": qtd, "sala": sala})
                     return
                 if tipo == "broadcast_usuario":
                     alvo = str(msg.get("id_usuario") or msg.get("user_id") or "")
                     evento = str(msg.get("evento") or "mensagem")
-                    qtd = app.tempo_real.emitir(c.canal, evento, msg.get("dados", {}), id_usuario=alvo, origem=c)
+                    exigir_ack = bool(msg.get("exigir_ack", False))
+                    out_pub = app.tempo_real.publicar_mensagem(c.canal, evento, msg.get("dados", {}), id_usuario=alvo, origem=c, exigir_ack=exigir_ack)
+                    qtd = int(out_pub.get("destinos", 0))
                     self._emitir_evento_ws(c, {"ok": True, "evento": "broadcast_usuario", "destinos": qtd, "id_usuario": alvo})
                     return
                 if tipo == "broadcast_conexao":
                     alvo = str(msg.get("id_conexao") or msg.get("connection_id") or "")
                     evento = str(msg.get("evento") or "mensagem")
-                    qtd = app.tempo_real.emitir(c.canal, evento, msg.get("dados", {}), id_conexao=alvo, origem=c)
+                    exigir_ack = bool(msg.get("exigir_ack", False))
+                    out_pub = app.tempo_real.publicar_mensagem(c.canal, evento, msg.get("dados", {}), id_conexao=alvo, origem=c, exigir_ack=exigir_ack)
+                    qtd = int(out_pub.get("destinos", 0))
                     self._emitir_evento_ws(c, {"ok": True, "evento": "broadcast_conexao", "destinos": qtd, "id_conexao": alvo})
                     return
 
@@ -852,18 +973,19 @@ class WebRuntime:
                     destino = str(res.get("destino") or "conexao")
                     evento = str(res.get("evento") or tipo or "mensagem")
                     dados = res.get("dados", {})
+                    exigir_ack = bool(res.get("exigir_ack", False))
                     if destino == "sala":
-                        app.tempo_real.emitir(c.canal, evento, dados, sala=str(res.get("sala", "")), origem=c)
+                        app.tempo_real.publicar_mensagem(c.canal, evento, dados, sala=str(res.get("sala", "")), origem=c, exigir_ack=exigir_ack)
                     elif destino == "usuario":
-                        app.tempo_real.emitir(c.canal, evento, dados, id_usuario=str(res.get("id_usuario") or res.get("user_id") or ""), origem=c)
+                        app.tempo_real.publicar_mensagem(c.canal, evento, dados, id_usuario=str(res.get("id_usuario") or res.get("user_id") or ""), origem=c, exigir_ack=exigir_ack)
                     elif destino == "canal":
-                        app.tempo_real.emitir(c.canal, evento, dados, origem=c)
+                        app.tempo_real.publicar_mensagem(c.canal, evento, dados, origem=c, exigir_ack=exigir_ack)
                     elif destino == "conexao":
-                        app.tempo_real.emitir(c.canal, evento, dados, id_conexao=str(res.get("id_conexao") or c.id_conexao), origem=c)
+                        app.tempo_real.publicar_mensagem(c.canal, evento, dados, id_conexao=str(res.get("id_conexao") or c.id_conexao), origem=c, exigir_ack=exigir_ack)
                     elif destino == "ignorar":
                         return
                     else:
-                        app.tempo_real.emitir(c.canal, evento, dados, id_conexao=c.id_conexao, origem=c)
+                        app.tempo_real.publicar_mensagem(c.canal, evento, dados, id_conexao=c.id_conexao, origem=c, exigir_ack=exigir_ack)
                 observability_runtime.registrar_runtime_metrica(
                     "tempo_real",
                     "mensagem_processada",
@@ -1070,7 +1192,19 @@ class WebRuntime:
                             continue
                         texto = payload.decode("utf-8", errors="replace")
                         try:
-                            msg = json.loads(texto) if texto.strip() else {}
+                            if texto.startswith("42"):
+                                # Compatibilidade mínima Socket.IO: 42["evento",{...}]
+                                raw = json.loads(texto[2:])
+                                if isinstance(raw, list) and len(raw) >= 1:
+                                    msg = {
+                                        "tipo": str(raw[0]),
+                                        "socketio_evento": str(raw[0]),
+                                        "dados": raw[1] if len(raw) >= 2 else {},
+                                    }
+                                else:
+                                    msg = {}
+                            else:
+                                msg = json.loads(texto) if texto.strip() else {}
                         except json.JSONDecodeError:
                             self._emitir_evento_ws(c, {"ok": False, "erro": {"codigo": "MENSAGEM_JSON_INVALIDA"}})
                             continue

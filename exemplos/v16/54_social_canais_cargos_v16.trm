@@ -1,0 +1,12 @@
+função principal()
+    c = comunidade_criar("Canal/Cargo", "Teste")
+    cid = c["id"]
+
+    ch = canal_criar(cid, "noticias", "texto")
+    cv = canal_criar(cid, "voz", "voz")
+    cg = cargo_criar(cid, "gestor", ["canal:gerir", "admin:*"])
+
+    exibir(ch["ok"])
+    exibir(cv["ok"])
+    exibir(cg["ok"])
+fim

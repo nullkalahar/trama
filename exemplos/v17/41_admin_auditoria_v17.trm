@@ -1,0 +1,8 @@
+função principal()
+    a1 = admin_auditoria_registrar("deploy_iniciado", "admin-1", {"ambiente": "producao"})
+    a2 = admin_auditoria_registrar("deploy_concluido", "admin-1", {"status": "ok"})
+    exibir(a1["ok"])
+    exibir(a2["ok"])
+    logs = admin_auditoria_listar(10)
+    exibir(tamanho(logs) >= 2)
+fim
