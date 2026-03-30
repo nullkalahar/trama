@@ -13,6 +13,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 import threading
+import time
+
+from . import observability_runtime
 
 try:
     import asyncpg  # type: ignore
@@ -183,6 +186,7 @@ async def executar(
     sql: str,
     params: list[object] | tuple[object, ...] | None = None,
 ) -> dict[str, object]:
+    inicio = time.perf_counter()
     params_seq = tuple(params or [])
 
     if conn.backend == "sqlite":
@@ -198,7 +202,23 @@ async def executar(
                     "last_row_id": int(cursor.lastrowid or 0),
                 }
 
-        return await asyncio.to_thread(_exec_sqlite)
+        try:
+            out = await asyncio.to_thread(_exec_sqlite)
+            observability_runtime.registrar_db_metrica(
+                operacao="executar",
+                backend=conn.backend,
+                latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+                sucesso=True,
+            )
+            return out
+        except Exception:
+            observability_runtime.registrar_db_metrica(
+                operacao="executar",
+                backend=conn.backend,
+                latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+                sucesso=False,
+            )
+            raise
 
     if conn.pg_pool is None:
         raise DbError("Conexão PostgreSQL inválida.")
@@ -207,7 +227,22 @@ async def executar(
     try:
         pg_sql = _to_pg_placeholders(sql)
         tag = await pg_conn.execute(pg_sql, *params_seq)
-        return {"rows_affected": _parse_tag_count(tag), "last_row_id": 0}
+        out = {"rows_affected": _parse_tag_count(tag), "last_row_id": 0}
+        observability_runtime.registrar_db_metrica(
+            operacao="executar",
+            backend=conn.backend,
+            latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+            sucesso=True,
+        )
+        return out
+    except Exception:
+        observability_runtime.registrar_db_metrica(
+            operacao="executar",
+            backend=conn.backend,
+            latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+            sucesso=False,
+        )
+        raise
     finally:
         await conn.pg_pool.release(pg_conn)  # type: ignore[union-attr]
 
@@ -217,6 +252,7 @@ async def consultar(
     sql: str,
     params: list[object] | tuple[object, ...] | None = None,
 ) -> list[dict[str, object]]:
+    inicio = time.perf_counter()
     params_seq = tuple(params or [])
 
     if conn.backend == "sqlite":
@@ -229,7 +265,23 @@ async def consultar(
                 rows = cursor.fetchall()
             return [dict(r) for r in rows]
 
-        return await asyncio.to_thread(_query_sqlite)
+        try:
+            out = await asyncio.to_thread(_query_sqlite)
+            observability_runtime.registrar_db_metrica(
+                operacao="consultar",
+                backend=conn.backend,
+                latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+                sucesso=True,
+            )
+            return out
+        except Exception:
+            observability_runtime.registrar_db_metrica(
+                operacao="consultar",
+                backend=conn.backend,
+                latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+                sucesso=False,
+            )
+            raise
 
     if conn.pg_pool is None:
         raise DbError("Conexão PostgreSQL inválida.")
@@ -238,7 +290,22 @@ async def consultar(
     try:
         pg_sql = _to_pg_placeholders(sql)
         rows = await pg_conn.fetch(pg_sql, *params_seq)
-        return [dict(r) for r in rows]
+        out = [dict(r) for r in rows]
+        observability_runtime.registrar_db_metrica(
+            operacao="consultar",
+            backend=conn.backend,
+            latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+            sucesso=True,
+        )
+        return out
+    except Exception:
+        observability_runtime.registrar_db_metrica(
+            operacao="consultar",
+            backend=conn.backend,
+            latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+            sucesso=False,
+        )
+        raise
     finally:
         await conn.pg_pool.release(pg_conn)  # type: ignore[union-attr]
 
@@ -320,6 +387,7 @@ async def tx_executar(
     params: list[object] | tuple[object, ...] | None = None,
 ) -> dict[str, object]:
     tx.ensure_active()
+    inicio = time.perf_counter()
     params_seq = tuple(params or [])
 
     if tx.connection.backend == "sqlite":
@@ -334,14 +402,46 @@ async def tx_executar(
                     "last_row_id": int(cursor.lastrowid or 0),
                 }
 
-        return await asyncio.to_thread(_exec_sqlite)
+        try:
+            out = await asyncio.to_thread(_exec_sqlite)
+            observability_runtime.registrar_db_metrica(
+                operacao="tx_executar",
+                backend=tx.connection.backend,
+                latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+                sucesso=True,
+            )
+            return out
+        except Exception:
+            observability_runtime.registrar_db_metrica(
+                operacao="tx_executar",
+                backend=tx.connection.backend,
+                latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+                sucesso=False,
+            )
+            raise
 
     if tx.pg_conn is None:
         raise DbError("Transação PostgreSQL inválida.")
 
     pg_sql = _to_pg_placeholders(sql)
-    tag = await tx.pg_conn.execute(pg_sql, *params_seq)
-    return {"rows_affected": _parse_tag_count(tag), "last_row_id": 0}
+    try:
+        tag = await tx.pg_conn.execute(pg_sql, *params_seq)
+        out = {"rows_affected": _parse_tag_count(tag), "last_row_id": 0}
+        observability_runtime.registrar_db_metrica(
+            operacao="tx_executar",
+            backend=tx.connection.backend,
+            latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+            sucesso=True,
+        )
+        return out
+    except Exception:
+        observability_runtime.registrar_db_metrica(
+            operacao="tx_executar",
+            backend=tx.connection.backend,
+            latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+            sucesso=False,
+        )
+        raise
 
 
 async def tx_consultar(
@@ -350,6 +450,7 @@ async def tx_consultar(
     params: list[object] | tuple[object, ...] | None = None,
 ) -> list[dict[str, object]]:
     tx.ensure_active()
+    inicio = time.perf_counter()
     params_seq = tuple(params or [])
 
     if tx.connection.backend == "sqlite":
@@ -362,14 +463,46 @@ async def tx_consultar(
                 rows = cursor.fetchall()
             return [dict(r) for r in rows]
 
-        return await asyncio.to_thread(_query_sqlite)
+        try:
+            out = await asyncio.to_thread(_query_sqlite)
+            observability_runtime.registrar_db_metrica(
+                operacao="tx_consultar",
+                backend=tx.connection.backend,
+                latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+                sucesso=True,
+            )
+            return out
+        except Exception:
+            observability_runtime.registrar_db_metrica(
+                operacao="tx_consultar",
+                backend=tx.connection.backend,
+                latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+                sucesso=False,
+            )
+            raise
 
     if tx.pg_conn is None:
         raise DbError("Transação PostgreSQL inválida.")
 
     pg_sql = _to_pg_placeholders(sql)
-    rows = await tx.pg_conn.fetch(pg_sql, *params_seq)
-    return [dict(r) for r in rows]
+    try:
+        rows = await tx.pg_conn.fetch(pg_sql, *params_seq)
+        out = [dict(r) for r in rows]
+        observability_runtime.registrar_db_metrica(
+            operacao="tx_consultar",
+            backend=tx.connection.backend,
+            latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+            sucesso=True,
+        )
+        return out
+    except Exception:
+        observability_runtime.registrar_db_metrica(
+            operacao="tx_consultar",
+            backend=tx.connection.backend,
+            latencia_ms=(time.perf_counter() - inicio) * 1000.0,
+            sucesso=False,
+        )
+        raise
 
 
 def qb_select(tabela: str, colunas: list[str] | None = None) -> dict[str, object]:

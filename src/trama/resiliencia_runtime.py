@@ -9,6 +9,7 @@ import threading
 import time
 from typing import Any, Awaitable, Callable
 
+from . import observability_runtime
 
 class ResilienciaError(RuntimeError):
     """Erro base do runtime de resiliência."""
@@ -124,10 +125,12 @@ async def executar(
         agora = time.monotonic()
         if estado.estado == "aberto":
             if agora < estado.aberto_ate:
+                observability_runtime.registrar_runtime_metrica("resiliencia", "circuito_rejeitado", labels={"nome": nome})
                 raise CircuitoAbertoError(f"Circuito '{nome}' aberto até {estado.aberto_ate:.3f}.")
             estado.estado = "meio_aberto"
             estado.ultima_transicao = agora
             _ESTADOS[nome] = estado
+            observability_runtime.registrar_runtime_metrica("resiliencia", "circuito_meio_aberto", labels={"nome": nome})
 
     ultima_exc: Exception | None = None
     for tentativa in range(1, tentativas + 1):
@@ -138,10 +141,12 @@ async def executar(
                 estado_atual = _get_estado(nome)
                 if estado_atual.estado in {"meio_aberto", "aberto"}:
                     _transicao_fechado(nome, estado_atual)
+                    observability_runtime.registrar_runtime_metrica("resiliencia", "circuito_fechado", labels={"nome": nome})
                 else:
                     estado_atual.falhas_consecutivas = 0
                     estado_atual.ultima_falha = None
                     _ESTADOS[nome] = estado_atual
+            observability_runtime.registrar_runtime_metrica("resiliencia", "sucesso", labels={"nome": nome, "tentativa": tentativa})
             return resultado
         except Exception as exc:  # noqa: BLE001
             ultima_exc = exc
@@ -154,6 +159,9 @@ async def executar(
                     reset_timeout_segundos=reset_timeout_segundos,
                     erro=exc,
                 )
+                if estado_atual.estado == "aberto":
+                    observability_runtime.registrar_runtime_metrica("resiliencia", "circuito_aberto", labels={"nome": nome})
+            observability_runtime.registrar_runtime_metrica("resiliencia", "falha", labels={"nome": nome, "tentativa": tentativa})
 
             if tentativa >= tentativas:
                 break

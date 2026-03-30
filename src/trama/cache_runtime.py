@@ -8,6 +8,7 @@ import threading
 import time
 from typing import Any
 
+from . import observability_runtime
 
 @dataclass
 class _Entry:
@@ -49,6 +50,7 @@ def cache_definir(
     with _LOCK:
         _ensure_namespace(ns)
         _STORES[ns][chave] = _Entry(value=valor, created_at=time.monotonic(), expire_at=expire_at)
+    observability_runtime.registrar_runtime_metrica("cache", "definir", labels={"namespace": ns})
     return valor
 
 
@@ -64,13 +66,16 @@ def cache_obter(
         entry = _STORES[ns].get(chave)
         if entry is None:
             _STATS[ns]["misses"] += 1
+            observability_runtime.registrar_runtime_metrica("cache", "miss", labels={"namespace": ns})
             return padrao
         if _is_expired(entry, now):
             _STATS[ns]["expirados"] += 1
             _STATS[ns]["misses"] += 1
             _STORES[ns].pop(chave, None)
+            observability_runtime.registrar_runtime_metrica("cache", "expirado", labels={"namespace": ns})
             return padrao
         _STATS[ns]["hits"] += 1
+        observability_runtime.registrar_runtime_metrica("cache", "hit", labels={"namespace": ns})
         return entry.value
 
 
@@ -83,7 +88,9 @@ def cache_remover(chave: str, namespace: str = "padrao") -> bool:
     ns = _ns(namespace)
     with _LOCK:
         _ensure_namespace(ns)
-        return _STORES[ns].pop(chave, None) is not None
+        removed = _STORES[ns].pop(chave, None) is not None
+    observability_runtime.registrar_runtime_metrica("cache", "remover", labels={"namespace": ns, "removido": str(removed).lower()})
+    return removed
 
 
 def cache_invalidar_padrao(padrao: str, namespace: str = "padrao") -> int:
@@ -95,7 +102,9 @@ def cache_invalidar_padrao(padrao: str, namespace: str = "padrao") -> int:
         keys = [k for k in _STORES[ns] if fnmatch.fnmatch(k, padrao)]
         for key in keys:
             _STORES[ns].pop(key, None)
-        return len(keys)
+        total = len(keys)
+    observability_runtime.registrar_runtime_metrica("cache", "invalidar_padrao", valor=float(total), labels={"namespace": ns})
+    return total
 
 
 def cache_limpar(namespace: str | None = None) -> int:

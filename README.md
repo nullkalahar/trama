@@ -60,7 +60,8 @@ Pipeline da linguagem:
 - manual da linguagem v0.9 em [`docs/LINGUAGEM_V0_9.md`](docs/LINGUAGEM_V0_9.md)
 - manual da linguagem v1.1 em [`docs/LINGUAGEM_V1_1.md`](docs/LINGUAGEM_V1_1.md)
 - manual da linguagem v1.2 em [`docs/LINGUAGEM_V1_2.md`](docs/LINGUAGEM_V1_2.md)
-- manual completo consolidado até v1.2 em [`docs/MANUAL_COMPLETO_ATE_V1_2.md`](docs/MANUAL_COMPLETO_ATE_V1_2.md)
+- manual da linguagem v1.4 em [`docs/LINGUAGEM_V1_4.md`](docs/LINGUAGEM_V1_4.md)
+- manual completo consolidado até v1.4 em [`docs/MANUAL_COMPLETO_ATE_V1_4.md`](docs/MANUAL_COMPLETO_ATE_V1_4.md)
 - guia de auto-hospedagem v1.0 em [`docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md`](docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md)
 - guia de auto-hospedagem do compilador v1.0.5 em [`docs/AUTO_HOSPEDAGEM_V1_0_5.md`](docs/AUTO_HOSPEDAGEM_V1_0_5.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
@@ -389,10 +390,10 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [ ] salas/canais, presença, typing/read-receipt e broadcast seletivo
 - [ ] fallback de transporte e limites de conexão
 
-### v1.4
-- [ ] observabilidade avançada (métricas HTTP/DB/runtime, tracing por requisição)
-- [ ] logs estruturados com correlação (`request_id`, `trace_id`, `user_id`)
-- [ ] dashboard operacional mínimo e alertas iniciais
+### v1.4 (concluída)
+- [x] observabilidade avançada (métricas HTTP/DB/runtime, tracing por requisição)
+- [x] logs estruturados com correlação (`id_requisicao`, `id_traco`, `id_usuario` + aliases `request_id`, `trace_id`, `user_id`)
+- [x] dashboard operacional mínimo e alertas iniciais
 
 ## Plano Técnico v1.1 (robusto)
 
@@ -433,6 +434,25 @@ Critérios de aceite (DoD):
 - pipeline de mídia com gzip e hash; operações de imagem com erro controlado sem dependência opcional;
 - testes automatizados cobrindo upload multipart, storage e mídia;
 - documentação de versão atualizada.
+
+## Plano Técnico v1.4 (robusto)
+
+Ordem de implementação adotada:
+
+1. correlação canônica (`id_requisicao`, `id_traco`, `id_usuario`) com aliases de compatibilidade;
+2. instrumentação HTTP (métricas e tracing por requisição);
+3. instrumentação DB e runtime (cache/resiliência/jobs/webhooks);
+4. dashboard operacional (`/observabilidade`) e endpoint de alertas (`/alertas`);
+5. testes unitários e integração comprovando correlação e observabilidade fim a fim.
+
+Critérios de aceite (DoD):
+
+- logs estruturados com correlação automática por contexto de requisição;
+- headers de correlação canônicos + aliases (`X-Id-Requisicao`/`X-Request-Id`, `X-Id-Traco`/`X-Trace-Id`);
+- métricas HTTP/DB/runtime disponíveis em snapshot;
+- tracing por requisição com span raiz e evento de resposta;
+- alertas iniciais por taxa de erro e latência (configuráveis);
+- testes automatizados cobrindo IDs canônicos e aliases sem regressão funcional.
 
 ## Plano de Implementação v1.0 (Completo e Robusto)
 

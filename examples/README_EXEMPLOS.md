@@ -34,6 +34,7 @@ trama executar examples/01_ola_mundo.trm
 - `v12/22_storage_local_v12.trm`: storage local v1.2
 - `v12/23_midia_gzip_v12.trm`: pipeline de mídia (gzip) v1.2
 - `v12/24_multipart_schema_v12.trm`: upload multipart com schema v1.2
+- `v14/25_observabilidade_dashboard_v14.trm`: correlação (`id_requisicao/id_traco/id_usuario`), dashboard e alertas v1.4
 
 ## Observações
 

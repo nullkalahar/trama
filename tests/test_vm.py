@@ -697,3 +697,59 @@ def test_v10_carga_basica_http() -> None:
     )
     _, out = _run_capture(codigo)
     assert out == ["True"]
+
+
+def test_v14_observabilidade_correlacao_dashboard_alertas() -> None:
+    codigo = (
+        "função publico(req)\n"
+        "    retorne {\"status\": 200, \"json\": {\"ok\": verdadeiro, \"id_requisicao\": req[\"id_requisicao\"], \"request_id\": req[\"request_id\"], \"id_traco\": req[\"id_traco\"], \"trace_id\": req[\"trace_id\"]}}\n"
+        "fim\n"
+        "função privado(req)\n"
+        "    retorne {\"status\": 200, \"json\": {\"ok\": verdadeiro, \"id_usuario\": req[\"id_usuario\"], \"user_id\": req[\"user_id\"]}}\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    metricas_reset()\n"
+        "    tracos_reset()\n"
+        "    app = web_criar_app()\n"
+        "    web_usar_middleware(app, \"request_id\")\n"
+        "    web_ativar_observabilidade(app, \"/observabilidade\", \"/alertas\", {\"erro_percentual_limite\": 0.1, \"latencia_ms_limite\": 0.001, \"requisicoes_minimas\": 1})\n"
+        "    segredo = \"seg-v14\"\n"
+        "    web_rota(app, \"GET\", \"/publico\", publico)\n"
+        "    web_rota(app, \"GET\", \"/privado\", privado, nulo, {\"jwt_segredo\": segredo})\n"
+        "    s = aguarde web_iniciar(app, \"127.0.0.1\", 0)\n"
+        "    b = s[\"base_url\"]\n"
+        "    r1 = aguarde http_get(b + \"/publico\")\n"
+        "    exibir(r1[\"status\"])\n"
+        "    exibir(r1[\"json\"][\"id_requisicao\"] == r1[\"json\"][\"request_id\"])\n"
+        "    exibir(r1[\"json\"][\"id_traco\"] == r1[\"json\"][\"trace_id\"])\n"
+        "    exibir(r1[\"headers\"][\"X-Request-Id\"] == r1[\"headers\"][\"X-Id-Requisicao\"])\n"
+        "    exibir(r1[\"headers\"][\"X-Trace-Id\"] == r1[\"headers\"][\"X-Id-Traco\"])\n"
+        "    tok = token_criar({\"sub\": \"u42\"}, segredo, 60)\n"
+        "    r2 = aguarde http_get(b + \"/privado\", {\"Authorization\": \"Bearer \" + tok})\n"
+        "    exibir(r2[\"json\"][\"id_usuario\"])\n"
+        "    exibir(r2[\"json\"][\"user_id\"])\n"
+        "    obs = aguarde http_get(b + \"/observabilidade\")\n"
+        "    exibir(obs[\"status\"])\n"
+        "    exibir(obs[\"json\"][\"estado\"] != nulo)\n"
+        "    exibir(obs[\"json\"][\"metricas\"][\"counters\"] != [])\n"
+        "    al = aguarde http_get(b + \"/alertas\")\n"
+        "    exibir(al[\"status\"])\n"
+        "    exibir(al[\"json\"][\"alertas\"][\"estado\"] == \"degradado\")\n"
+        "    aguarde web_parar(s)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == [
+        "200",
+        "True",
+        "True",
+        "True",
+        "True",
+        "u42",
+        "u42",
+        "200",
+        "True",
+        "True",
+        "200",
+        "True",
+    ]

@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import os
 import json
 import threading
 import time
 import uuid
+from contextvars import ContextVar
 from typing import Any
 
 
@@ -38,18 +40,64 @@ _TRACE_LOCK = threading.Lock()
 _SPANS: dict[str, dict[str, Any]] = {}
 _SPAN_EVENTS: list[dict[str, Any]] = []
 
+_CORR_CTX: ContextVar[dict[str, object]] = ContextVar("trama_corr_ctx", default={})
+
+
+def _normalizar_correlação(
+    id_requisicao: object | None = None,
+    id_traco: object | None = None,
+    id_usuario: object | None = None,
+) -> dict[str, object]:
+    out: dict[str, object] = {}
+    if id_requisicao:
+        out["id_requisicao"] = str(id_requisicao)
+        out["request_id"] = str(id_requisicao)
+    if id_traco:
+        out["id_traco"] = str(id_traco)
+        out["trace_id"] = str(id_traco)
+    if id_usuario:
+        out["id_usuario"] = str(id_usuario)
+        out["user_id"] = str(id_usuario)
+    return out
+
+
+def correlacao_definir(
+    id_requisicao: object | None = None,
+    id_traco: object | None = None,
+    id_usuario: object | None = None,
+) -> dict[str, object]:
+    merged = dict(_CORR_CTX.get() or {})
+    merged.update(_normalizar_correlação(id_requisicao, id_traco, id_usuario))
+    _CORR_CTX.set(merged)
+    return dict(merged)
+
+
+def correlacao_obter() -> dict[str, object]:
+    return dict(_CORR_CTX.get() or {})
+
+
+def correlacao_limpar() -> None:
+    _CORR_CTX.set({})
+
 
 def log_estruturado(
     nivel: str,
     mensagem: object,
     contexto: dict[str, object] | None = None,
 ) -> dict[str, object]:
+    corr = correlacao_obter()
+    ctx = dict(contexto or {})
+    for k, v in corr.items():
+        ctx.setdefault(k, v)
     entry = {
         "ts": _now_iso(),
         "nivel": str(nivel).upper(),
         "mensagem": str(mensagem),
-        "contexto": dict(contexto or {}),
+        "contexto": ctx,
     }
+    for k in ("id_requisicao", "request_id", "id_traco", "trace_id", "id_usuario", "user_id"):
+        if k in corr:
+            entry[k] = corr[k]
     return entry
 
 
@@ -105,6 +153,7 @@ def metricas_reset() -> None:
 
 
 def traco_iniciar(nome: str, atributos: dict[str, object] | None = None) -> dict[str, object]:
+    corr = correlacao_obter()
     span_id = uuid.uuid4().hex
     span = {
         "id": span_id,
@@ -117,6 +166,7 @@ def traco_iniciar(nome: str, atributos: dict[str, object] | None = None) -> dict
         "duracao_ms": None,
         "erro": None,
     }
+    span.update({k: v for k, v in corr.items() if k in {"id_requisicao", "id_traco", "id_usuario"}})
     with _TRACE_LOCK:
         _SPANS[span_id] = span
     return dict(span)
@@ -168,6 +218,142 @@ def tracos_reset() -> None:
     with _TRACE_LOCK:
         _SPANS.clear()
         _SPAN_EVENTS.clear()
+
+
+def registrar_http_metrica(
+    metodo: str,
+    rota: str,
+    status: int,
+    latencia_ms: float,
+    id_requisicao: str | None = None,
+    id_traco: str | None = None,
+    id_usuario: str | None = None,
+) -> None:
+    labels_base: dict[str, object] = {
+        "metodo": metodo,
+        "rota": rota,
+        "status": int(status),
+    }
+    if id_requisicao:
+        labels_base["id_requisicao"] = id_requisicao
+    if id_traco:
+        labels_base["id_traco"] = id_traco
+    if id_usuario:
+        labels_base["id_usuario"] = id_usuario
+    metrica_incrementar("http.requisicoes_total", 1, labels_base)
+    metrica_observar("http.latencia_ms", float(latencia_ms), labels_base)
+    if int(status) >= 500:
+        metrica_incrementar("http.erros_total", 1, labels_base)
+
+
+def registrar_db_metrica(
+    operacao: str,
+    backend: str,
+    latencia_ms: float,
+    sucesso: bool,
+) -> None:
+    labels = {"operacao": operacao, "backend": backend, "sucesso": str(bool(sucesso)).lower()}
+    metrica_incrementar("db.operacoes_total", 1, labels)
+    metrica_observar("db.latencia_ms", float(latencia_ms), labels)
+    if not sucesso:
+        metrica_incrementar("db.erros_total", 1, labels)
+
+
+def registrar_runtime_metrica(
+    componente: str,
+    evento: str,
+    valor: float = 1.0,
+    labels: dict[str, object] | None = None,
+) -> None:
+    lb = {"componente": componente, "evento": evento}
+    lb.update(dict(labels or {}))
+    metrica_incrementar("runtime.eventos_total", float(valor), lb)
+
+
+def _sum_counter(name: str) -> float:
+    snap = metricas_snapshot()
+    total = 0.0
+    for c in snap.get("counters", []):
+        if c.get("nome") == name:
+            total += float(c.get("valor", 0.0))
+    return total
+
+
+def _observacoes_por_nome(name: str) -> list[float]:
+    snap = metricas_snapshot()
+    values: list[float] = []
+    for o in snap.get("observacoes", []):
+        if o.get("nome") == name:
+            values.append(float(o.get("valor", 0.0)))
+    return values
+
+
+def _percentil(values: list[float], p: float) -> float:
+    if not values:
+        return 0.0
+    sorted_values = sorted(values)
+    pos = min(len(sorted_values) - 1, max(0, int(round((len(sorted_values) - 1) * p))))
+    return float(sorted_values[pos])
+
+
+def alertas_avaliar(config: dict[str, object] | None = None) -> dict[str, object]:
+    cfg = dict(config or {})
+    erro_pct_limite = float(cfg.get("erro_percentual_limite", os.getenv("TRAMA_ALERTA_ERRO_PERCENTUAL", "5")))
+    latencia_ms_limite = float(cfg.get("latencia_ms_limite", os.getenv("TRAMA_ALERTA_LATENCIA_MS", "500")))
+    req_minimas = int(cfg.get("requisicoes_minimas", os.getenv("TRAMA_ALERTA_REQ_MINIMAS", "20")))
+
+    req_total = _sum_counter("http.requisicoes_total")
+    req_erro = _sum_counter("http.erros_total")
+    taxa_erro = (req_erro / req_total * 100.0) if req_total > 0 else 0.0
+    latencias = _observacoes_por_nome("http.latencia_ms")
+    p95 = _percentil(latencias, 0.95)
+
+    ativos: list[dict[str, object]] = []
+    if req_total >= req_minimas and taxa_erro >= erro_pct_limite:
+        ativos.append(
+            {
+                "codigo": "ERRO_HTTP_ALTO",
+                "mensagem": "Taxa de erro HTTP acima do limite.",
+                "detalhes": {"taxa_erro_pct": taxa_erro, "limite_pct": erro_pct_limite, "requisicoes": req_total},
+            }
+        )
+    if req_total >= req_minimas and p95 >= latencia_ms_limite:
+        ativos.append(
+            {
+                "codigo": "LATENCIA_HTTP_ALTA",
+                "mensagem": "Latência HTTP p95 acima do limite.",
+                "detalhes": {"p95_ms": p95, "limite_ms": latencia_ms_limite, "requisicoes": req_total},
+            }
+        )
+
+    estado = "ok" if not ativos else "degradado"
+    return {
+        "estado": estado,
+        "ativos": ativos,
+        "resumo": {
+            "requisicoes_total": req_total,
+            "erros_total": req_erro,
+            "taxa_erro_pct": taxa_erro,
+            "latencia_p95_ms": p95,
+        },
+        "limites": {
+            "erro_percentual_limite": erro_pct_limite,
+            "latencia_ms_limite": latencia_ms_limite,
+            "requisicoes_minimas": req_minimas,
+        },
+    }
+
+
+def observabilidade_resumo(config_alerta: dict[str, object] | None = None) -> dict[str, object]:
+    alertas = alertas_avaliar(config_alerta)
+    return {
+        "ok": alertas["estado"] == "ok",
+        "estado": alertas["estado"],
+        "metricas": metricas_snapshot(),
+        "tracos": tracos_snapshot(),
+        "alertas": alertas,
+        "ts": _now_iso(),
+    }
 
 
 def operacao_validar_config(obrigatorios: list[str]) -> dict[str, object]:

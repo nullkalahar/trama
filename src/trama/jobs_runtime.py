@@ -13,6 +13,7 @@ import urllib.error
 import urllib.request
 import uuid
 
+from . import observability_runtime
 
 @dataclass
 class Job:
@@ -49,6 +50,7 @@ class JobQueue:
         idempotency_key: str | None = None,
     ) -> dict[str, object]:
         if idempotency_key and idempotency_key in self._idempotency:
+            observability_runtime.registrar_runtime_metrica("jobs", "idempotente_ignorado", labels={"fila": self.name})
             return {"enfileirado": False, "idempotente": True}
         job = Job(
             id=uuid.uuid4().hex,
@@ -61,6 +63,7 @@ class JobQueue:
         self.pending.append(job)
         if idempotency_key:
             self._idempotency.add(idempotency_key)
+        observability_runtime.registrar_runtime_metrica("jobs", "enfileirado", labels={"fila": self.name})
         return {"enfileirado": True, "id": job.id}
 
     async def process_all(self) -> dict[str, object]:
@@ -69,6 +72,7 @@ class JobQueue:
             job = self.pending.pop(0)
             processed += 1
             await self._process_one(job)
+        observability_runtime.registrar_runtime_metrica("jobs", "processados", valor=float(processed), labels={"fila": self.name})
         return {
             "fila": self.name,
             "processados": processed,
@@ -81,6 +85,7 @@ class JobQueue:
             job.status = "falhou"
             job.last_error = "fila sem invocador de handler"
             self.dlq.append(job)
+            observability_runtime.registrar_runtime_metrica("jobs", "falha_sem_invocador", labels={"fila": self.name})
             return
         while job.attempts <= job.retries:
             job.attempts += 1
@@ -89,12 +94,14 @@ class JobQueue:
                 _ = await asyncio.wait_for(coro, timeout=job.timeout_seconds)
                 job.status = "concluido"
                 self.done.append(job)
+                observability_runtime.registrar_runtime_metrica("jobs", "concluido", labels={"fila": self.name})
                 return
             except Exception as exc:  # noqa: BLE001
                 job.last_error = str(exc)
                 if job.attempts > job.retries:
                     job.status = "dlq"
                     self.dlq.append(job)
+                    observability_runtime.registrar_runtime_metrica("jobs", "dlq", labels={"fila": self.name})
                     return
                 await asyncio.sleep(min(0.25 * (2 ** (job.attempts - 1)), 2.0))
 
@@ -127,11 +134,14 @@ async def send_webhook(
                 status = int(response.getcode() or 0)
                 body = response.read().decode("utf-8", errors="replace")
                 if 200 <= status < 300:
+                    observability_runtime.registrar_runtime_metrica("webhook", "sucesso", labels={"status": status})
                     return {"ok": True, "status": status, "tentativa": i + 1, "resposta": body}
                 last_error = f"status {status}"
         except urllib.error.HTTPError as exc:
             last_error = f"status {exc.code}"
         except Exception as exc:  # noqa: BLE001
             last_error = str(exc)
+        observability_runtime.registrar_runtime_metrica("webhook", "falha_tentativa", labels={"tentativa": i + 1})
         await asyncio.sleep(min(0.25 * (2**i), 2.0))
+    observability_runtime.registrar_runtime_metrica("webhook", "falha_final", labels={"tentativas": int(retries)})
     return {"ok": False, "erro": last_error, "tentativas": int(retries)}

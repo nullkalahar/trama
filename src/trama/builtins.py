@@ -846,10 +846,12 @@ def make_builtins(
 
     def web_usar_middleware(app: object, nome: str) -> None:
         web_app = _as_app(app)
+        aliases = {"id_requisicao": "request_id", "id_traco": "request_id"}
+        nome_norm = aliases.get(nome, nome)
         allowed = {"log_requisicao", "request_id"}
-        if nome not in allowed:
+        if nome_norm not in allowed:
             raise ValueError(f"Middleware não suportado: {nome}")
-        web_app.middlewares.add(nome)
+        web_app.middlewares.add(nome_norm)
         return None
 
     def web_configurar_cors(
@@ -960,6 +962,19 @@ def make_builtins(
         web_app.health_path = saude
         web_app.readiness_path = pronto
         web_app.liveness_path = vivo
+        return None
+
+    def web_ativar_observabilidade(
+        app: object,
+        caminho_observabilidade: str = "/observabilidade",
+        caminho_alertas: str = "/alertas",
+        config_alertas: dict[str, object] | None = None,
+    ) -> None:
+        web_app = _as_app(app)
+        web_app.observabilidade_ativa = True
+        web_app.observabilidade_path = caminho_observabilidade
+        web_app.alertas_path = caminho_alertas
+        web_app.alertas_config = dict(config_alertas or {})
         return None
 
     async def web_iniciar(
@@ -1284,6 +1299,12 @@ def make_builtins(
         observability_runtime.tracos_reset()
         return None
 
+    def observabilidade_resumo(config_alerta: dict[str, object] | None = None) -> dict[str, object]:
+        return observability_runtime.observabilidade_resumo(config_alerta=config_alerta)
+
+    def alertas_avaliar(config_alerta: dict[str, object] | None = None) -> dict[str, object]:
+        return observability_runtime.alertas_avaliar(config=config_alerta)
+
     # Aliases oficiais em pt-BR (mantém compatibilidade com nomes anteriores)
     banco_conectar = pg_conectar
     banco_fechar = pg_fechar
@@ -1330,6 +1351,7 @@ def make_builtins(
     web_limite_taxa = web_rate_limit
     web_api_versao = web_api_versionar
     web_rota_com_contrato = web_rota_contrato
+    web_observabilidade_ativar = web_ativar_observabilidade
     segredo_ler = segredo_obter
     cache_invalida_padrao = cache_invalidar_padrao
     armazenamento_local_criar = armazenamento_criar_local
@@ -1432,6 +1454,8 @@ def make_builtins(
         "web_api_versionar": web_api_versionar,
         "web_api_versao": web_api_versao,
         "web_saude_paths": web_saude_paths,
+        "web_ativar_observabilidade": web_ativar_observabilidade,
+        "web_observabilidade_ativar": web_observabilidade_ativar,
         "web_iniciar": web_iniciar,
         "web_parar": web_parar,
         "pg_conectar": pg_conectar,
@@ -1510,6 +1534,8 @@ def make_builtins(
         "traco_finalizar": traco_finalizar,
         "tracos_snapshot": tracos_snapshot,
         "tracos_reset": tracos_reset,
+        "observabilidade_resumo": observabilidade_resumo,
+        "alertas_avaliar": alertas_avaliar,
         "metrica_inc": metrica_inc,
         "traca_iniciar": traca_iniciar,
         "traca_evento": traca_evento,

@@ -16,6 +16,7 @@ from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 import uuid
 
+from . import observability_runtime
 from . import security_runtime
 
 
@@ -160,6 +161,10 @@ class WebApp:
         self.static_dir: Path | None = None
         self.rate_limits: list[RateLimitPolicy] = []
         self.api_versions: set[str] = set()
+        self.observabilidade_ativa = False
+        self.observabilidade_path = "/observabilidade"
+        self.alertas_path = "/alertas"
+        self.alertas_config: dict[str, object] = {}
 
 
 class WebRuntime:
@@ -197,6 +202,14 @@ class WebRuntime:
 
             def _add_common_headers(self, headers: dict[str, str] | None = None) -> None:
                 self.send_header("Connection", "close")
+                id_req = getattr(self, "_trama_id_requisicao", None)
+                id_traco = getattr(self, "_trama_id_traco", None)
+                if id_req:
+                    self.send_header("X-Id-Requisicao", str(id_req))
+                    self.send_header("X-Request-Id", str(id_req))
+                if id_traco:
+                    self.send_header("X-Id-Traco", str(id_traco))
+                    self.send_header("X-Trace-Id", str(id_traco))
                 if app.cors_enabled:
                     self.send_header("Access-Control-Allow-Origin", app.cors_origin)
                     self.send_header("Access-Control-Allow-Methods", app.cors_methods)
@@ -205,6 +218,42 @@ class WebRuntime:
                     for k, v in headers.items():
                         self.send_header(k, v)
 
+            def _registrar_observabilidade_resposta(self, status: int) -> None:
+                if getattr(self, "_trama_obs_done", False):
+                    return
+                self._trama_obs_done = True
+
+                inicio = getattr(self, "_trama_inicio_perf", None)
+                if inicio is None:
+                    return
+                lat_ms = (time.perf_counter() - float(inicio)) * 1000.0
+                metodo = str(getattr(self, "_trama_metodo", self.command))
+                rota = str(getattr(self, "_trama_rota", urlparse(self.path).path))
+                id_req = getattr(self, "_trama_id_requisicao", None)
+                id_traco = getattr(self, "_trama_id_traco", None)
+                id_usr = getattr(self, "_trama_id_usuario", None)
+
+                observability_runtime.registrar_http_metrica(
+                    metodo=metodo,
+                    rota=rota,
+                    status=int(status),
+                    latencia_ms=lat_ms,
+                    id_requisicao=str(id_req) if id_req else None,
+                    id_traco=str(id_traco) if id_traco else None,
+                    id_usuario=str(id_usr) if id_usr else None,
+                )
+
+                span = getattr(self, "_trama_span_raiz", None)
+                if isinstance(span, dict):
+                    observability_runtime.traco_evento(span, "http.resposta", {"status": int(status), "latencia_ms": lat_ms})
+                    observability_runtime.traco_finalizar(
+                        span,
+                        status="ok" if int(status) < 500 else "erro",
+                        erro=None if int(status) < 500 else f"http_status_{int(status)}",
+                    )
+
+                observability_runtime.correlacao_limpar()
+
             def _send_bytes(
                 self,
                 status: int,
@@ -212,6 +261,7 @@ class WebRuntime:
                 content_type: str,
                 headers: dict[str, str] | None = None,
             ) -> None:
+                self._registrar_observabilidade_resposta(int(status))
                 self.send_response(int(status))
                 self.send_header("Content-Type", content_type)
                 self.send_header("Content-Length", str(len(payload)))
@@ -434,6 +484,12 @@ class WebRuntime:
                         },
                     )
                 req["usuario"] = claims
+                id_usuario = claims.get("id_usuario") or claims.get("user_id") or claims.get("sub")
+                if id_usuario is not None:
+                    req["id_usuario"] = id_usuario
+                    req["user_id"] = id_usuario
+                    self._trama_id_usuario = str(id_usuario)
+                    observability_runtime.correlacao_definir(id_usuario=id_usuario)
                 required = list(options.get("rbac_permissoes", []))
                 if required:
                     user_perms = set(list(claims.get("permissoes", [])))
@@ -497,18 +553,57 @@ class WebRuntime:
 
             def _handle_request(self) -> None:
                 start = time.perf_counter()
-                request_id = str(uuid.uuid4()) if "request_id" in app.middlewares else None
+                headers_in = {k.lower(): v for k, v in self.headers.items()}
+                request_id = (
+                    headers_in.get("x-id-requisicao")
+                    or headers_in.get("x-request-id")
+                    or str(uuid.uuid4())
+                )
+                trace_id = (
+                    headers_in.get("x-id-traco")
+                    or headers_in.get("x-trace-id")
+                    or str(uuid.uuid4())
+                )
+                user_id_hdr = headers_in.get("x-id-usuario") or headers_in.get("x-user-id")
+
+                self._trama_inicio_perf = start
+                self._trama_obs_done = False
+                self._trama_id_requisicao = str(request_id)
+                self._trama_id_traco = str(trace_id)
+                self._trama_id_usuario = str(user_id_hdr) if user_id_hdr else None
+                self._trama_span_raiz = observability_runtime.traco_iniciar(
+                    "http.requisicao",
+                    {
+                        "metodo": self.command,
+                        "caminho": urlparse(self.path).path,
+                        "id_requisicao": self._trama_id_requisicao,
+                        "id_traco": self._trama_id_traco,
+                    },
+                )
+                observability_runtime.correlacao_definir(
+                    id_requisicao=self._trama_id_requisicao,
+                    id_traco=self._trama_id_traco,
+                    id_usuario=self._trama_id_usuario,
+                )
+                self._trama_metodo = self.command
 
                 if self.command == "OPTIONS" and app.cors_enabled:
-                    self.send_response(204)
-                    self.send_header("Content-Length", "0")
-                    self._add_common_headers()
-                    self.end_headers()
+                    self._send_bytes(204, b"", "text/plain; charset=utf-8", {})
                     return
 
                 parsed_url = urlparse(self.path)
                 path = parsed_url.path
+                self._trama_rota = path
                 query = {k: (v[0] if len(v) == 1 else v) for k, v in parse_qs(parsed_url.query).items()}
+
+                if app.observabilidade_ativa and path == app.observabilidade_path:
+                    resumo = observability_runtime.observabilidade_resumo(app.alertas_config)
+                    self._send_json(200, resumo, {})
+                    return
+                if app.observabilidade_ativa and path == app.alertas_path:
+                    alertas = observability_runtime.alertas_avaliar(app.alertas_config)
+                    self._send_json(200, {"ok": True, "alertas": alertas}, {})
+                    return
 
                 if app.health_enabled and path in {app.health_path, app.readiness_path, app.liveness_path}:
                     headers = {"X-Request-Id": request_id} if request_id else None
@@ -544,6 +639,7 @@ class WebRuntime:
                         headers,
                     )
                     return
+                self._trama_rota = route.path
 
                 if app.api_versions and route.kind == "handler":
                     if not any(path.startswith(prefix + "/") or path == prefix for prefix in app.api_versions):
@@ -580,7 +676,12 @@ class WebRuntime:
                     "arquivos": files_data or {},
                     "corpo_raw": raw_body,
                     "ip": self.client_address[0] if self.client_address else "0.0.0.0",
+                    "id_requisicao": request_id,
                     "request_id": request_id,
+                    "id_traco": trace_id,
+                    "trace_id": trace_id,
+                    "id_usuario": self._trama_id_usuario,
+                    "user_id": self._trama_id_usuario,
                 }
                 req["request"] = req
                 req["query"] = req["consulta"]
@@ -700,7 +801,10 @@ class WebRuntime:
 
                 if "log_requisicao" in app.middlewares:
                     ms = (time.perf_counter() - start) * 1000.0
-                    out(f"[WEB] {self.command} {path} ({ms:.2f}ms, request_id={request_id or 'n/a'})")
+                    out(
+                        f"[WEB] {self.command} {path} "
+                        f"({ms:.2f}ms, id_requisicao={request_id}, id_traco={trace_id}, id_usuario={self._trama_id_usuario or 'n/a'})"
+                    )
 
             def do_GET(self) -> None:  # noqa: N802
                 self._handle_request()
