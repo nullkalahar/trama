@@ -1,0 +1,35 @@
+função criar_tarefa(req)
+    retorne {"status": 201, "json": {"ok": verdadeiro, "nome": req["corpo"]["nome"], "id_requisicao": req["id_requisicao"], "id_traco": req["id_traco"]}}
+fim
+
+função listar_tarefas(req)
+    retorne {"status": 200, "json": {"ok": verdadeiro, "dados": [{"id": 1, "nome": "estudar trama"}], "id_usuario": req["id_usuario"]}}
+fim
+
+assíncrona função principal()
+    metricas_reset()
+    tracos_reset()
+
+    app = web_criar_app()
+    api = web_api_versao(app, "v1")
+    segredo = "segredo-backend-completo"
+
+    web_ativar_observabilidade(app, "/observabilidade", "/alertas", {"erro_percentual_limite": 5, "latencia_ms_limite": 600, "requisicoes_minimas": 1})
+    web_rota(app, "POST", api + "/tarefas", criar_tarefa, {"corpo_obrigatorio": ["nome"]}, {"jwt_segredo": segredo})
+    web_rota(app, "GET", api + "/tarefas", listar_tarefas, nulo, {"jwt_segredo": segredo})
+
+    tok = jwt_criar({"sub": "u100", "papel": "editor"}, segredo, 3600)
+    exibir("Token para teste:")
+    exibir(tok)
+
+    servidor = aguarde web_iniciar(app, "127.0.0.1", 8096)
+    exibir("Backend integrado em", servidor["base_url"] + api)
+    exibir("Endpoints:")
+    exibir("- POST " + api + "/tarefas")
+    exibir("- GET " + api + "/tarefas")
+    exibir("- GET /observabilidade")
+    exibir("- GET /alertas")
+
+    aguarde dormir(12)
+    aguarde web_parar(servidor)
+fim

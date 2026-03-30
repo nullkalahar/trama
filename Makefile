@@ -4,13 +4,13 @@ check:
 	python3 -m py_compile src/trama/*.py tests/test_*.py
 
 run-example:
-	PYTHONPATH=src python3 -m trama.cli executar examples/ola_mundo.trm
+	PYTHONPATH=src python3 -m trama.cli executar exemplos/ola_mundo.trm
 
 bytecode-example:
-	PYTHONPATH=src python3 -m trama.cli bytecode examples/ola_mundo.trm
+	PYTHONPATH=src python3 -m trama.cli bytecode exemplos/ola_mundo.trm
 
 compile-example:
-	PYTHONPATH=src python3 -m trama.cli compilar examples/ola_mundo.trm -o build/ola.tbc
+	PYTHONPATH=src python3 -m trama.cli compilar exemplos/ola_mundo.trm -o build/ola.tbc
 
 build-standalone:
 	scripts/build_standalone.sh

@@ -1,0 +1,14 @@
+função ok(req)
+    retorne {"status": 200, "json": {"ok": verdadeiro, "dados": {"id": 10}, "erro": nulo, "meta": {"versao": "v1"}}}
+fim
+
+assíncrona função principal()
+    app = web_criar_app()
+    contrato = {"envelope": verdadeiro}
+    web_rota_contrato(app, "GET", "/api/v1/ok", ok, "v1", contrato)
+
+    servidor = aguarde web_iniciar(app, "127.0.0.1", 8094)
+    exibir("Contrato API ativo em", servidor["base_url"] + "/api/v1/ok")
+    aguarde dormir(8)
+    aguarde web_parar(servidor)
+fim

@@ -977,6 +977,64 @@ def make_builtins(
         web_app.alertas_config = dict(config_alertas or {})
         return None
 
+    def web_tempo_real_rota(
+        app: object,
+        caminho: str,
+        handler_fn: object,
+        opcoes: dict[str, object] | None = None,
+    ) -> None:
+        web_app = _as_app(app)
+        web_app.tempo_real.registrar_rota(caminho, handler_fn, opcoes or {})
+        return None
+
+    def web_tempo_real_ativar_fallback(
+        app: object,
+        prefixo: str = "/tempo-real/fallback",
+        timeout_segundos: float = 20.0,
+    ) -> None:
+        web_app = _as_app(app)
+        web_app.tempo_real.ativar_fallback(prefixo=prefixo, timeout_segundos=float(timeout_segundos))
+        return None
+
+    def web_tempo_real_definir_limites(app: object, limites: dict[str, object]) -> None:
+        web_app = _as_app(app)
+        web_app.tempo_real.definir_limites(limites)
+        return None
+
+    def web_tempo_real_emitir_sala(
+        app: object,
+        canal: str,
+        sala: str,
+        evento: str,
+        dados: object | None = None,
+    ) -> int:
+        web_app = _as_app(app)
+        return web_app.tempo_real.emitir(canal, evento, dados if dados is not None else {}, sala=sala)
+
+    def web_tempo_real_emitir_usuario(
+        app: object,
+        canal: str,
+        id_usuario: str,
+        evento: str,
+        dados: object | None = None,
+    ) -> int:
+        web_app = _as_app(app)
+        return web_app.tempo_real.emitir(canal, evento, dados if dados is not None else {}, id_usuario=id_usuario)
+
+    def web_tempo_real_emitir_conexao(
+        app: object,
+        canal: str,
+        id_conexao: str,
+        evento: str,
+        dados: object | None = None,
+    ) -> int:
+        web_app = _as_app(app)
+        return web_app.tempo_real.emitir(canal, evento, dados if dados is not None else {}, id_conexao=id_conexao)
+
+    def web_tempo_real_status(app: object, canal: str | None = None) -> dict[str, object]:
+        web_app = _as_app(app)
+        return web_app.tempo_real.snapshot(canal)
+
     async def web_iniciar(
         app: object,
         host: str = "127.0.0.1",
@@ -1352,6 +1410,15 @@ def make_builtins(
     web_api_versao = web_api_versionar
     web_rota_com_contrato = web_rota_contrato
     web_observabilidade_ativar = web_ativar_observabilidade
+    web_socket_rota = web_tempo_real_rota
+    web_websocket_rota = web_tempo_real_rota
+    web_realtime_rota = web_tempo_real_rota
+    web_realtime_ativar_fallback = web_tempo_real_ativar_fallback
+    web_realtime_definir_limites = web_tempo_real_definir_limites
+    web_realtime_emitir_sala = web_tempo_real_emitir_sala
+    web_realtime_emitir_usuario = web_tempo_real_emitir_usuario
+    web_realtime_emitir_conexao = web_tempo_real_emitir_conexao
+    web_realtime_status = web_tempo_real_status
     segredo_ler = segredo_obter
     cache_invalida_padrao = cache_invalidar_padrao
     armazenamento_local_criar = armazenamento_criar_local
@@ -1456,6 +1523,22 @@ def make_builtins(
         "web_saude_paths": web_saude_paths,
         "web_ativar_observabilidade": web_ativar_observabilidade,
         "web_observabilidade_ativar": web_observabilidade_ativar,
+        "web_tempo_real_rota": web_tempo_real_rota,
+        "web_tempo_real_ativar_fallback": web_tempo_real_ativar_fallback,
+        "web_tempo_real_definir_limites": web_tempo_real_definir_limites,
+        "web_tempo_real_emitir_sala": web_tempo_real_emitir_sala,
+        "web_tempo_real_emitir_usuario": web_tempo_real_emitir_usuario,
+        "web_tempo_real_emitir_conexao": web_tempo_real_emitir_conexao,
+        "web_tempo_real_status": web_tempo_real_status,
+        "web_socket_rota": web_socket_rota,
+        "web_websocket_rota": web_websocket_rota,
+        "web_realtime_rota": web_realtime_rota,
+        "web_realtime_ativar_fallback": web_realtime_ativar_fallback,
+        "web_realtime_definir_limites": web_realtime_definir_limites,
+        "web_realtime_emitir_sala": web_realtime_emitir_sala,
+        "web_realtime_emitir_usuario": web_realtime_emitir_usuario,
+        "web_realtime_emitir_conexao": web_realtime_emitir_conexao,
+        "web_realtime_status": web_realtime_status,
         "web_iniciar": web_iniciar,
         "web_parar": web_parar,
         "pg_conectar": pg_conectar,

@@ -193,8 +193,8 @@ trama repl
 
 Ver:
 
-- `examples/README_EXEMPLOS.md`
-- diretório `examples/` com exemplos v0.x, v1.0 e v1.1.
+- `exemplos/README_EXEMPLOS.md`
+- diretório `exemplos/` com exemplos v0.x, v1.0 e v1.1.
 
 ## 12. Distribuição
 

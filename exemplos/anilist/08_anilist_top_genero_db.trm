@@ -1,0 +1,20 @@
+importe "modulos/anilist_api.trm" como anilist
+
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:///" + anilist["db_path_teste"]())
+    aguarde anilist["db_preparar"](conn)
+
+    resp = aguarde anilist["anilist_populares"]("ANIME", 1, 20)
+    lista = anilist["anilist_lista_media_teste"](resp, "ANIME")
+    aguarde anilist["db_salvar_lista"](conn, "ANIME", lista)
+
+    rows = aguarde banco_consultar(conn, "SELECT id, titulo_romaji, pontuacao FROM anilist_itens WHERE tipo = 'ANIME' ORDER BY pontuacao DESC LIMIT 5")
+
+    i = 0
+    enquanto i < tamanho(rows)
+        exibir(rows[i]["id"], rows[i]["titulo_romaji"], rows[i]["pontuacao"])
+        i = i + 1
+    fim
+
+    aguarde banco_fechar(conn)
+fim

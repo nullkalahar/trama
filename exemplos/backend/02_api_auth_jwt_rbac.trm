@@ -1,0 +1,25 @@
+função publico(req)
+    retorne {"status": 200, "json": {"ok": verdadeiro, "mensagem": "rota pública"}}
+fim
+
+função admin(req)
+    retorne {"status": 200, "json": {"ok": verdadeiro, "usuario": req["usuario"]["sub"], "papel": req["usuario"]["papel"]}}
+fim
+
+assíncrona função principal()
+    app = web_criar_app()
+    segredo = "segredo-demo-v14"
+    permissoes = ["admin:ler"]
+
+    web_rota(app, "GET", "/publico", publico)
+    web_rota(app, "GET", "/admin", admin, nulo, {"jwt_segredo": segredo, "rbac_permissoes": permissoes})
+
+    token_admin = token_criar({"sub": "u-admin", "papel": "admin", "permissoes": ["admin:ler"]}, segredo, 3600)
+    exibir("Bearer para /admin:")
+    exibir(token_admin)
+
+    servidor = aguarde web_iniciar(app, "127.0.0.1", 8092)
+    exibir("Servidor auth em:", servidor["base_url"])
+    aguarde dormir(10)
+    aguarde web_parar(servidor)
+fim

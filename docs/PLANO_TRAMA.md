@@ -212,7 +212,7 @@ trama/
     test_parser.py
     test_semantic.py
     test_vm.py
-  examples/
+  exemplos/
     ola_mundo.trm
     condicional.trm
     funcoes.trm
@@ -269,7 +269,7 @@ Comandos sugeridos:
 - **Lexer:** snapshots de tokens por arquivo de entrada
 - **Parser:** snapshots de AST
 - **VM:** testes de saída e estado final
-- **Integração:** executar `.trm` reais em `examples/`
+- **Integração:** executar `.trm` reais em `exemplos/`
 
 Casos obrigatórios:
 
@@ -299,7 +299,7 @@ fim
 
 ## 13. Próximos Passos Imediatos
 
-1. Criar esqueleto de pastas (`src/trama`, `tests`, `examples`).
+1. Criar esqueleto de pastas (`src/trama`, `tests`, `exemplos`).
 2. Implementar `token.py` e `lexer.py`.
 3. Escrever testes de lexer primeiro.
 4. Implementar parser com AST mínima.

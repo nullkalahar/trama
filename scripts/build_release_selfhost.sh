@@ -12,7 +12,7 @@ scripts/build_standalone.sh
 scripts/package_deb.sh "$VERSION" "$ARCH"
 
 # Sanidade: compilar e executar sem usar compilador em runtime.
-./dist/trama compilar examples/ola_mundo.trm -o dist/selfhost/ola_mundo.tbc
+./dist/trama compilar exemplos/ola_mundo.trm -o dist/selfhost/ola_mundo.tbc
 ./dist/trama executar-tbc dist/selfhost/ola_mundo.tbc >/dev/null
 
 echo "Release self-host pronta: build/trama_${VERSION}_${ARCH}.deb"

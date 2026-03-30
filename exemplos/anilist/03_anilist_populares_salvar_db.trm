@@ -1,0 +1,17 @@
+importe "modulos/anilist_api.trm" como anilist
+
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:///" + anilist["db_path_teste"]())
+    aguarde anilist["db_preparar"](conn)
+
+    resp = aguarde anilist["anilist_populares"]("ANIME", 1, 15)
+    lista = anilist["anilist_lista_media_teste"](resp, "ANIME")
+
+    salvos = aguarde anilist["db_salvar_lista"](conn, "ANIME", lista)
+    exibir("salvos:", salvos)
+
+    rows = aguarde banco_consultar(conn, "SELECT COUNT(*) AS c FROM anilist_itens WHERE tipo = ?", ["ANIME"])
+    exibir("total_db_anime:", rows[0]["c"])
+
+    aguarde banco_fechar(conn)
+fim

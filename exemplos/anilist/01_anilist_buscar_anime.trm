@@ -1,0 +1,16 @@
+importe "modulos/anilist_api.trm" como anilist
+
+assíncrona função principal()
+    resp = aguarde anilist["anilist_buscar_anime_por_nome"]("Fullmetal")
+    exibir("status_http:", resp["status"])
+
+    dados = anilist["anilist_lista_media"](resp)
+    exibir("quantidade:", tamanho(dados))
+    se tamanho(dados) > 0
+        exibir("primeiro_id:", dados[0]["id"])
+        exibir("primeiro_titulo:", dados[0]["title"]["romaji"])
+    senao
+        exibir("primeiro_id:", nulo)
+        exibir("primeiro_titulo:", "sem_resultados")
+    fim
+fim

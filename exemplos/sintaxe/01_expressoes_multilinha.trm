@@ -1,0 +1,30 @@
+função soma(a, b)
+    retorne a + b
+fim
+
+função principal()
+    lista = [
+        1,
+        2,
+        3
+    ]
+
+    cfg = {
+        "nome": "trama",
+        "ativos": [
+            verdadeiro,
+            falso
+        ],
+        "meta": {
+            "versao": "1.3"
+        }
+    }
+
+    total = soma(
+        lista[0],
+        20
+    )
+
+    exibir(total)
+    exibir(cfg["nome"])
+fim

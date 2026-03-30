@@ -1,0 +1,13 @@
+função principal()
+    store = armazenamento_criar_local(".local/tmp/storage_v14")
+    payload = "arquivo de exemplo"
+
+    salvo = armazenamento_salvar(store, "uploads/arquivo.txt", payload, "text/plain", {"origem": "exemplo"})
+    lido = armazenamento_ler(store, "uploads/arquivo.txt")
+
+    exibir(salvo["ok"])
+    exibir(lido["ok"])
+    exibir(lido["size"] > 0)
+    exibir(armazenamento_url(store, "uploads/arquivo.txt"))
+    exibir(armazenamento_remover(store, "uploads/arquivo.txt"))
+fim

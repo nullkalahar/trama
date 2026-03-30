@@ -1,0 +1,16 @@
+assíncrona função principal()
+    contador = 0
+
+    função operacao_instavel()
+        contador = contador + 1
+        se contador < 3
+            lance "falha_transiente"
+        fim
+        retorne "ok"
+    fim
+
+    r = aguarde resiliencia_executar("servico_pagamentos", operacao_instavel, [], {"tentativas": 5, "base_backoff_segundos": 0, "jitter_segundos": 0, "max_falhas": 3, "reset_timeout_segundos": 2})
+
+    exibir(r)
+    exibir(circuito_status("servico_pagamentos")["estado"])
+fim

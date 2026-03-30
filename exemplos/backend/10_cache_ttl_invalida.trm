@@ -1,0 +1,13 @@
+função principal()
+    cache_limpar()
+
+    cache_definir("usuario:1", {"nome": "ana"}, 60, "api")
+    cache_definir("usuario:2", {"nome": "bia"}, 60, "api")
+    cache_definir("pedido:1", {"valor": 99}, 60, "api")
+
+    exibir(cache_obter("usuario:1", nulo, "api")["nome"])
+    removidos = cache_invalidar_padrao("usuario:*", "api")
+    exibir(removidos)
+    exibir(cache_existe("usuario:1", "api"))
+    exibir(cache_existe("pedido:1", "api"))
+fim

@@ -1,0 +1,25 @@
+função listar_itens(req)
+    retorne {"status": 200, "json": {"ok": verdadeiro, "dados": [{"id": 1, "nome": "caderno"}, {"id": 2, "nome": "caneta"}]}}
+fim
+
+função obter_item(req)
+    retorne {"status": 200, "json": {"ok": verdadeiro, "dados": {"id": req["parametros"]["id"], "nome": "item-dinamico"}}}
+fim
+
+função criar_item(req)
+    retorne {"status": 201, "json": {"ok": verdadeiro, "dados": {"id": 3, "nome": req["corpo"]["nome"]}}}
+fim
+
+assíncrona função principal()
+    app = web_criar_app()
+    api = web_api_versionar(app, "v1")
+
+    web_rota(app, "GET", api + "/itens", listar_itens)
+    web_rota(app, "GET", api + "/itens/:id", obter_item)
+    web_rota(app, "POST", api + "/itens", criar_item, {"corpo_obrigatorio": ["nome"]})
+
+    servidor = aguarde web_iniciar(app, "127.0.0.1", 8091)
+    exibir("API CRUD em:", servidor["base_url"] + api)
+    aguarde dormir(8)
+    aguarde web_parar(servidor)
+fim

@@ -36,3 +36,54 @@ def test_alertas_avaliar_degradado() -> None:
     )
     assert out["estado"] == "degradado"
     assert len(out["ativos"]) >= 1
+
+
+def test_registro_metricas_http_db_runtime() -> None:
+    observability_runtime.metricas_reset()
+
+    observability_runtime.registrar_http_metrica(
+        metodo="GET",
+        rota="/itens/:id",
+        status=200,
+        latencia_ms=12.0,
+        id_requisicao="r-http",
+        id_traco="t-http",
+        id_usuario="u-http",
+    )
+    observability_runtime.registrar_db_metrica(
+        operacao="consultar",
+        backend="sqlite",
+        latencia_ms=3.0,
+        sucesso=True,
+    )
+    observability_runtime.registrar_runtime_metrica(
+        componente="jobs",
+        evento="processado",
+        valor=2,
+        labels={"fila": "emails"},
+    )
+
+    snap = observability_runtime.metricas_snapshot()
+    nomes = {c["nome"] for c in snap["counters"]}
+    assert "http.requisicoes_total" in nomes
+    assert "db.operacoes_total" in nomes
+    assert "runtime.eventos_total" in nomes
+
+
+def test_observabilidade_resumo_ok_com_metricas_vazias() -> None:
+    observability_runtime.metricas_reset()
+    observability_runtime.tracos_reset()
+    observability_runtime.correlacao_limpar()
+
+    resumo = observability_runtime.observabilidade_resumo(
+        config_alerta={
+            "erro_percentual_limite": 1.0,
+            "latencia_ms_limite": 1.0,
+            "requisicoes_minimas": 999,
+        }
+    )
+    assert resumo["ok"] is True
+    assert resumo["estado"] == "ok"
+    assert "metricas" in resumo
+    assert "tracos" in resumo
+    assert "alertas" in resumo

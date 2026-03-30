@@ -1,0 +1,29 @@
+função realtime(req)
+    se req["evento"] == "mensagem"
+        m = req["mensagem"]
+        se m["tipo"] == "nova_tarefa"
+            retorne {"destino": "sala", "sala": "tarefas", "evento": "tarefa_criada", "dados": m}
+        fim
+    fim
+    retorne {"aceitar": verdadeiro}
+fim
+
+função api_listar(req)
+    retorne {"status": 200, "json": {"ok": verdadeiro, "dados": [{"id": 1, "nome": "trama realtime"}]}}
+fim
+
+assíncrona função principal()
+    app = web_criar_app()
+    api = web_api_versao(app, "v1")
+    web_rota(app, "GET", api + "/tarefas", api_listar)
+    web_tempo_real_rota(app, "/ws/tarefas", realtime, {"jwt_segredo": "segredo-v13"})
+    web_tempo_real_ativar_fallback(app)
+    web_tempo_real_definir_limites(app, {"max_conexoes_por_usuario": 10})
+
+    s = aguarde web_iniciar(app, "127.0.0.1", 8110)
+    exibir("API:", s["base_url"] + api + "/tarefas")
+    exibir("WS:", s["base_url"] + "/ws/tarefas")
+    exibir("Fallback:", s["base_url"] + "/tempo-real/fallback")
+    aguarde dormir(10)
+    aguarde web_parar(s)
+fim

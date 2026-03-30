@@ -60,6 +60,7 @@ Pipeline da linguagem:
 - manual da linguagem v0.9 em [`docs/LINGUAGEM_V0_9.md`](docs/LINGUAGEM_V0_9.md)
 - manual da linguagem v1.1 em [`docs/LINGUAGEM_V1_1.md`](docs/LINGUAGEM_V1_1.md)
 - manual da linguagem v1.2 em [`docs/LINGUAGEM_V1_2.md`](docs/LINGUAGEM_V1_2.md)
+- manual da linguagem v1.3 em [`docs/LINGUAGEM_V1_3.md`](docs/LINGUAGEM_V1_3.md)
 - manual da linguagem v1.4 em [`docs/LINGUAGEM_V1_4.md`](docs/LINGUAGEM_V1_4.md)
 - manual completo consolidado até v1.4 em [`docs/MANUAL_COMPLETO_ATE_V1_4.md`](docs/MANUAL_COMPLETO_ATE_V1_4.md)
 - guia de auto-hospedagem v1.0 em [`docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md`](docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md)
@@ -189,7 +190,7 @@ trama/
   selfhost/
   src/trama/
   tests/
-  examples/
+  exemplos/
 ```
 
 ## Primeira Fase (MVP)
@@ -272,7 +273,7 @@ Build do binário standalone (obrigatório):
 
 ```bash
 scripts/build_standalone.sh
-./dist/trama executar examples/ola_mundo.trm
+./dist/trama executar exemplos/ola_mundo.trm
 ```
 
 Build do pacote Debian:
@@ -385,10 +386,10 @@ Atualize os itens `[ ]` para `[x]` conforme cada entrega for concluída.
 - [x] pipeline de mídia (redimensionamento/conversão/compressão)
 - [x] abstração de storage (local e provedor remoto tipo S3)
 
-### v1.3
-- [ ] WebSocket nativo com autenticação JWT
-- [ ] salas/canais, presença, typing/read-receipt e broadcast seletivo
-- [ ] fallback de transporte e limites de conexão
+### v1.3 (concluída)
+- [x] WebSocket nativo com autenticação JWT
+- [x] salas/canais, presença, typing/read-receipt e broadcast seletivo
+- [x] fallback de transporte e limites de conexão
 
 ### v1.4 (concluída)
 - [x] observabilidade avançada (métricas HTTP/DB/runtime, tracing por requisição)
@@ -568,14 +569,7 @@ Regra obrigatória deste plano: toda superfície de linguagem deve ser canônica
 - checklist de release obrigatório antes de marcar item como concluído.
 - toda API nova deve ter nome canônico em pt-BR e exemplos oficiais em pt-BR.
 
-### v1.5 (frontend)
-- [ ] toolkit de UI, estado e renderização
-- [ ] integração HTML/CSS/DOM (ou runtime equivalente)
-- [ ] roteamento SPA + build + hot reload
-- [ ] integração full-stack com backend em `trama`
-- [ ] backend em `trama` apto para substituir aplicações complexas com realtime + mídia + observabilidade
-
-### v1.5–v1.8 (paridade backend avançada)
+## v1.5–v1.8 (paridade backend avançada)
 - [ ] REST + realtime (Socket.IO/WebSocket) com autenticação JWT
 - [ ] mensagens em tempo real, eventos sociais e alertas
 - [ ] comunidades/guildas com moderação e permissões
@@ -583,11 +577,18 @@ Regra obrigatória deste plano: toda superfície de linguagem deve ser canônica
 - [ ] upload de mídia + persistência + cache offline/sync incremental
 - [ ] deploy completo (Docker, `.deb`, standalone) com observabilidade robusta
 
-### v2.0 (autossuficiência total da linguagem)
+## v2.0 (autossuficiência total da linguagem)
 - [ ] fase 1: especificar formato canônico de bytecode e ABI da VM (`bytecode_v1`) com versionamento estável
 - [ ] fase 2: implementar runtime/VM nativa robusta (backend nativo) para executar `.tbc` sem Python
 - [ ] fase 3: portar compilador oficial para `.trm` com bootstrap por compilador semente mínimo
 - [ ] fase 4: remover Python do caminho crítico de build/release e publicar release oficial sem dependência de Python
+
+## v2.5 (frontend)
+- [ ] toolkit de UI, estado e renderização
+- [ ] integração HTML/CSS/DOM (ou runtime equivalente)
+- [ ] roteamento SPA + build + hot reload
+- [ ] integração full-stack com backend em `trama`
+- [ ] backend em `trama` apto para substituir aplicações complexas com realtime + mídia + observabilidade
 
 ## Princípios Técnicos
 

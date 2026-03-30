@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass, field
 from email.parser import BytesParser
 from email.policy import default
+import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import mimetypes
 from pathlib import Path
 import re
+import socket
+import struct
 import threading
 import time
 from typing import Any, Callable
@@ -142,6 +146,291 @@ class RateLimitPolicy:
         return True
 
 
+@dataclass
+class TempoRealConexao:
+    id_conexao: str
+    canal: str
+    ip: str
+    id_usuario: str | None
+    id_requisicao: str
+    id_traco: str
+    modo: str  # websocket | fallback
+    socket_conn: socket.socket | None = None
+    ativa: bool = True
+    criada_em: float = field(default_factory=time.time)
+    ultimo_heartbeat_em: float = field(default_factory=time.time)
+    salas: set[str] = field(default_factory=set)
+    fila_eventos: list[dict[str, object]] = field(default_factory=list)
+    janela_mensagens: list[float] = field(default_factory=list)
+
+    def enfileirar(self, payload: dict[str, object], limite_fila: int = 1000) -> None:
+        self.fila_eventos.append(dict(payload))
+        if len(self.fila_eventos) > limite_fila:
+            del self.fila_eventos[0 : len(self.fila_eventos) - limite_fila]
+
+    def drenar(self, limite: int = 100) -> list[dict[str, object]]:
+        if limite <= 0:
+            return []
+        out = self.fila_eventos[:limite]
+        del self.fila_eventos[:limite]
+        return out
+
+
+class TempoRealHub:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.rotas: dict[str, dict[str, object]] = {}
+        self.conexoes: dict[str, dict[str, TempoRealConexao]] = {}
+        self.salas: dict[str, dict[str, set[str]]] = {}
+        self.fallback_ativo = False
+        self.fallback_prefixo = "/tempo-real/fallback"
+        self.fallback_timeout_segundos = 20.0
+        self.limites: dict[str, float] = {
+            "max_conexoes_total": 2000,
+            "max_conexoes_por_ip": 200,
+            "max_conexoes_por_usuario": 100,
+            "max_conexoes_por_sala": 500,
+            "max_payload_bytes": 64 * 1024,
+            "max_mensagens_por_janela": 120,
+            "janela_rate_segundos": 60.0,
+            "heartbeat_segundos": 30.0,
+        }
+
+    def registrar_rota(self, caminho: str, handler: object, opcoes: dict[str, object] | None = None) -> None:
+        path = caminho if caminho.startswith("/") else f"/{caminho}"
+        with self._lock:
+            self.rotas[path] = {"handler": handler, "opcoes": dict(opcoes or {})}
+            self.conexoes.setdefault(path, {})
+            self.salas.setdefault(path, {})
+
+    def definir_limites(self, limites: dict[str, object]) -> None:
+        with self._lock:
+            for k, v in dict(limites or {}).items():
+                if k in self.limites:
+                    self.limites[k] = float(v)  # type: ignore[assignment]
+
+    def ativar_fallback(self, prefixo: str = "/tempo-real/fallback", timeout_segundos: float = 20.0) -> None:
+        with self._lock:
+            self.fallback_ativo = True
+            self.fallback_prefixo = prefixo if str(prefixo).startswith("/") else f"/{prefixo}"
+            self.fallback_timeout_segundos = max(1.0, float(timeout_segundos))
+
+    def snapshot(self, canal: str | None = None) -> dict[str, object]:
+        with self._lock:
+            canais = [canal] if canal else sorted(self.rotas.keys())
+            out_canais: list[dict[str, object]] = []
+            total = 0
+            for c in canais:
+                conns = self.conexoes.get(c, {})
+                salas = self.salas.get(c, {})
+                total += len(conns)
+                out_canais.append(
+                    {
+                        "canal": c,
+                        "conexoes_ativas": len(conns),
+                        "salas": {s: len(ids) for s, ids in salas.items()},
+                    }
+                )
+            return {
+                "ok": True,
+                "total_conexoes_ativas": total,
+                "canais": out_canais,
+                "fallback_ativo": self.fallback_ativo,
+                "fallback_prefixo": self.fallback_prefixo,
+                "limites": dict(self.limites),
+            }
+
+    def _contagem_total(self) -> int:
+        return sum(len(v) for v in self.conexoes.values())
+
+    def _contagem_ip(self, ip: str) -> int:
+        total = 0
+        for conns in self.conexoes.values():
+            for c in conns.values():
+                if c.ip == ip:
+                    total += 1
+        return total
+
+    def _contagem_usuario(self, id_usuario: str) -> int:
+        total = 0
+        for conns in self.conexoes.values():
+            for c in conns.values():
+                if c.id_usuario == id_usuario:
+                    total += 1
+        return total
+
+    def conectar(
+        self,
+        canal: str,
+        ip: str,
+        id_usuario: str | None,
+        id_requisicao: str,
+        id_traco: str,
+        modo: str,
+        socket_conn: socket.socket | None = None,
+    ) -> tuple[bool, dict[str, object] | TempoRealConexao]:
+        with self._lock:
+            if canal not in self.rotas:
+                return False, {"codigo": "CANAL_NAO_ENCONTRADO", "mensagem": "Canal de tempo real não encontrado."}
+            if self._contagem_total() >= int(self.limites["max_conexoes_total"]):
+                return False, {"codigo": "LIMITE_CONEXOES_TOTAL", "mensagem": "Limite global de conexões atingido."}
+            if self._contagem_ip(ip) >= int(self.limites["max_conexoes_por_ip"]):
+                return False, {"codigo": "LIMITE_CONEXOES_IP", "mensagem": "Limite de conexões por IP atingido."}
+            if id_usuario and self._contagem_usuario(id_usuario) >= int(self.limites["max_conexoes_por_usuario"]):
+                return False, {"codigo": "LIMITE_CONEXOES_USUARIO", "mensagem": "Limite de conexões por usuário atingido."}
+
+            c = TempoRealConexao(
+                id_conexao=uuid.uuid4().hex,
+                canal=canal,
+                ip=ip,
+                id_usuario=id_usuario,
+                id_requisicao=id_requisicao,
+                id_traco=id_traco,
+                modo=modo,
+                socket_conn=socket_conn,
+            )
+            self.conexoes.setdefault(canal, {})[c.id_conexao] = c
+            observability_runtime.registrar_runtime_metrica(
+                "tempo_real",
+                "conexao_aberta",
+                labels={"canal": canal, "modo": modo, "id_usuario": id_usuario or "anonimo"},
+            )
+            self._emitir_presenca_locked(canal, c, online=True)
+            return True, c
+
+    def desconectar(self, conexao: TempoRealConexao, motivo: str = "encerrado") -> None:
+        with self._lock:
+            conns = self.conexoes.get(conexao.canal, {})
+            if conexao.id_conexao in conns:
+                del conns[conexao.id_conexao]
+            for ids in self.salas.get(conexao.canal, {}).values():
+                ids.discard(conexao.id_conexao)
+            conexao.ativa = False
+            observability_runtime.registrar_runtime_metrica(
+                "tempo_real",
+                "conexao_fechada",
+                labels={"canal": conexao.canal, "motivo": motivo},
+            )
+            self._emitir_presenca_locked(conexao.canal, conexao, online=False)
+
+    def entrar_sala(self, conexao: TempoRealConexao, sala: str) -> tuple[bool, dict[str, object] | None]:
+        with self._lock:
+            sala_norm = str(sala)
+            ids = self.salas.setdefault(conexao.canal, {}).setdefault(sala_norm, set())
+            if len(ids) >= int(self.limites["max_conexoes_por_sala"]):
+                return False, {"codigo": "LIMITE_CONEXOES_SALA", "mensagem": "Limite de conexões da sala excedido."}
+            ids.add(conexao.id_conexao)
+            conexao.salas.add(sala_norm)
+            return True, None
+
+    def sair_sala(self, conexao: TempoRealConexao, sala: str) -> None:
+        with self._lock:
+            sala_norm = str(sala)
+            ids = self.salas.setdefault(conexao.canal, {}).setdefault(sala_norm, set())
+            ids.discard(conexao.id_conexao)
+            conexao.salas.discard(sala_norm)
+
+    def _selecionar_destinos_locked(
+        self,
+        canal: str,
+        id_conexao: str | None = None,
+        id_usuario: str | None = None,
+        sala: str | None = None,
+    ) -> list[TempoRealConexao]:
+        conns = list(self.conexoes.get(canal, {}).values())
+        if id_conexao:
+            return [c for c in conns if c.id_conexao == id_conexao]
+        if id_usuario:
+            return [c for c in conns if c.id_usuario == id_usuario]
+        if sala:
+            ids = self.salas.get(canal, {}).get(sala, set())
+            return [c for c in conns if c.id_conexao in ids]
+        return conns
+
+    def emitir(
+        self,
+        canal: str,
+        evento: str,
+        dados: object | None = None,
+        *,
+        sala: str | None = None,
+        id_usuario: str | None = None,
+        id_conexao: str | None = None,
+        origem: TempoRealConexao | None = None,
+    ) -> int:
+        with self._lock:
+            destinos = self._selecionar_destinos_locked(canal, id_conexao=id_conexao, id_usuario=id_usuario, sala=sala)
+            payload = {
+                "ok": True,
+                "evento": str(evento),
+                "dados": dados if dados is not None else {},
+                "canal": canal,
+                "sala": sala,
+                "id_usuario_origem": origem.id_usuario if origem else None,
+                "id_conexao_origem": origem.id_conexao if origem else None,
+                "ts": time.time(),
+            }
+            for d in destinos:
+                d.enfileirar(payload)
+            observability_runtime.registrar_runtime_metrica(
+                "tempo_real",
+                "broadcast",
+                valor=len(destinos),
+                labels={"canal": canal, "evento": evento},
+            )
+            return len(destinos)
+
+    def receber_fallback(
+        self,
+        conexao: TempoRealConexao,
+        timeout_segundos: float | None = None,
+        limite: int = 50,
+    ) -> list[dict[str, object]]:
+        limite_t = self.fallback_timeout_segundos if timeout_segundos is None else max(0.0, float(timeout_segundos))
+        fim = time.time() + limite_t
+        while time.time() <= fim:
+            with self._lock:
+                data = conexao.drenar(limite)
+                if data:
+                    return data
+            time.sleep(0.05)
+        return []
+
+    def por_id(self, id_conexao: str) -> TempoRealConexao | None:
+        with self._lock:
+            for conns in self.conexoes.values():
+                c = conns.get(id_conexao)
+                if c is not None:
+                    return c
+        return None
+
+    def rota_info(self, canal: str) -> dict[str, object] | None:
+        with self._lock:
+            return self.rotas.get(canal)
+
+    def validar_rate(self, conexao: TempoRealConexao) -> bool:
+        now = time.time()
+        janela = float(self.limites["janela_rate_segundos"])
+        max_m = int(self.limites["max_mensagens_por_janela"])
+        with self._lock:
+            conexao.janela_mensagens = [t for t in conexao.janela_mensagens if t >= now - janela]
+            if len(conexao.janela_mensagens) >= max_m:
+                return False
+            conexao.janela_mensagens.append(now)
+        return True
+
+    def _emitir_presenca_locked(self, canal: str, conexao: TempoRealConexao, online: bool) -> None:
+        payload = {
+            "id_usuario": conexao.id_usuario,
+            "id_conexao": conexao.id_conexao,
+            "online": bool(online),
+            "canal": canal,
+            "ts": time.time(),
+        }
+        for c in self.conexoes.get(canal, {}).values():
+            c.enfileirar({"ok": True, "evento": "presenca", "dados": payload, "canal": canal, "ts": time.time()})
+
+
 class WebApp:
     def __init__(self) -> None:
         self.routes: list[WebRoute] = []
@@ -165,6 +454,7 @@ class WebApp:
         self.observabilidade_path = "/observabilidade"
         self.alertas_path = "/alertas"
         self.alertas_config: dict[str, object] = {}
+        self.tempo_real = TempoRealHub()
 
 
 class WebRuntime:
@@ -392,6 +682,418 @@ class WebRuntime:
                         return r, {}
                 return None, {}
 
+            @staticmethod
+            def _ws_accept_key(sec_key: str) -> str:
+                seed = (str(sec_key).strip() + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode("utf-8")
+                return base64.b64encode(hashlib.sha1(seed).digest()).decode("ascii")
+
+            @staticmethod
+            def _ws_send_frame(sock: socket.socket, payload: bytes, opcode: int = 0x1) -> None:
+                b1 = 0x80 | (opcode & 0x0F)
+                ln = len(payload)
+                if ln <= 125:
+                    header = bytes([b1, ln])
+                elif ln <= 65535:
+                    header = bytes([b1, 126]) + struct.pack("!H", ln)
+                else:
+                    header = bytes([b1, 127]) + struct.pack("!Q", ln)
+                sock.sendall(header + payload)
+
+            @staticmethod
+            def _ws_recv_exact(sock: socket.socket, n: int) -> bytes:
+                chunks: list[bytes] = []
+                total = 0
+                while total < n:
+                    part = sock.recv(n - total)
+                    if not part:
+                        raise ConnectionError("conexão websocket encerrada")
+                    chunks.append(part)
+                    total += len(part)
+                return b"".join(chunks)
+
+            def _ws_recv_frame(self, sock: socket.socket) -> tuple[int, bytes]:
+                hdr = self._ws_recv_exact(sock, 2)
+                b1, b2 = hdr[0], hdr[1]
+                opcode = b1 & 0x0F
+                masked = (b2 & 0x80) != 0
+                plen = b2 & 0x7F
+                if plen == 126:
+                    plen = struct.unpack("!H", self._ws_recv_exact(sock, 2))[0]
+                elif plen == 127:
+                    plen = struct.unpack("!Q", self._ws_recv_exact(sock, 8))[0]
+                if plen > int(app.tempo_real.limites["max_payload_bytes"]):
+                    raise ValueError("payload websocket excede limite")
+                mask = self._ws_recv_exact(sock, 4) if masked else b""
+                payload = self._ws_recv_exact(sock, int(plen))
+                if masked:
+                    payload = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
+                return opcode, payload
+
+            @staticmethod
+            def _bearer_token_from_headers(headers_map: dict[str, str]) -> str | None:
+                auth = str(headers_map.get("authorization", ""))
+                if auth.lower().startswith("bearer "):
+                    return auth.split(" ", 1)[1].strip()
+                return None
+
+            def _auth_ws_usuario(
+                self,
+                headers_map: dict[str, str],
+                query: dict[str, object],
+                opcoes: dict[str, object],
+            ) -> tuple[bool, dict[str, object] | None, dict[str, object] | None]:
+                segredo = str(opcoes.get("jwt_segredo", "") or "")
+                if not segredo:
+                    return True, {"usuario": None, "id_usuario": None}, None
+                token = (
+                    self._bearer_token_from_headers(headers_map)
+                    or str(query.get("token", "") or "")
+                    or str(query.get("jwt", "") or "")
+                )
+                if not token:
+                    return False, None, {"codigo": "NAO_AUTENTICADO", "mensagem": "Token JWT ausente para websocket."}
+                try:
+                    claims = security_runtime.jwt_verificar(token, segredo)
+                except Exception as exc:  # noqa: BLE001
+                    return False, None, {"codigo": "TOKEN_INVALIDO", "mensagem": "Token JWT inválido.", "detalhes": str(exc)}
+                id_usuario = claims.get("id_usuario") or claims.get("user_id") or claims.get("sub")
+                return True, {"usuario": claims, "id_usuario": str(id_usuario) if id_usuario is not None else None}, None
+
+            def _ctx_conexao(self, c: TempoRealConexao, extras: dict[str, object] | None = None) -> dict[str, object]:
+                base = {
+                    "id_conexao": c.id_conexao,
+                    "connection_id": c.id_conexao,
+                    "canal": c.canal,
+                    "channel": c.canal,
+                    "id_usuario": c.id_usuario,
+                    "user_id": c.id_usuario,
+                    "id_requisicao": c.id_requisicao,
+                    "request_id": c.id_requisicao,
+                    "id_traco": c.id_traco,
+                    "trace_id": c.id_traco,
+                    "ip": c.ip,
+                    "modo": c.modo,
+                    "salas": sorted(c.salas),
+                }
+                if extras:
+                    base.update(extras)
+                return base
+
+            def _emitir_evento_ws(self, c: TempoRealConexao, payload: dict[str, object]) -> None:
+                if c.socket_conn is None:
+                    c.enfileirar(payload)
+                    return
+                self._ws_send_frame(c.socket_conn, json.dumps(payload, ensure_ascii=False).encode("utf-8"), opcode=0x1)
+
+            def _processar_mensagem_tempo_real(
+                self,
+                c: TempoRealConexao,
+                msg: dict[str, object],
+                invoke: Callable[[object, list[object]], object],
+                rota_info: dict[str, object],
+            ) -> None:
+                tipo = str(msg.get("tipo") or msg.get("type") or "")
+                if not app.tempo_real.validar_rate(c):
+                    self._emitir_evento_ws(c, {"ok": False, "erro": {"codigo": "RATE_MENSAGENS_EXCEDIDO"}})
+                    return
+
+                if tipo == "ping":
+                    c.ultimo_heartbeat_em = time.time()
+                    self._emitir_evento_ws(c, {"ok": True, "evento": "pong", "ts": c.ultimo_heartbeat_em})
+                    return
+                if tipo == "entrar_sala":
+                    sala = str(msg.get("sala") or "")
+                    ok, err = app.tempo_real.entrar_sala(c, sala)
+                    if not ok:
+                        self._emitir_evento_ws(c, {"ok": False, "erro": err})
+                        return
+                    app.tempo_real.emitir(c.canal, "sala_entrada", {"sala": sala, "id_conexao": c.id_conexao, "id_usuario": c.id_usuario}, sala=sala, origem=c)
+                    self._emitir_evento_ws(c, {"ok": True, "evento": "entrar_sala", "sala": sala})
+                    return
+                if tipo == "sair_sala":
+                    sala = str(msg.get("sala") or "")
+                    app.tempo_real.sair_sala(c, sala)
+                    self._emitir_evento_ws(c, {"ok": True, "evento": "sair_sala", "sala": sala})
+                    return
+                if tipo == "typing":
+                    sala = str(msg.get("sala") or "")
+                    app.tempo_real.emitir(c.canal, "typing", {"sala": sala, "digitando": bool(msg.get("digitando", True)), "id_usuario": c.id_usuario}, sala=sala, origem=c)
+                    return
+                if tipo == "read_receipt":
+                    sala = str(msg.get("sala") or "")
+                    app.tempo_real.emitir(c.canal, "read_receipt", {"sala": sala, "mensagem_id": msg.get("mensagem_id"), "id_usuario": c.id_usuario}, sala=sala, origem=c)
+                    return
+                if tipo == "broadcast_sala":
+                    sala = str(msg.get("sala") or "")
+                    evento = str(msg.get("evento") or "mensagem")
+                    qtd = app.tempo_real.emitir(c.canal, evento, msg.get("dados", {}), sala=sala, origem=c)
+                    self._emitir_evento_ws(c, {"ok": True, "evento": "broadcast_sala", "destinos": qtd, "sala": sala})
+                    return
+                if tipo == "broadcast_usuario":
+                    alvo = str(msg.get("id_usuario") or msg.get("user_id") or "")
+                    evento = str(msg.get("evento") or "mensagem")
+                    qtd = app.tempo_real.emitir(c.canal, evento, msg.get("dados", {}), id_usuario=alvo, origem=c)
+                    self._emitir_evento_ws(c, {"ok": True, "evento": "broadcast_usuario", "destinos": qtd, "id_usuario": alvo})
+                    return
+                if tipo == "broadcast_conexao":
+                    alvo = str(msg.get("id_conexao") or msg.get("connection_id") or "")
+                    evento = str(msg.get("evento") or "mensagem")
+                    qtd = app.tempo_real.emitir(c.canal, evento, msg.get("dados", {}), id_conexao=alvo, origem=c)
+                    self._emitir_evento_ws(c, {"ok": True, "evento": "broadcast_conexao", "destinos": qtd, "id_conexao": alvo})
+                    return
+
+                h = rota_info.get("handler")
+                if h is None:
+                    self._emitir_evento_ws(c, {"ok": False, "erro": {"codigo": "EVENTO_INVALIDO", "mensagem": "Evento de tempo real não suportado."}})
+                    return
+                req = self._ctx_conexao(c, {"evento": "mensagem", "mensagem": msg, "payload": msg, "tipo": tipo})
+                res = invoke(h, [req])
+                if isinstance(res, dict):
+                    destino = str(res.get("destino") or "conexao")
+                    evento = str(res.get("evento") or tipo or "mensagem")
+                    dados = res.get("dados", {})
+                    if destino == "sala":
+                        app.tempo_real.emitir(c.canal, evento, dados, sala=str(res.get("sala", "")), origem=c)
+                    elif destino == "usuario":
+                        app.tempo_real.emitir(c.canal, evento, dados, id_usuario=str(res.get("id_usuario") or res.get("user_id") or ""), origem=c)
+                    elif destino == "canal":
+                        app.tempo_real.emitir(c.canal, evento, dados, origem=c)
+                    elif destino == "conexao":
+                        app.tempo_real.emitir(c.canal, evento, dados, id_conexao=str(res.get("id_conexao") or c.id_conexao), origem=c)
+                    elif destino == "ignorar":
+                        return
+                    else:
+                        app.tempo_real.emitir(c.canal, evento, dados, id_conexao=c.id_conexao, origem=c)
+                observability_runtime.registrar_runtime_metrica(
+                    "tempo_real",
+                    "mensagem_processada",
+                    labels={"canal": c.canal, "tipo": tipo or "custom"},
+                )
+
+            def _processar_fallback_tempo_real(
+                self,
+                path: str,
+                query: dict[str, object],
+                headers_map: dict[str, str],
+            ) -> bool:
+                if not app.tempo_real.fallback_ativo:
+                    return False
+                prefixo = app.tempo_real.fallback_prefixo
+                if not path.startswith(prefixo):
+                    return False
+
+                raw_body, body, _, _, body_err = self._read_body()
+                _ = raw_body
+                if body_err:
+                    self._send_json(body_err[0], body_err[1], None)
+                    return True
+                corpo = body or {}
+                sufixo = path[len(prefixo) :] or "/"
+
+                if sufixo == "/status":
+                    self._send_json(200, app.tempo_real.snapshot(str(query.get("canal") or "") or None), None)
+                    return True
+
+                if sufixo == "/conectar":
+                    canal = str(corpo.get("canal") or query.get("canal") or "")
+                    info = app.tempo_real.rota_info(canal)
+                    if info is None:
+                        self._send_json(404, {"ok": False, "erro": {"codigo": "CANAL_NAO_ENCONTRADO"}}, None)
+                        return True
+                    ok_auth, auth, err_auth = self._auth_ws_usuario(headers_map, query, dict(info.get("opcoes", {})))
+                    if not ok_auth:
+                        self._send_json(401, {"ok": False, "erro": err_auth}, None)
+                        return True
+                    ok, obj = app.tempo_real.conectar(
+                        canal=canal,
+                        ip=self.client_address[0] if self.client_address else "0.0.0.0",
+                        id_usuario=(auth or {}).get("id_usuario"),  # type: ignore[arg-type]
+                        id_requisicao=str(getattr(self, "_trama_id_requisicao", uuid.uuid4().hex)),
+                        id_traco=str(getattr(self, "_trama_id_traco", uuid.uuid4().hex)),
+                        modo="fallback",
+                    )
+                    if not ok:
+                        self._send_json(429, {"ok": False, "erro": obj}, None)
+                        return True
+                    c = obj  # type: ignore[assignment]
+                    assert isinstance(c, TempoRealConexao)
+                    h = info.get("handler")
+                    if h is not None:
+                        try:
+                            req = self._ctx_conexao(c, {"evento": "conectar"})
+                            res = invoke(h, [req])
+                            if isinstance(res, dict) and res.get("aceitar") is False:
+                                app.tempo_real.desconectar(c, motivo="negada")
+                                self._send_json(403, {"ok": False, "erro": {"codigo": "CONEXAO_NEGADA"}}, None)
+                                return True
+                        except Exception:
+                            app.tempo_real.desconectar(c, motivo="erro_handler")
+                            self._send_json(500, {"ok": False, "erro": {"codigo": "ERRO_HANDLER_CONECTAR"}}, None)
+                            return True
+                    self._send_json(
+                        200,
+                        {"ok": True, "id_conexao": c.id_conexao, "connection_id": c.id_conexao, "id_usuario": c.id_usuario, "user_id": c.id_usuario, "canal": canal},
+                        None,
+                    )
+                    return True
+
+                if sufixo == "/desconectar":
+                    id_c = str(corpo.get("id_conexao") or query.get("id_conexao") or query.get("connection_id") or "")
+                    c = app.tempo_real.por_id(id_c)
+                    if c is None:
+                        self._send_json(404, {"ok": False, "erro": {"codigo": "CONEXAO_NAO_ENCONTRADA"}}, None)
+                        return True
+                    app.tempo_real.desconectar(c, motivo="fallback_desconectar")
+                    self._send_json(200, {"ok": True}, None)
+                    return True
+
+                if sufixo == "/receber":
+                    id_c = str(query.get("id_conexao") or query.get("connection_id") or corpo.get("id_conexao") or "")
+                    c = app.tempo_real.por_id(id_c)
+                    if c is None:
+                        self._send_json(404, {"ok": False, "erro": {"codigo": "CONEXAO_NAO_ENCONTRADA"}}, None)
+                        return True
+                    timeout = query.get("timeout_segundos")
+                    evs = app.tempo_real.receber_fallback(c, float(timeout) if timeout is not None else None)
+                    self._send_json(200, {"ok": True, "eventos": evs}, None)
+                    return True
+
+                if sufixo == "/enviar":
+                    id_c = str(corpo.get("id_conexao") or query.get("id_conexao") or "")
+                    c = app.tempo_real.por_id(id_c)
+                    if c is None:
+                        self._send_json(404, {"ok": False, "erro": {"codigo": "CONEXAO_NAO_ENCONTRADA"}}, None)
+                        return True
+                    info = app.tempo_real.rota_info(c.canal) or {}
+                    msg = corpo.get("mensagem", corpo)
+                    if not isinstance(msg, dict):
+                        self._send_json(422, {"ok": False, "erro": {"codigo": "MENSAGEM_INVALIDA"}}, None)
+                        return True
+                    self._processar_mensagem_tempo_real(c, msg, invoke, info)
+                    self._send_json(200, {"ok": True}, None)
+                    return True
+
+                self._send_json(404, {"ok": False, "erro": {"codigo": "FALLBACK_ROTA_INVALIDA"}}, None)
+                return True
+
+            def _handle_websocket_upgrade(
+                self,
+                path: str,
+                query: dict[str, object],
+                headers_map: dict[str, str],
+            ) -> bool:
+                upgrade = str(headers_map.get("upgrade", "")).lower()
+                connection = str(headers_map.get("connection", "")).lower()
+                if upgrade != "websocket" or "upgrade" not in connection:
+                    return False
+                info = app.tempo_real.rota_info(path)
+                if info is None:
+                    return False
+                sec_key = str(headers_map.get("sec-websocket-key", "")).strip()
+                if not sec_key:
+                    self._send_json(400, {"ok": False, "erro": {"codigo": "WS_HANDSHAKE_INVALIDO", "mensagem": "Sec-WebSocket-Key ausente."}}, None)
+                    return True
+
+                ok_auth, auth, err_auth = self._auth_ws_usuario(headers_map, query, dict(info.get("opcoes", {})))
+                if not ok_auth:
+                    self._send_json(401, {"ok": False, "erro": err_auth}, None)
+                    return True
+
+                ok, obj = app.tempo_real.conectar(
+                    canal=path,
+                    ip=self.client_address[0] if self.client_address else "0.0.0.0",
+                    id_usuario=(auth or {}).get("id_usuario"),  # type: ignore[arg-type]
+                    id_requisicao=str(getattr(self, "_trama_id_requisicao", uuid.uuid4().hex)),
+                    id_traco=str(getattr(self, "_trama_id_traco", uuid.uuid4().hex)),
+                    modo="websocket",
+                    socket_conn=self.connection,
+                )
+                if not ok:
+                    self._send_json(429, {"ok": False, "erro": obj}, None)
+                    return True
+                c = obj  # type: ignore[assignment]
+                assert isinstance(c, TempoRealConexao)
+
+                h = info.get("handler")
+                if h is not None:
+                    try:
+                        req = self._ctx_conexao(c, {"evento": "conectar"})
+                        res = invoke(h, [req])
+                        if isinstance(res, dict) and res.get("aceitar") is False:
+                            app.tempo_real.desconectar(c, motivo="negada")
+                            self._send_json(403, {"ok": False, "erro": {"codigo": "CONEXAO_NEGADA"}}, None)
+                            return True
+                    except Exception:
+                        app.tempo_real.desconectar(c, motivo="erro_handler")
+                        self._send_json(500, {"ok": False, "erro": {"codigo": "ERRO_HANDLER_CONECTAR"}}, None)
+                        return True
+
+                accept = self._ws_accept_key(sec_key)
+                self.send_response(101, "Switching Protocols")
+                self.send_header("Upgrade", "websocket")
+                self.send_header("Connection", "Upgrade")
+                self.send_header("Sec-WebSocket-Accept", accept)
+                self._add_common_headers({})
+                self.end_headers()
+                self.close_connection = False
+                self.connection.settimeout(0.2)
+
+                try:
+                    ultimo_ping = 0.0
+                    self._emitir_evento_ws(
+                        c,
+                        {"ok": True, "evento": "conectado", "id_conexao": c.id_conexao, "connection_id": c.id_conexao, "id_usuario": c.id_usuario, "user_id": c.id_usuario, "canal": c.canal},
+                    )
+                    while c.ativa:
+                        pendentes = c.drenar(100)
+                        for p in pendentes:
+                            self._emitir_evento_ws(c, p)
+
+                        try:
+                            opcode, payload = self._ws_recv_frame(self.connection)
+                        except socket.timeout:
+                            hb = float(app.tempo_real.limites["heartbeat_segundos"])
+                            if time.time() - ultimo_ping >= hb:
+                                self._ws_send_frame(self.connection, b"", opcode=0x9)
+                                ultimo_ping = time.time()
+                            continue
+                        if opcode == 0x8:
+                            self._ws_send_frame(self.connection, b"", opcode=0x8)
+                            break
+                        if opcode == 0x9:
+                            self._ws_send_frame(self.connection, payload, opcode=0xA)
+                            continue
+                        if opcode == 0xA:
+                            c.ultimo_heartbeat_em = time.time()
+                            continue
+                        if opcode != 0x1:
+                            continue
+                        texto = payload.decode("utf-8", errors="replace")
+                        try:
+                            msg = json.loads(texto) if texto.strip() else {}
+                        except json.JSONDecodeError:
+                            self._emitir_evento_ws(c, {"ok": False, "erro": {"codigo": "MENSAGEM_JSON_INVALIDA"}})
+                            continue
+                        if not isinstance(msg, dict):
+                            self._emitir_evento_ws(c, {"ok": False, "erro": {"codigo": "MENSAGEM_INVALIDA"}})
+                            continue
+                        self._processar_mensagem_tempo_real(c, msg, invoke, info)
+                except Exception as exc:  # noqa: BLE001
+                    observability_runtime.registrar_runtime_metrica(
+                        "tempo_real",
+                        "erro_conexao",
+                        labels={"canal": c.canal, "erro": str(exc)[:120]},
+                    )
+                finally:
+                    app.tempo_real.desconectar(c, motivo="websocket_encerrado")
+                    if h is not None:
+                        try:
+                            req = self._ctx_conexao(c, {"evento": "desconectar"})
+                            invoke(h, [req])
+                        except Exception:
+                            pass
+                return True
+
             def _apply_rate_limit(
                 self,
                 method: str,
@@ -595,6 +1297,13 @@ class WebRuntime:
                 path = parsed_url.path
                 self._trama_rota = path
                 query = {k: (v[0] if len(v) == 1 else v) for k, v in parse_qs(parsed_url.query).items()}
+                headers_map = {k.lower(): v for k, v in self.headers.items()}
+
+                if self.command in {"GET", "POST"} and self._processar_fallback_tempo_real(path, query, headers_map):
+                    return
+
+                if self.command == "GET" and self._handle_websocket_upgrade(path, query, headers_map):
+                    return
 
                 if app.observabilidade_ativa and path == app.observabilidade_path:
                     resumo = observability_runtime.observabilidade_resumo(app.alertas_config)
@@ -664,7 +1373,6 @@ class WebRuntime:
                     self._send_json(body_err[0], body_err[1], headers)
                     return
 
-                headers_map = {k.lower(): v for k, v in self.headers.items()}
                 req: dict[str, object] = {
                     "metodo": self.command,
                     "caminho": path,

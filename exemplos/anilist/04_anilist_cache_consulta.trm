@@ -1,0 +1,25 @@
+importe "modulos/anilist_api.trm" como anilist
+
+assíncrona função principal()
+    cache_limpar("anilist")
+    chave = "anilist:anime:naruto"
+
+    se cache_existe(chave, "anilist")
+        exibir("cache_hit_inesperado")
+    fim
+
+    resp = aguarde anilist["anilist_buscar_anime_por_nome"]("Naruto")
+    cache_definir(chave, resp["json"], 300, "anilist")
+
+    cached = cache_obter(chave, {}, "anilist")
+    dados = anilist["anilist_lista_media"]({"json": cached})
+    exibir("cache_ok:", tamanho(dados) > 0)
+    se tamanho(dados) > 0
+        exibir("titulo_1:", dados[0]["title"]["romaji"])
+    senao
+        exibir("titulo_1:", "sem_resultados")
+    fim
+
+    st = cache_stats("anilist")
+    exibir("hits_maior_ou_igual_zero:", st["hits"] >= 0)
+fim

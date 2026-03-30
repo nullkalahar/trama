@@ -1,0 +1,15 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:///.local/tmp/backend_migracoes_v14.db")
+
+    m1 = aguarde migracao_versionada_aplicar(conn, "001", "criar_usuarios", "CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT)", "DROP TABLE IF EXISTS usuarios")
+    m2 = aguarde migracao_versionada_aplicar(conn, "001", "criar_usuarios", "CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT)", "DROP TABLE IF EXISTS usuarios")
+    s1 = aguarde semente_aplicar(conn, "seed_usuarios_inicial", "INSERT INTO usuarios (nome) VALUES ('luna')")
+    s2 = aguarde semente_aplicar(conn, "seed_usuarios_inicial", "INSERT INTO usuarios (nome) VALUES ('luna')")
+
+    exibir(m1["aplicada"])
+    exibir(m2["aplicada"])
+    exibir(s1["aplicada"])
+    exibir(s2["aplicada"])
+
+    aguarde banco_fechar(conn)
+fim

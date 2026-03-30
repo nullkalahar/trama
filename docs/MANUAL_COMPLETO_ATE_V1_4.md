@@ -228,8 +228,8 @@ trama repl
 
 Ver:
 
-- `examples/README_EXEMPLOS.md`
-- diretório `examples/` com exemplos v0.x, v1.0 e v1.1.
+- `exemplos/README_EXEMPLOS.md`
+- diretório `exemplos/` com exemplos v0.x, v1.0, v1.1, v1.2, v1.3 e v1.4.
 
 ## 13. Distribuição
 
@@ -238,7 +238,36 @@ Ver:
 - release self-host: `scripts/build_release_selfhost.sh`;
 - pacote Debian: `scripts/package_deb.sh`.
 
-## 14. v1.4 - Observabilidade avançada
+## 14. v1.3 - Tempo real (WebSocket + fallback)
+
+### WebSocket nativo com JWT
+
+- roteamento de tempo real por canal com `web_tempo_real_rota`;
+- autenticação JWT por canal (`jwt_segredo` em opções);
+- handshake nativo com upgrade websocket.
+
+### Salas, presença, typing/read-receipt e broadcast seletivo
+
+- entrada/saída de sala (`entrar_sala`/`sair_sala`);
+- presença online/offline automática por canal;
+- eventos nativos `typing` e `read_receipt`;
+- broadcast por:
+  - canal
+  - sala
+  - usuário
+  - conexão
+
+### Fallback e limites
+
+- fallback HTTP com:
+  - `POST /tempo-real/fallback/conectar`
+  - `POST /tempo-real/fallback/enviar`
+  - `GET /tempo-real/fallback/receber`
+  - `POST /tempo-real/fallback/desconectar`
+  - `GET /tempo-real/fallback/status`
+- limites configuráveis com `web_tempo_real_definir_limites`.
+
+## 15. v1.4 - Observabilidade avançada
 
 ### Correlação canônica
 
@@ -267,10 +296,21 @@ Ver:
   - `observabilidade_resumo`
   - `alertas_avaliar`
 
-## 15. Política de atualização de documentação
+## 16. Política de atualização de documentação
 
 A cada versão:
 
 - atualizar manual da versão (`docs/LINGUAGEM_VX_Y.md`);
 - atualizar manual consolidado;
 - atualizar roadmap/checklists no README.
+
+## 17. Expressões multilinha
+
+A linguagem aceita multiline em contexto delimitado:
+
+- chamadas de função: `fn(\n ... \n)`
+- listas: `[\n ... \n]`
+- mapas: `{\n ... \n}`
+- indexação encadeada em múltiplas linhas.
+
+Regra: fora de delimitadores, a quebra de linha continua separando comandos como antes.

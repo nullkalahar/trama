@@ -1,0 +1,20 @@
+função principal()
+    dados = {
+        "usuario": {
+            "perfil": {
+                "nomes": [
+                    {"valor": "Ana"}
+                ]
+            }
+        }
+    }
+
+    exibir(
+        dados
+        ["usuario"]
+        ["perfil"]
+        ["nomes"]
+        [0]
+        ["valor"]
+    )
+fim

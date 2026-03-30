@@ -1,0 +1,20 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:///.local/tmp/backend_demo_v14.db")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, ativo INTEGER)")
+
+    id1 = aguarde modelo_inserir(conn, "usuarios", {"nome": "ana", "ativo": 1})
+    id2 = aguarde modelo_inserir(conn, "usuarios", {"nome": "bia", "ativo": 1})
+
+    aguarde modelo_atualizar(conn, "usuarios", {"nome": "ana.s"}, {"id": id1})
+    um = aguarde modelo_buscar_por_id(conn, "usuarios", id1)
+
+    q = consulta_selecionar("usuarios", ["id", "nome"])
+    q = consulta_ordenar_por(q, "id", "ASC")
+    linhas = aguarde consulta_executar(conn, q)
+
+    exibir("usuario_1:", um["nome"])
+    exibir("total:", tamanho(linhas))
+    exibir("id2:", id2)
+
+    aguarde banco_fechar(conn)
+fim

@@ -1,0 +1,21 @@
+função chat(req)
+    retorne {"aceitar": verdadeiro}
+fim
+
+assíncrona função principal()
+    metricas_reset()
+    app = web_criar_app()
+    web_ativar_observabilidade(app)
+    web_tempo_real_rota(app, "/ws/obs", chat)
+    web_tempo_real_ativar_fallback(app)
+
+    s = aguarde web_iniciar(app, "127.0.0.1", 8108)
+    b = s["base_url"]
+    c = aguarde http_post(b + "/tempo-real/fallback/conectar", {"canal": "/ws/obs"}, {"Content-Type": "application/json"})
+    idc = c["json"]["id_conexao"]
+    aguarde http_post(b + "/tempo-real/fallback/enviar", {"id_conexao": idc, "mensagem": {"tipo": "ping"}}, {"Content-Type": "application/json"})
+    obs = aguarde http_get(b + "/observabilidade")
+    exibir(obs["status"])
+    exibir(obs["json"]["metricas"]["counters"] != [])
+    aguarde web_parar(s)
+fim

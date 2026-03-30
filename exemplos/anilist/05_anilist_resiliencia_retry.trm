@@ -1,0 +1,14 @@
+importe "modulos/anilist_api.trm" como anilist
+
+assíncrona função principal()
+    função consulta()
+        retorne anilist["anilist_populares"]("MANGA", 1, 8)
+    fim
+
+    resp = aguarde resiliencia_executar("anilist_populares", consulta, [], {"tentativas": 3, "base_backoff_segundos": 0.2, "max_backoff_segundos": 1.0, "jitter_segundos": 0.05, "max_falhas": 5})
+    exibir("status_http:", resp["status"])
+
+    lista = anilist["anilist_lista_media_teste"](resp, "MANGA")
+    exibir("quantidade:", tamanho(lista))
+    exibir("circuito:", circuito_status("anilist_populares")["estado"])
+fim

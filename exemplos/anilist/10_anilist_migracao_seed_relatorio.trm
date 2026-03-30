@@ -1,0 +1,27 @@
+importe "modulos/anilist_api.trm" como anilist
+
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:///" + anilist["db_path_teste"]())
+
+    mig = aguarde migracao_versionada_aplicar(conn, "anilist_001", "criar_tabela_sync_log", "CREATE TABLE IF NOT EXISTS anilist_sync_log (id INTEGER PRIMARY KEY AUTOINCREMENT, tipo TEXT, total INTEGER, criado_em TEXT)", "DROP TABLE IF EXISTS anilist_sync_log")
+    exibir("migracao_aplicada:", mig["aplicada"])
+
+    seed = aguarde semente_aplicar(conn, "seed_sync_log", "INSERT INTO anilist_sync_log (tipo, total, criado_em) VALUES ('INIT', 0, datetime('now'))")
+    exibir("seed_aplicada:", seed["aplicada"])
+
+    resp = aguarde anilist["anilist_populares"]("ANIME", 1, 7)
+    lista_tmp = anilist["anilist_lista_media_teste"](resp, "MANGA")
+    total = tamanho(lista_tmp)
+
+    aguarde banco_executar(conn, "INSERT INTO anilist_sync_log (tipo, total, criado_em) VALUES (?, ?, ?)", ["ANIME", total, agora_iso()])
+    logs = aguarde banco_consultar(conn, "SELECT tipo, total, criado_em FROM anilist_sync_log ORDER BY id DESC LIMIT 3")
+
+    exibir("logs:", tamanho(logs))
+    se tamanho(logs) > 0
+        exibir("ultimo_tipo:", logs[0]["tipo"])
+    senao
+        exibir("ultimo_tipo:", "sem_logs")
+    fim
+
+    aguarde banco_fechar(conn)
+fim

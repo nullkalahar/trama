@@ -1,0 +1,26 @@
+importe "modulos/anilist_api.trm" como anilist
+
+função job_salvar(payload)
+    retorne "processado:" + payload["tipo"] + ":" + payload["titulo"]
+fim
+
+assíncrona função principal()
+    fila = fila_criar("anilist_sync")
+
+    resp = aguarde anilist["anilist_populares"]("MANGA", 1, 6)
+    lista = anilist["anilist_lista_media_teste"](resp, "MANGA")
+
+    i = 0
+    enquanto i < tamanho(lista)
+        item = lista[i]
+        titulo = mapa_obter(item["title"], "romaji", "sem_titulo")
+        chave = "job:manga:" + json_stringify(item["id"])
+        aguarde fila_enfileirar(fila, job_salvar, {"tipo": "MANGA", "titulo": titulo}, 2, 5.0, chave)
+        i = i + 1
+    fim
+
+    r = aguarde fila_processar(fila)
+    st = fila_status(fila)
+    exibir("concluidos:", r["concluidos"])
+    exibir("pendentes:", st["pendentes"])
+fim

@@ -1,0 +1,18 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:///.local/tmp/backend_tx_v14.db")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS saldos (id INTEGER PRIMARY KEY, valor INTEGER)")
+    aguarde banco_executar(conn, "DELETE FROM saldos")
+    aguarde banco_executar(conn, "INSERT INTO saldos (id, valor) VALUES (1, 1000)")
+    aguarde banco_executar(conn, "INSERT INTO saldos (id, valor) VALUES (2, 1000)")
+
+    tx = aguarde transacao_iniciar(conn)
+    aguarde transacao_executar(tx, "UPDATE saldos SET valor = valor - 150 WHERE id = ?", [1])
+    aguarde transacao_executar(tx, "UPDATE saldos SET valor = valor + 150 WHERE id = ?", [2])
+    aguarde transacao_confirmar(tx)
+
+    linhas = aguarde banco_consultar(conn, "SELECT id, valor FROM saldos ORDER BY id")
+    exibir(linhas[0]["valor"])
+    exibir(linhas[1]["valor"])
+
+    aguarde banco_fechar(conn)
+fim

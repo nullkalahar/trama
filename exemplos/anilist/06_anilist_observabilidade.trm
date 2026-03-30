@@ -1,0 +1,23 @@
+importe "modulos/anilist_api.trm" como anilist
+
+assíncrona função principal()
+    metricas_reset()
+    tracos_reset()
+
+    span = traco_iniciar("anilist.sync", {"alvo": "anime"})
+    ini = timestamp()
+
+    resp = aguarde anilist["anilist_populares"]("ANIME", 1, 5)
+    dados = anilist["anilist_lista_media_teste"](resp, "ANIME")
+
+    duracao_ms = (timestamp() - ini) * 1000
+    metrica_incrementar("anilist.requisicoes_total", 1, {"tipo": "anime"})
+    metrica_observar("anilist.latencia_ms", duracao_ms, {"tipo": "anime"})
+    traco_evento(span, "anilist.resposta", {"status": resp["status"], "itens": tamanho(dados)})
+    traco_finalizar(span, "ok")
+
+    log_estruturado("info", "sync anilist concluido", {"tipo": "anime", "itens": tamanho(dados), "duracao_ms": duracao_ms})
+
+    exibir("metricas:", tamanho(metricas_snapshot()["counters"]))
+    exibir("tracos:", tamanho(tracos_snapshot()["spans"]))
+fim

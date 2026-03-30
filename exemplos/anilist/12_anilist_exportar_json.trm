@@ -1,0 +1,19 @@
+importe "modulos/anilist_api.trm" como anilist
+
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:///" + anilist["db_path_teste"]())
+    aguarde anilist["db_preparar"](conn)
+
+    resp = aguarde anilist["anilist_populares"]("MANGA", 1, 12)
+    lista = anilist["anilist_lista_media_teste"](resp, "MANGA")
+    aguarde anilist["db_salvar_lista"](conn, "MANGA", lista)
+
+    rows = aguarde banco_consultar(conn, "SELECT id, tipo, titulo_romaji, pontuacao, atualizado_em FROM anilist_itens WHERE tipo = 'MANGA' ORDER BY pontuacao DESC LIMIT 10")
+    saida = ".local/tests/anilist/relatorio_manga_top10.json"
+    escrever_texto(saida, json_stringify_pretty({"gerado_em": agora_iso(), "total": tamanho(rows), "itens": rows}))
+
+    exibir("arquivo:", saida)
+    exibir("existe:", arquivo_existe(saida))
+
+    aguarde banco_fechar(conn)
+fim

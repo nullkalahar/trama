@@ -226,19 +226,27 @@ class Parser:
     def _call(self) -> Expr:
         expr = self._primary()
         while True:
+            self._skip_call_continuation_separators()
             if self._match("ABRE_PAREN"):
                 args: list[Expr] = []
+                self._skip_expr_separators()
                 if not self._check("FECHA_PAREN"):
                     while True:
+                        self._skip_expr_separators()
                         args.append(self._expression())
+                        self._skip_expr_separators()
                         if not self._match("VIRGULA"):
                             break
+                        self._skip_expr_separators()
                 self._consume("FECHA_PAREN", "Esperado ')' após argumentos.")
                 expr = CallExpr(callee=expr, arguments=args)
                 continue
 
+            self._skip_call_continuation_separators()
             if self._match("ABRE_COLCHETE"):
+                self._skip_expr_separators()
                 idx = self._expression()
+                self._skip_expr_separators()
                 self._consume("FECHA_COLCHETE", "Esperado ']' no índice.")
                 expr = IndexExpr(target=expr, index=idx)
                 continue
@@ -263,28 +271,40 @@ class Parser:
         if self._match("IDENT"):
             return Identifier(name=self._previous().lexema)
         if self._match("ABRE_PAREN"):
+            self._skip_expr_separators()
             expr = self._expression()
+            self._skip_expr_separators()
             self._consume("FECHA_PAREN", "Esperado ')' após expressão.")
             return expr
         if self._match("ABRE_COLCHETE"):
             elements: list[Expr] = []
+            self._skip_expr_separators()
             if not self._check("FECHA_COLCHETE"):
                 while True:
+                    self._skip_expr_separators()
                     elements.append(self._expression())
+                    self._skip_expr_separators()
                     if not self._match("VIRGULA"):
                         break
+                    self._skip_expr_separators()
             self._consume("FECHA_COLCHETE", "Esperado ']' no literal de lista.")
             return ListExpr(elements=elements)
         if self._match("ABRE_CHAVE"):
             entries: list[tuple[Expr, Expr]] = []
+            self._skip_expr_separators()
             if not self._check("FECHA_CHAVE"):
                 while True:
+                    self._skip_expr_separators()
                     key = self._expression()
+                    self._skip_expr_separators()
                     self._consume("DOIS_PONTOS", "Esperado ':' no literal de mapa.")
+                    self._skip_expr_separators()
                     value = self._expression()
                     entries.append((key, value))
+                    self._skip_expr_separators()
                     if not self._match("VIRGULA"):
                         break
+                    self._skip_expr_separators()
             self._consume("FECHA_CHAVE", "Esperado '}' no literal de mapa.")
             return DictExpr(entries=entries)
 
@@ -299,6 +319,14 @@ class Parser:
     def _skip_separators(self) -> None:
         while self._match("NOVA_LINHA", "PONTO_VIRGULA"):
             pass
+
+    def _skip_expr_separators(self) -> None:
+        while self._match("NOVA_LINHA"):
+            pass
+
+    def _skip_call_continuation_separators(self) -> None:
+        while self._check("NOVA_LINHA") and self._check_next_any({"ABRE_PAREN", "ABRE_COLCHETE"}):
+            self._advance()
 
     def _match(self, *types: str) -> bool:
         for token_type in types:
@@ -322,6 +350,11 @@ class Parser:
         if self.current + 1 >= len(self.tokens):
             return False
         return self.tokens[self.current + 1].tipo == token_type
+
+    def _check_next_any(self, types: set[str]) -> bool:
+        if self.current + 1 >= len(self.tokens):
+            return False
+        return self.tokens[self.current + 1].tipo in types
 
     def _check_any(self, types: set[str]) -> bool:
         if self._is_at_end():

@@ -1,0 +1,17 @@
+função enviar_email(payload)
+    retorne "email:" + payload["destino"]
+fim
+
+assíncrona função principal()
+    fila = fila_criar("emails")
+
+    a = aguarde fila_enfileirar(fila, enviar_email, {"destino": "ana@empresa.local"}, 3, 5.0, "mail-ana-001")
+    b = aguarde fila_enfileirar(fila, enviar_email, {"destino": "ana@empresa.local"}, 3, 5.0, "mail-ana-001")
+    r = aguarde fila_processar(fila)
+    st = fila_status(fila)
+
+    exibir(a["enfileirado"])
+    exibir(b["idempotente"])
+    exibir(r["concluidos"])
+    exibir(st["pendentes"])
+fim

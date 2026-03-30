@@ -753,3 +753,120 @@ def test_v14_observabilidade_correlacao_dashboard_alertas() -> None:
         "200",
         "True",
     ]
+
+
+def test_v13_tempo_real_fallback_ptbr() -> None:
+    codigo = (
+        "função chat(req)\n"
+        "    se req[\"evento\"] == \"mensagem\"\n"
+        "        se req[\"mensagem\"][\"tipo\"] == \"chat\"\n"
+        "            retorne {\"destino\": \"sala\", \"sala\": \"lobby\", \"evento\": \"chat_msg\", \"dados\": {\"txt\": req[\"mensagem\"][\"txt\"]}}\n"
+        "        fim\n"
+        "    fim\n"
+        "    retorne {\"aceitar\": verdadeiro}\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    app = web_criar_app()\n"
+        "    web_tempo_real_rota(app, \"/ws/chat\", chat, {\"jwt_segredo\": \"seg-v13\"})\n"
+        "    web_tempo_real_ativar_fallback(app, \"/tempo-real/fallback\", 0.5)\n"
+        "    web_tempo_real_definir_limites(app, {\"max_conexoes_por_ip\": 5, \"max_mensagens_por_janela\": 10, \"janela_rate_segundos\": 5})\n"
+        "    s = aguarde web_iniciar(app, \"127.0.0.1\", 0)\n"
+        "    b = s[\"base_url\"]\n"
+        "    tok = token_criar({\"sub\": \"u1\"}, \"seg-v13\", 60)\n"
+        "    c = aguarde http_post(b + \"/tempo-real/fallback/conectar?token=\" + tok, {\"canal\": \"/ws/chat\"}, {\"Content-Type\": \"application/json\"})\n"
+        "    exibir(c[\"status\"])\n"
+        "    idc = c[\"json\"][\"id_conexao\"]\n"
+        "    e1 = aguarde http_post(b + \"/tempo-real/fallback/enviar\", {\"id_conexao\": idc, \"mensagem\": {\"tipo\": \"entrar_sala\", \"sala\": \"lobby\"}}, {\"Content-Type\": \"application/json\"})\n"
+        "    exibir(e1[\"status\"])\n"
+        "    e2 = aguarde http_post(b + \"/tempo-real/fallback/enviar\", {\"id_conexao\": idc, \"mensagem\": {\"tipo\": \"chat\", \"txt\": \"ola\"}}, {\"Content-Type\": \"application/json\"})\n"
+        "    exibir(e2[\"status\"])\n"
+        "    r = aguarde http_get(b + \"/tempo-real/fallback/receber?id_conexao=\" + idc + \"&timeout_segundos=0.2\")\n"
+        "    exibir(r[\"status\"])\n"
+        "    exibir(r[\"json\"][\"ok\"])\n"
+        "    exibir(tamanho(r[\"json\"][\"eventos\"]) > 0)\n"
+        "    st = web_tempo_real_status(app, \"/ws/chat\")\n"
+        "    exibir(st[\"canais\"][0][\"conexoes_ativas\"] >= 1)\n"
+        "    ds = aguarde http_post(b + \"/tempo-real/fallback/desconectar\", {\"id_conexao\": idc}, {\"Content-Type\": \"application/json\"})\n"
+        "    exibir(ds[\"status\"])\n"
+        "    aguarde web_parar(s)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["200", "200", "200", "200", "True", "True", "True", "200"]
+
+
+def test_parser_multilinha_chamada_lista_mapa() -> None:
+    codigo = (
+        "função soma(a, b)\n"
+        "    retorne a + b\n"
+        "fim\n"
+        "função principal()\n"
+        "    valores = [\n"
+        "        1,\n"
+        "        2,\n"
+        "        3\n"
+        "    ]\n"
+        "    cfg = {\n"
+        "        \"nome\": \"trama\",\n"
+        "        \"nums\": [\n"
+        "            10,\n"
+        "            20\n"
+        "        ]\n"
+        "    }\n"
+        "    total = soma(\n"
+        "        valores[0],\n"
+        "        cfg[\"nums\"][1]\n"
+        "    )\n"
+        "    exibir(total)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["21"]
+
+
+def test_parser_multilinha_encadeado_com_quebra_controlada() -> None:
+    codigo = (
+        "função principal()\n"
+        "    dados = {\n"
+        "        \"a\": {\n"
+        "            \"b\": [\n"
+        "                {\"x\": 7}\n"
+        "            ]\n"
+        "        }\n"
+        "    }\n"
+        "    exibir(\n"
+        "        dados\n"
+        "        [\"a\"]\n"
+        "        [\"b\"]\n"
+        "        [0]\n"
+        "        [\"x\"]\n"
+        "    )\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["7"]
+
+
+def test_parser_multilinha_erro_virgula_faltando() -> None:
+    codigo = (
+        "função principal()\n"
+        "    xs = [\n"
+        "        1\n"
+        "        2\n"
+        "    ]\n"
+        "fim\n"
+    )
+    with pytest.raises(Exception, match="Esperado '\\]' no literal de lista"):
+        compile_source(codigo)
+
+
+def test_parser_multilinha_erro_delimitador_nao_fechado() -> None:
+    codigo = (
+        "função principal()\n"
+        "    cfg = {\n"
+        "        \"a\": 1,\n"
+        "        \"b\": 2\n"
+        "fim\n"
+    )
+    with pytest.raises(Exception, match="Esperado '\\}' no literal de mapa"):
+        compile_source(codigo)

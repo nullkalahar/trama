@@ -1,0 +1,112 @@
+função endpoint_anilist()
+    retorne "https://graphql.anilist.co"
+fim
+
+assíncrona função anilist_consultar(query, variaveis)
+    headers = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "trama-exemplos-anilist/1.0"}
+    resp = aguarde http_post(endpoint_anilist(), {"query": query, "variables": variaveis}, headers)
+    retorne resp
+fim
+
+função anilist_lista_media(resp)
+    se resp == nulo
+        retorne []
+    fim
+    corpo = mapa_obter(resp, "json", nulo)
+    se corpo == nulo
+        retorne []
+    fim
+    data = mapa_obter(corpo, "data", nulo)
+    se data == nulo
+        retorne []
+    fim
+    page = mapa_obter(data, "Page", nulo)
+    se page == nulo
+        retorne []
+    fim
+    media = mapa_obter(page, "media", [])
+    se media == nulo
+        retorne []
+    fim
+    retorne media
+fim
+
+função anilist_mock_media(tipo)
+    se tipo == "MANGA"
+        retorne [
+            {"id": 900001, "title": {"romaji": "Mock Manga 1", "english": "Mock Manga 1", "native": "モック1"}, "format": "MANGA", "status": "RELEASING", "chapters": 120, "averageScore": 88, "popularity": 50000, "genres": ["Action", "Drama"]},
+            {"id": 900002, "title": {"romaji": "Mock Manga 2", "english": "Mock Manga 2", "native": "モック2"}, "format": "MANGA", "status": "FINISHED", "chapters": 75, "averageScore": 82, "popularity": 32000, "genres": ["Fantasy"]},
+            {"id": 900003, "title": {"romaji": "Mock Manga 3", "english": "Mock Manga 3", "native": "モック3"}, "format": "MANGA", "status": "FINISHED", "chapters": 40, "averageScore": 79, "popularity": 21000, "genres": ["Slice of Life"]}
+        ]
+    fim
+    retorne [
+        {"id": 800001, "title": {"romaji": "Mock Anime 1", "english": "Mock Anime 1", "native": "モックA1"}, "format": "TV", "status": "FINISHED", "episodes": 24, "averageScore": 90, "popularity": 98000, "genres": ["Action", "Adventure"]},
+        {"id": 800002, "title": {"romaji": "Mock Anime 2", "english": "Mock Anime 2", "native": "モックA2"}, "format": "TV", "status": "RELEASING", "episodes": 12, "averageScore": 84, "popularity": 64000, "genres": ["Comedy"]},
+        {"id": 800003, "title": {"romaji": "Mock Anime 3", "english": "Mock Anime 3", "native": "モックA3"}, "format": "MOVIE", "status": "FINISHED", "episodes": 1, "averageScore": 87, "popularity": 70000, "genres": ["Drama", "Romance"]}
+    ]
+fim
+
+função anilist_lista_media_teste(resp, tipo)
+    lista = anilist_lista_media(resp)
+    se tamanho(lista) > 0
+        retorne lista
+    fim
+    retorne anilist_mock_media(tipo)
+fim
+
+assíncrona função anilist_buscar_anime_por_nome(nome)
+    query = "query ($busca: String) { Page(page: 1, perPage: 10) { media(search: $busca, type: ANIME) { id title { romaji english native } format status episodes averageScore genres } } }"
+    retorne aguarde anilist_consultar(query, {"busca": nome})
+fim
+
+assíncrona função anilist_buscar_manga_por_nome(nome)
+    query = "query ($busca: String) { Page(page: 1, perPage: 10) { media(search: $busca, type: MANGA) { id title { romaji english native } format status chapters volumes averageScore genres } } }"
+    retorne aguarde anilist_consultar(query, {"busca": nome})
+fim
+
+assíncrona função anilist_populares(tipo, pagina, limite)
+    query = "query ($pagina: Int, $limite: Int, $tipo: MediaType) { Page(page: $pagina, perPage: $limite) { media(type: $tipo, sort: POPULARITY_DESC) { id title { romaji english native } format status episodes chapters averageScore popularity genres } } }"
+    retorne aguarde anilist_consultar(query, {"pagina": pagina, "limite": limite, "tipo": tipo})
+fim
+
+função db_path_teste()
+    retorne ".local/tests/anilist/anilist_dados.db"
+fim
+
+assíncrona função db_preparar(conn)
+    sql = "CREATE TABLE IF NOT EXISTS anilist_itens (id INTEGER PRIMARY KEY, tipo TEXT NOT NULL, titulo_romaji TEXT, titulo_english TEXT, titulo_native TEXT, formato TEXT, status TEXT, episodios INTEGER, capitulos INTEGER, pontuacao REAL, popularidade INTEGER, generos TEXT, atualizado_em TEXT NOT NULL)"
+    aguarde banco_executar(conn, sql)
+    retorne verdadeiro
+fim
+
+assíncrona função db_salvar_item(conn, tipo, item)
+    titulo = item["title"]
+    generos_json = json_stringify(mapa_obter(item, "genres", []))
+    sql = "INSERT OR REPLACE INTO anilist_itens (id, tipo, titulo_romaji, titulo_english, titulo_native, formato, status, episodios, capitulos, pontuacao, popularidade, generos, atualizado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    params = [
+        item["id"],
+        tipo,
+        mapa_obter(titulo, "romaji", nulo),
+        mapa_obter(titulo, "english", nulo),
+        mapa_obter(titulo, "native", nulo),
+        mapa_obter(item, "format", nulo),
+        mapa_obter(item, "status", nulo),
+        mapa_obter(item, "episodes", nulo),
+        mapa_obter(item, "chapters", nulo),
+        mapa_obter(item, "averageScore", nulo),
+        mapa_obter(item, "popularity", nulo),
+        generos_json,
+        agora_iso()
+    ]
+    aguarde banco_executar(conn, sql, params)
+    retorne verdadeiro
+fim
+
+assíncrona função db_salvar_lista(conn, tipo, lista)
+    i = 0
+    enquanto i < tamanho(lista)
+        aguarde db_salvar_item(conn, tipo, lista[i])
+        i = i + 1
+    fim
+    retorne tamanho(lista)
+fim
