@@ -31,6 +31,29 @@ Palavras-chave oficiais (forma canônica):
 - `tente`, `pegue`, `finalmente`, `lance`, `importe`, `como`
 - `assíncrona`, `aguarde`
 
+### Convenção de nomes canônicos (identificadores)
+
+Para manter previsibilidade e evitar ambiguidades no parser:
+
+- identificadores canônicos devem usar `snake_case` com `_` (underscore)
+- não usar `-` (hífen) em identificadores de código
+- em código canônico, preferir nomes sem acento em identificadores
+
+Exemplos canônicos:
+
+- `linha_base`
+- `medicao_desempenho`
+- `encerramento_gracioso`
+
+Regra de normalização recomendada para equivalência de identificadores:
+
+- converter para minúsculas
+- remover diacríticos (acentos)
+- converter separadores para `_`
+- colapsar `_` repetido
+
+Com isso, nomes como `Medição-Desempenho` e `medicao_desempenho` convergem para o mesmo formato canônico interno.
+
 
 Isso significa que, além de sintaxe agradável, a `trama` precisa amadurecer em:
 
@@ -67,6 +90,7 @@ Pipeline da linguagem:
 - manual completo consolidado até v1.4 em [`docs/MANUAL_COMPLETO_ATE_V1_4.md`](docs/MANUAL_COMPLETO_ATE_V1_4.md)
 - manual completo consolidado até v1.8 em [`docs/MANUAL_COMPLETO_ATE_V1_8.md`](docs/MANUAL_COMPLETO_ATE_V1_8.md)
 - manual prático da v2.0 fase 2 em [`docs/MANUAL_V2_0_FASE2.md`](docs/MANUAL_V2_0_FASE2.md)
+- roadmap detalhado de implementações futuras v2.1 em [`docs/ROADMAP_IMPLEMENTACOES_FUTURAS_V2_1.md`](docs/ROADMAP_IMPLEMENTACOES_FUTURAS_V2_1.md)
 - guia de auto-hospedagem v1.0 em [`docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md`](docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md)
 - guia de auto-hospedagem do compilador v1.0.5 em [`docs/AUTO_HOSPEDAGEM_V1_0_5.md`](docs/AUTO_HOSPEDAGEM_V1_0_5.md)
 - especificação formal de bytecode v1 em [`docs/BYTECODE_V1.md`](docs/BYTECODE_V1.md)
@@ -676,12 +700,121 @@ Critérios de aceite da fase 1 (DoD):
 - testes de conformidade com casos positivos e negativos.
 - regressão global sem quebra da suíte existente.
 
-Backlog técnico de longo prazo (sem data definida):
+Roadmap técnico pós-v2.0 (sem data definida):
 
-- backend 100% nativo para `executar` e `compilar` sem ponte de compatibilidade.
-- import nativo direto de módulos `.trm`.
-- evolução de async para scheduler concorrente completo.
-- refinamentos de performance/memória da VM nativa.
+Para o plano detalhado e versionado dos 7 eixos críticos (incluindo evolução da linguagem para codebase grande com `para/em`, módulos e tipagem gradual), consulte:
+
+- [`docs/ROADMAP_IMPLEMENTACOES_FUTURAS_V2_1.md`](docs/ROADMAP_IMPLEMENTACOES_FUTURAS_V2_1.md)
+
+### v2.0.1 - ORM e migrações nível produção
+- [ ] relações completas (1:1, 1:N, N:N), preload/eager/lazy e paginação robusta.
+- [ ] constraints avançadas (única composta, FKs complexas, checks) com validação consistente.
+- [ ] diff de schema confiável com preview antes de aplicar.
+- [ ] rollback seguro com trilha de execução de migrações.
+- [ ] seeds determinísticas por ambiente (`dev`, `teste`, `prod`).
+- [ ] testes de migração em banco vazio e banco legado.
+
+DoD v2.0.1:
+- pipeline de migração idempotente.
+- rollback validado em cenários reais.
+- documentação de operação de banco atualizada.
+
+### v2.0.2 - DTO/validação e contrato de API
+- [ ] camada de DTOs declarativos em pt-BR com validação profunda.
+- [ ] transformação e coerção de tipos de entrada.
+- [ ] sanitização automática de payload.
+- [ ] erros padronizados por campo (`codigo`, `campo`, `mensagem`, `detalhes`).
+- [ ] versionamento de contrato HTTP e compatibilidade retroativa.
+- [ ] geração de exemplos de payload válidos/inválidos para testes.
+
+DoD v2.0.2:
+- validação uniforme em toda API.
+- erros de domínio/validação previsíveis e estáveis.
+- documentação de contrato publicada.
+
+### v2.0.3 - Realtime distribuído em escala
+- [ ] presença/salas com sincronização entre múltiplas instâncias.
+- [ ] backplane pub/sub (ex.: Redis) para broadcast distribuído.
+- [ ] ack/nack/retry/reenvio com garantia de ordenação por canal.
+- [ ] reconexão com recuperação de estado recente por cursor.
+- [ ] limites por conexão/usuário/sala com proteção de abuso.
+- [ ] testes de concorrência e múltiplas instâncias.
+
+DoD v2.0.3:
+- realtime estável em ambiente com mais de uma instância.
+- métricas de entrega e reconexão auditáveis.
+
+### v2.0.4 - Cache distribuído e coerência
+- [ ] cache distribuído com TTL/invalidação por chave e por padrão.
+- [ ] estratégia cache-aside/read-through para consultas críticas.
+- [ ] sincronização de invalidação entre instâncias.
+- [ ] proteção contra stampede (lock/coalescing).
+- [ ] fallback seguro quando cache indisponível.
+- [ ] métricas de hit ratio, latência e invalidação.
+
+DoD v2.0.4:
+- cache consistente entre nós.
+- sem regressão de integridade de dados com cache ativo.
+
+### v2.0.5 - Segurança de produção
+- [ ] refresh token rotation e revogação por sessão/dispositivo.
+- [ ] listas de bloqueio e invalidação de tokens.
+- [ ] rate-limit distribuído por rota/IP/usuário.
+- [ ] hardening HTTP (headers de segurança, CORS estrito por ambiente).
+- [ ] trilha de auditoria para ações administrativas sensíveis.
+- [ ] suíte de testes de segurança (authz/authn e abuso).
+
+DoD v2.0.5:
+- fluxo de autenticação completo para produção.
+- controles de abuso e revogação validados.
+
+### v2.0.6 - Tooling de backend maduro
+- [ ] OpenAPI/Swagger gerado a partir do contrato da aplicação.
+- [ ] geração de cliente (SDK) para consumo de API.
+- [ ] CLI de administração (usuários, permissões, jobs, manutenção).
+- [ ] comandos de migração/seed/diagnóstico padronizados.
+- [ ] templates de serviço e módulo para acelerar novos projetos.
+- [ ] documentação operacional de comando a comando.
+
+DoD v2.0.6:
+- onboarding técnico previsível.
+- fluxo de desenvolvimento/admin padronizado.
+
+### v2.0.7 - Observabilidade e SRE
+- [ ] exportadores padrão (OpenTelemetry/Prometheus compatível).
+- [ ] correlação completa de logs, métricas e traces.
+- [ ] dashboards operacionais prontos (API, DB, realtime, jobs).
+- [ ] alertas iniciais (erro, latência, saturação, fila).
+- [ ] runbooks de incidentes e procedimentos de recuperação.
+- [ ] smoke checks e health checks de produção.
+
+DoD v2.0.7:
+- operação observável ponta a ponta.
+- alertas e runbooks prontos para produção.
+
+### v2.0.8 - Testes avançados (integração/e2e/carga)
+- [ ] harness de integração com fixtures reais de banco.
+- [ ] suíte e2e para fluxos críticos de negócio.
+- [ ] testes de carga e concorrência com metas de SLO.
+- [ ] testes de regressão de contrato de API.
+- [ ] testes de caos/falha parcial (rede, DB, cache).
+- [ ] relatórios automáticos de estabilidade e performance.
+
+DoD v2.0.8:
+- cobertura de cenários críticos de produção.
+- baseline de performance reproduzível.
+
+### v2.0.9 - Runtime 100% nativo (fechamento do ciclo)
+- [ ] remover ponte de compatibilidade em `executar` e `compilar`.
+- [ ] compilador oficial nativo de `.trm` para `.tbc`.
+- [ ] import nativo direto de módulos `.trm`.
+- [ ] async avançado com scheduler concorrente completo.
+- [ ] otimizações de memória/CPU da VM nativa.
+- [ ] release `.deb` e standalone com diagnóstico de backend 100% nativo.
+
+DoD v2.0.9:
+- uso da linguagem sem dependência de runtime externo no caminho crítico.
+- paridade funcional consolidada no backend nativo.
 
 ## v2.5 (frontend)
 - [ ] toolkit de UI, estado e renderização
