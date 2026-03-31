@@ -1,0 +1,14 @@
+função criar_incrementador(base)
+    função inc(x)
+        retorne x + base
+    fim
+    retorne inc
+fim
+
+função principal()
+    importe "../modulos/matematica.trm" como mat
+
+    inc2 = criar_incrementador(2)
+    exibir(inc2(10))
+    exibir(mat["somar"](3, 4))
+fim

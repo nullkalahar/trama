@@ -62,10 +62,20 @@ Pipeline da linguagem:
 - manual da linguagem v1.2 em [`docs/LINGUAGEM_V1_2.md`](docs/LINGUAGEM_V1_2.md)
 - manual da linguagem v1.3 em [`docs/LINGUAGEM_V1_3.md`](docs/LINGUAGEM_V1_3.md)
 - manual da linguagem v1.4 em [`docs/LINGUAGEM_V1_4.md`](docs/LINGUAGEM_V1_4.md)
+- manual da linguagem v1.5-v1.8 em [`docs/LINGUAGEM_V1_5_V1_8.md`](docs/LINGUAGEM_V1_5_V1_8.md)
+- manual da linguagem v2.0 (andamento) em [`docs/LINGUAGEM_V2_0.md`](docs/LINGUAGEM_V2_0.md)
 - manual completo consolidado até v1.4 em [`docs/MANUAL_COMPLETO_ATE_V1_4.md`](docs/MANUAL_COMPLETO_ATE_V1_4.md)
+- manual completo consolidado até v1.8 em [`docs/MANUAL_COMPLETO_ATE_V1_8.md`](docs/MANUAL_COMPLETO_ATE_V1_8.md)
+- manual prático da v2.0 fase 2 em [`docs/MANUAL_V2_0_FASE2.md`](docs/MANUAL_V2_0_FASE2.md)
 - guia de auto-hospedagem v1.0 em [`docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md`](docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md)
 - guia de auto-hospedagem do compilador v1.0.5 em [`docs/AUTO_HOSPEDAGEM_V1_0_5.md`](docs/AUTO_HOSPEDAGEM_V1_0_5.md)
+- especificação formal de bytecode v1 em [`docs/BYTECODE_V1.md`](docs/BYTECODE_V1.md)
+- ABI formal da VM v1 em [`docs/ABI_VM_V1.md`](docs/ABI_VM_V1.md)
+- matriz de cobertura bytecode/ABI v1 em [`docs/MATRIZ_COBERTURA_BYTECODE_ABI_V1.md`](docs/MATRIZ_COBERTURA_BYTECODE_ABI_V1.md)
+- contratos canônicos da CLI nativa v2 em [`docs/CLI_NATIVA_V2_CONTRATOS.md`](docs/CLI_NATIVA_V2_CONTRATOS.md)
+- auditoria de paridade real da fase 2 em [`docs/V2_FASE2_PARIDADE_VM_NATIVA.md`](docs/V2_FASE2_PARIDADE_VM_NATIVA.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
+- exemplos v2.0 em [`exemplos/v20/`](exemplos/v20/)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
 - binário standalone gerável por [`scripts/build_standalone.sh`](scripts/build_standalone.sh)
@@ -617,10 +627,61 @@ Regra obrigatória deste plano: toda superfície de linguagem deve ser canônica
   - pipeline existente de standalone + `.deb` mantido.
 
 ## v2.0 (autossuficiência total da linguagem)
-- [ ] fase 1: especificar formato canônico de bytecode e ABI da VM (`bytecode_v1`) com versionamento estável
-- [ ] fase 2: implementar runtime/VM nativa robusta (backend nativo) para executar `.tbc` sem Python
-- [ ] fase 3: portar compilador oficial para `.trm` com bootstrap por compilador semente mínimo
-- [ ] fase 4: remover Python do caminho crítico de build/release e publicar release oficial sem dependência de Python
+- [x] fase 1: especificar formato canônico de bytecode e ABI da VM (`bytecode_v1`) com versionamento estável
+- [x] fase 2: implementar runtime/VM nativa robusta (backend nativo) para executar `.tbc` sem Python
+- [x] fase 3: portar compilador oficial para `.trm` com bootstrap por compilador semente mínimo
+- [x] fase 4: remover Python do caminho crítico de build/release e publicar release oficial sem dependência de Python
+
+Status oficial da versão:
+
+- v2.0 considerada concluída para uso de produto.
+
+Resumo consolidado da implementação:
+
+- fase 1 concluída (especificação formal + validação):
+  - `docs/BYTECODE_V1.md`
+  - `docs/ABI_VM_V1.md`
+  - `docs/MATRIZ_COBERTURA_BYTECODE_ABI_V1.md`
+- testes de conformidade da fase 1:
+  - `tests/test_bytecode_v1_conformance.py`
+  - cobertura de shape, roundtrip, payload inválido e opcode inválido
+- base da fase 2 iniciada com stub nativo e suíte local:
+  - `native/runtime_stub.c`
+  - `native/trama_native.c` (VM nativa com `executar-tbc`, exceções, await sequencial e import `.tbc`)
+  - `scripts/build_native_stub.sh`
+  - `.local/tests/v2_0_native/run_local_v20_native.sh`
+- fase 2.A (auditoria) concluída:
+  - matriz real de opcodes/recursos suportados vs ausentes em `docs/V2_FASE2_PARIDADE_VM_NATIVA.md`
+- contratos canônicos para a próxima etapa da VM/CLI nativa:
+  - `docs/CLI_NATIVA_V2_CONTRATOS.md`
+  - comandos oficiais pt-BR: `executar`, `compilar`, `executar-tbc`
+  - aliases em inglês apenas para compatibilidade
+- diagnóstico explícito no CLI atual (canônico + compatibilidade):
+  - `trama --diagnostico-runtime`
+- diagnóstico equivalente no runtime nativo:
+  - `trama-native --diagnostico-runtime`
+- compatibilidade de aliases na CLI nativa:
+  - `run-tbc` (alias de `executar-tbc`)
+- suporte adicional na CLI nativa:
+  - `executar` e `compilar` disponíveis por ponte de compatibilidade via standalone (`trama`)
+- suíte expandida de testes nativos:
+  - `tests/test_native_runtime_v20.py`
+  - `.local/tests/v2_0_fase2/run_local_v20_fase2.sh`
+
+Critérios de aceite da fase 1 (DoD):
+
+- especificação formal de `bytecode_v1` publicada.
+- ABI da VM v1 publicada.
+- matriz de cobertura recurso -> bytecode/ABI publicada.
+- testes de conformidade com casos positivos e negativos.
+- regressão global sem quebra da suíte existente.
+
+Backlog técnico de longo prazo (sem data definida):
+
+- backend 100% nativo para `executar` e `compilar` sem ponte de compatibilidade.
+- import nativo direto de módulos `.trm`.
+- evolução de async para scheduler concorrente completo.
+- refinamentos de performance/memória da VM nativa.
 
 ## v2.5 (frontend)
 - [ ] toolkit de UI, estado e renderização

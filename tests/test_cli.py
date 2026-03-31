@@ -116,3 +116,17 @@ def test_cli_formatar_cobertura_template(tmp_path: Path) -> None:
         code = main(["template-backend", str(dst)])
     assert code == 0
     assert (dst / "src" / "app.trm").exists()
+
+
+def test_cli_diagnostico_runtime_campos_canonicos_e_compat() -> None:
+    out = StringIO()
+    with redirect_stdout(out):
+        code = main(["--diagnostico-runtime"])
+    assert code == 0
+    text = out.getvalue()
+    assert "backend_runtime=" in text
+    assert "backend_compilador=" in text
+    assert "requer_python_host=" in text
+    assert "runtime_backend=" in text
+    assert "compilador_backend=" in text
+    assert "python_host_required=" in text

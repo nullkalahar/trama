@@ -1,0 +1,10 @@
+função somar(a, b)
+    retorne a + b
+fim
+
+função principal()
+    nome = "Trama"
+    total = somar(20, 22)
+    exibir("Olá, " + nome)
+    exibir(total)
+fim

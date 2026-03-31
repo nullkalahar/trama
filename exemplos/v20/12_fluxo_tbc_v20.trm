@@ -1,0 +1,6 @@
+função principal()
+    exibir("Fluxo v2.0:")
+    exibir("1) trama compilar arquivo.trm -o arquivo.tbc")
+    exibir("2) trama executar-tbc arquivo.tbc")
+    exibir("3) runtime nativo: ./dist/native/trama-native executar-tbc arquivo.tbc")
+fim

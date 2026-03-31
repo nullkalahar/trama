@@ -455,7 +455,7 @@ def run_bytecode_dict(
     print_fn: Any | None = None,
     source_path: str | None = None,
 ) -> object:
-    program = program_from_dict(payload)
+    program = program_from_dict(payload, validar=True, validar_opcodes=False)
     vm = VirtualMachine(program=program, print_fn=print_fn, source_path=source_path)
     return vm.execute()
 

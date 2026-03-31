@@ -1,0 +1,15 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_v20.db")
+
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS itens (id INTEGER PRIMARY KEY, nome TEXT NOT NULL)")
+
+    tx = aguarde banco_transacao_iniciar(conn)
+    aguarde banco_tx_executar(tx, "INSERT INTO itens (nome) VALUES (?)", ["item-a"])
+    aguarde banco_tx_executar(tx, "INSERT INTO itens (nome) VALUES (?)", ["item-b"])
+    aguarde banco_transacao_confirmar(tx)
+
+    itens = aguarde banco_consultar(conn, "SELECT id, nome FROM itens ORDER BY id")
+    exibir(tamanho(itens))
+
+    aguarde banco_fechar(conn)
+fim

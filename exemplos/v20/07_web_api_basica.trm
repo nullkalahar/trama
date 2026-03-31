@@ -1,0 +1,14 @@
+função rota_status(req)
+    retorne {"status": 200, "dados": {"ok": verdadeiro, "servico": "trama-v20"}}
+fim
+
+assíncrona função principal()
+    app = web_criar_app()
+    web_rota(app, "GET", "/status", rota_status, {}, {})
+
+    servidor = aguarde web_iniciar(app, "127.0.0.1", 8120)
+    exibir("Servidor em:")
+    exibir(servidor["base_url"])
+
+    aguarde web_parar(servidor)
+fim

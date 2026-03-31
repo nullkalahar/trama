@@ -1,0 +1,10 @@
+função principal()
+    cfg = config_carregar("TRAMA_APP_", {"ambiente": "dev"})
+    payload = {"servico": "trama", "ambiente": cfg["ambiente"]}
+
+    txt = json_stringify_pretty(payload)
+    obj = json_parse(txt)
+
+    exibir(txt != nulo)
+    exibir(obj["servico"])
+fim

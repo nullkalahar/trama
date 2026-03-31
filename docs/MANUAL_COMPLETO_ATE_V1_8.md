@@ -58,6 +58,7 @@ Use o diretório `exemplos/`:
 - `exemplos/v16/*`: comunidades e moderação.
 - `exemplos/v17/*`: admin e campanhas push.
 - `exemplos/v18/*`: mídia, sync offline e deploy/observabilidade.
+- `exemplos/v20/*`: exemplos práticos do andamento de autossuficiência v2.0.
 
 ## Deploy
 
@@ -72,3 +73,34 @@ Use o diretório `exemplos/`:
 - `PYTHONPATH=src .venv/bin/python -m pytest -q`
 - `PYTHONPATH=src .venv/bin/python -m trama.cli lint exemplos`
 - `bash .local/tests/v1_5_v1_8/run_local_v158.sh`
+
+## Base formal para v2.0 (autossuficiência)
+
+- especificação de bytecode canônico v1:
+  - [`docs/BYTECODE_V1.md`](BYTECODE_V1.md)
+- ABI formal da VM v1:
+  - [`docs/ABI_VM_V1.md`](ABI_VM_V1.md)
+- matriz de cobertura da linguagem para bytecode/ABI:
+  - [`docs/MATRIZ_COBERTURA_BYTECODE_ABI_V1.md`](MATRIZ_COBERTURA_BYTECODE_ABI_V1.md)
+- contratos canônicos da próxima etapa de VM/CLI nativa:
+  - [`docs/CLI_NATIVA_V2_CONTRATOS.md`](CLI_NATIVA_V2_CONTRATOS.md)
+
+Observação:
+- comandos oficiais permanecem canônicos em pt-BR: `executar`, `compilar`, `executar-tbc`;
+- aliases em inglês existem apenas para compatibilidade.
+
+## Auditoria da fase 2 (VM/CLI nativas)
+
+- estado real de paridade documentado em:
+  - [`docs/V2_FASE2_PARIDADE_VM_NATIVA.md`](V2_FASE2_PARIDADE_VM_NATIVA.md)
+- status atual:
+  - `executar-tbc` nativo: disponível;
+  - `executar` e `compilar` nativos: ainda pendentes;
+  - opcodes de exceção/import/await: ainda pendentes no backend nativo C.
+
+## Manuais dedicados da v2.0
+
+- visão geral da versão:
+  - [`docs/LINGUAGEM_V2_0.md`](LINGUAGEM_V2_0.md)
+- manual prático da fase 2:
+  - [`docs/MANUAL_V2_0_FASE2.md`](MANUAL_V2_0_FASE2.md)

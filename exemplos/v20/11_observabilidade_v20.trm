@@ -1,0 +1,13 @@
+função principal()
+    log_estruturado("info", "inicio", {"servico": "trama-v20"})
+
+    metrica_contador_incrementar("req_total", 1)
+    metrica_histograma_observar("latencia_ms", 12.3)
+
+    span = traco_iniciar("fluxo_v20", {})
+    traco_evento(span, "etapa", {"nome": "parse"})
+    traco_finalizar(span)
+
+    exibir(metricas_snapshot() != nulo)
+    exibir(tracos_snapshot() != nulo)
+fim

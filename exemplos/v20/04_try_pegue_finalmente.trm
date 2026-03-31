@@ -1,0 +1,10 @@
+função principal()
+    tente
+        lance "falha controlada"
+    pegue erro
+        exibir("capturado:")
+        exibir(erro)
+    finalmente
+        exibir("finalmente executado")
+    fim
+fim

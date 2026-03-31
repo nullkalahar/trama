@@ -1,0 +1,23 @@
+função principal()
+    lista = [
+        10,
+        20,
+        30
+    ]
+
+    cfg = {
+        "ativo": verdadeiro,
+        "nome": "v2.0",
+        "limites": {
+            "min": 1,
+            "max": 99
+        }
+    }
+
+    se cfg["ativo"] == verdadeiro
+        exibir(lista[1])
+        exibir(cfg["limites"]["max"])
+    senão
+        exibir("inativo")
+    fim
+fim

@@ -18,6 +18,11 @@ from .vm import VMError, run_bytecode_file, run_source
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="trama", description="Ferramentas da linguagem trama")
+    parser.add_argument(
+        "--diagnostico-runtime",
+        action="store_true",
+        help="Exibe backend de runtime/compilação ativo no binário atual",
+    )
     sub = parser.add_subparsers(dest="command")
 
     executar = sub.add_parser("executar", help="Executa um arquivo .trm")
@@ -86,6 +91,17 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if bool(args.diagnostico_runtime):
+        # Canônico pt-BR
+        print("backend_runtime=python_legado")
+        print("backend_compilador=python_com_ponte_selfhost")
+        print("requer_python_host=sim")
+        # Compatibilidade (legado/inglês)
+        print("runtime_backend=python_legacy")
+        print("compilador_backend=python_com_selfhost_bridge")
+        print("python_host_required=sim")
+        return 0
 
     if args.command is None:
         parser.print_help()
