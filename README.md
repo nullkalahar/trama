@@ -816,6 +816,32 @@ DoD v2.0.9:
 - uso da linguagem sem dependência de runtime externo no caminho crítico.
 - paridade funcional consolidada no backend nativo.
 
+### v2.1.0 - Engenharia de produto (CI/CD e governança)
+- [ ] pipeline oficial de CI (build, testes, lint, cobertura e segurança) obrigatório para merge.
+- [ ] portões de qualidade com bloqueio de regressão crítica em PR.
+- [ ] esteira de release automatizada para `standalone`, `.deb` e artefatos versionados.
+- [ ] versionamento semântico e changelog por versão com política de compatibilidade.
+- [ ] guia formal de contribuição, manutenção e resposta a incidentes.
+- [ ] documentação de migração para mudanças potencialmente quebráveis.
+
+DoD v2.1.0:
+- merges protegidos por qualidade mínima obrigatória.
+- releases reproduzíveis e auditáveis.
+- governança de evolução publicada e aplicada.
+
+### v2.1.1 - Linguagem para codebase grande
+- [ ] implementação completa de `para/em` em parser, AST, compilador e VM (Python + nativa).
+- [ ] contratos de módulo com exportação/importação explícitas e espaços de nomes previsíveis.
+- [ ] resolução determinística de módulos para projetos multi-pacote.
+- [ ] tipagem gradual fase 1 (anotações opcionais e checagem estática básica).
+- [ ] tipagem gradual fase 2 (tipos compostos, fronteira de API e validação entre módulos).
+- [ ] diagnósticos semânticos com contexto consistente (arquivo, linha, coluna e sugestão de correção).
+
+DoD v2.1.1:
+- manutenção de base grande com contratos explícitos e menor risco de refatoração.
+- redução mensurável de erros de runtime em fluxos cobertos por tipagem.
+- paridade de linguagem consolidada entre execução Python e nativa para recursos novos.
+
 ## v2.5 (frontend)
 - [ ] toolkit de UI, estado e renderização
 - [ ] integração HTML/CSS/DOM (ou runtime equivalente)
