@@ -1,0 +1,12 @@
+assíncrona função tarefa(id)
+    aguarde dormir(0.02)
+    retorne "tarefa:" + id
+fim
+
+assíncrona função principal()
+    t1 = criar_tarefa(tarefa("A"))
+    t2 = criar_tarefa(tarefa("B"))
+
+    exibir(aguarde com_timeout(t1, 1))
+    exibir(aguarde com_timeout(t2, 1))
+fim

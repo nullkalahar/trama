@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 import pytest
 
@@ -94,3 +95,165 @@ def test_conectar_postgres_com_asyncpg_fake(monkeypatch) -> None:
     asyncio.run(db_runtime.transacao_commit(tx))
 
     asyncio.run(db_runtime.fechar(conn))
+
+
+def test_v201_orm_relacoes_paginacao_sqlite(tmp_path: Path) -> None:
+    db_file = tmp_path / "v201_rel.db"
+    conn = asyncio.run(db_runtime.conectar(f"sqlite:///{db_file}"))
+    try:
+        asyncio.run(
+            db_runtime.executar(
+                conn,
+                "CREATE TABLE autores (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL)",
+            )
+        )
+        asyncio.run(
+            db_runtime.executar(
+                conn,
+                "CREATE TABLE posts (id INTEGER PRIMARY KEY AUTOINCREMENT, autor_id INTEGER NOT NULL, titulo TEXT NOT NULL)",
+            )
+        )
+        asyncio.run(
+            db_runtime.executar(
+                conn,
+                "CREATE TABLE tags (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL)",
+            )
+        )
+        asyncio.run(
+            db_runtime.executar(
+                conn,
+                "CREATE TABLE post_tags (post_id INTEGER NOT NULL, tag_id INTEGER NOT NULL)",
+            )
+        )
+
+        autor_id = asyncio.run(db_runtime.orm_inserir(conn, "autores", {"nome": "ana"}))
+        p1 = asyncio.run(db_runtime.orm_inserir(conn, "posts", {"autor_id": autor_id, "titulo": "p1"}))
+        p2 = asyncio.run(db_runtime.orm_inserir(conn, "posts", {"autor_id": autor_id, "titulo": "p2"}))
+        t1 = asyncio.run(db_runtime.orm_inserir(conn, "tags", {"nome": "rpg"}))
+        t2 = asyncio.run(db_runtime.orm_inserir(conn, "tags", {"nome": "backend"}))
+        asyncio.run(db_runtime.executar(conn, "INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)", [p1, t1]))
+        asyncio.run(db_runtime.executar(conn, "INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)", [p1, t2]))
+        asyncio.run(db_runtime.executar(conn, "INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)", [p2, t2]))
+
+        modelo = db_runtime.orm_modelo("posts")
+        modelo = db_runtime.orm_relacao_um_para_um(modelo, "autor", "autores", "autor_id", modo_relacao="eager")
+        modelo = db_runtime.orm_relacao_muitos_para_muitos(
+            modelo,
+            "tags",
+            "tags",
+            "post_tags",
+            "post_id",
+            "tag_id",
+        )
+        lista = asyncio.run(
+            db_runtime.orm_listar(
+                conn,
+                modelo,
+                filtros={},
+                opcoes={"pagina": 1, "limite": 1, "ordenacao": "id ASC", "preload": ["tags"]},
+            )
+        )
+        assert len(lista["itens"]) == 1
+        assert lista["paginacao"]["total"] == 2
+        assert lista["itens"][0]["autor"]["nome"] == "ana"
+        assert len(lista["itens"][0]["tags"]) >= 1
+    finally:
+        asyncio.run(db_runtime.fechar(conn))
+
+
+def test_v201_constraints_diff_preview_aplicar(tmp_path: Path) -> None:
+    db_file = tmp_path / "v201_schema.db"
+    conn = asyncio.run(db_runtime.conectar(f"sqlite:///{db_file}"))
+    try:
+        usuarios = db_runtime.schema_definir_tabela(
+            "usuarios",
+            [
+                {"nome": "id", "tipo": "INTEGER", "pk": True},
+                {"nome": "email", "tipo": "TEXT", "nulo": False},
+                {"nome": "idade", "tipo": "INTEGER", "nulo": False, "padrao": 0},
+            ],
+            constraints=[
+                db_runtime.schema_constraint_unica(["email"], nome="uk_usuarios_email"),
+                db_runtime.schema_constraint_check("idade >= 0", nome="chk_idade"),
+            ],
+        )
+        perfis = db_runtime.schema_definir_tabela(
+            "perfis",
+            [
+                {"nome": "id", "tipo": "INTEGER", "pk": True},
+                {"nome": "usuario_id", "tipo": "INTEGER", "nulo": False},
+                {"nome": "bio", "tipo": "TEXT", "nulo": True},
+            ],
+            constraints=[
+                db_runtime.schema_constraint_fk(
+                    ["usuario_id"],
+                    "usuarios",
+                    ["id"],
+                    nome="fk_perfis_usuario",
+                    on_delete="CASCADE",
+                )
+            ],
+        )
+        esperado = db_runtime.schema_definir([usuarios, perfis])
+        atual = asyncio.run(db_runtime.schema_inspecionar(conn))
+        diff = db_runtime.schema_diff(atual, esperado)
+        preview = db_runtime.schema_preview_plano(diff)
+        assert preview["total"] >= 2
+        dry = asyncio.run(db_runtime.schema_aplicar_diff(conn, diff, dry_run=True))
+        assert dry["dry_run"] is True
+        apply_real = asyncio.run(db_runtime.schema_aplicar_diff(conn, diff, dry_run=False))
+        assert apply_real["ok"] is True
+        atual2 = asyncio.run(db_runtime.schema_inspecionar(conn))
+        nomes = [t["nome"] for t in atual2["tabelas"]]
+        assert "usuarios" in nomes
+        assert "perfis" in nomes
+    finally:
+        asyncio.run(db_runtime.fechar(conn))
+
+
+def test_v201_migracao_trilha_rollback_seed_ambiente(tmp_path: Path) -> None:
+    db_file = tmp_path / "v201_mig.db"
+    conn = asyncio.run(db_runtime.conectar(f"sqlite:///{db_file}"))
+    try:
+        ok = asyncio.run(
+            db_runtime.migracao_aplicar_versionada_v2(
+                conn,
+                "201.001",
+                "criar_t",
+                "CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY, nome TEXT);",
+                "DROP TABLE IF EXISTS t;",
+                ambiente="teste",
+            )
+        )
+        assert ok["aplicada"] is True
+        idem = asyncio.run(
+            db_runtime.migracao_aplicar_versionada_v2(
+                conn,
+                "201.001",
+                "criar_t",
+                "CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY, nome TEXT);",
+                "DROP TABLE IF EXISTS t;",
+                ambiente="teste",
+            )
+        )
+        assert idem["aplicada"] is False
+        trilha = asyncio.run(db_runtime.migracao_trilha_listar(conn, limite=10))
+        assert len(trilha) >= 1
+
+        seeds = asyncio.run(
+            db_runtime.seed_aplicar_ambiente(
+                conn,
+                "teste",
+                "base",
+                [
+                    {"nome": "002-b", "sql": "INSERT INTO t (id, nome) VALUES (2, 'b');"},
+                    {"nome": "001-a", "sql": "INSERT INTO t (id, nome) VALUES (1, 'a');"},
+                ],
+            )
+        )
+        assert seeds["ok"] is True
+        rows = asyncio.run(db_runtime.consultar(conn, "SELECT id, nome FROM t ORDER BY id ASC"))
+        assert rows[0]["nome"] == "a"
+        assert rows[1]["nome"] == "b"
+    finally:
+        asyncio.run(db_runtime.fechar(conn))

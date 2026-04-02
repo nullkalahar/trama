@@ -1,0 +1,11 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_extra_113.db")
+
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY, nome TEXT)")
+    aguarde banco_executar(conn, "INSERT INTO usuarios (nome) VALUES (?)", ["ana"])
+
+    rows = aguarde banco_consultar(conn, "SELECT id, nome FROM usuarios")
+    exibir(tamanho(rows))
+
+    aguarde banco_fechar(conn)
+fim

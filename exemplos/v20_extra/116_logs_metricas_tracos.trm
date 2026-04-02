@@ -1,0 +1,12 @@
+função principal()
+    log_estruturado("info", "inicio", {"modulo": "demo"})
+    metrica_contador_incrementar("demo_req", 1)
+    metrica_histograma_observar("demo_lat_ms", 5.7)
+
+    span = traco_iniciar("demo_span", {})
+    traco_evento(span, "etapa", {"nome": "validacao"})
+    traco_finalizar(span)
+
+    exibir(metricas_snapshot() != nulo)
+    exibir(tracos_snapshot() != nulo)
+fim

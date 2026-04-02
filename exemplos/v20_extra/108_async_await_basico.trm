@@ -1,0 +1,9 @@
+assíncrona função buscar_nome()
+    aguarde dormir(0.01)
+    retorne "trama"
+fim
+
+assíncrona função principal()
+    nome = aguarde buscar_nome()
+    exibir(nome)
+fim

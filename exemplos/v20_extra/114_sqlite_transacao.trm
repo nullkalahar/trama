@@ -1,0 +1,14 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_extra_114.db")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS log (id INTEGER PRIMARY KEY, msg TEXT)")
+
+    tx = aguarde banco_transacao_iniciar(conn)
+    aguarde banco_tx_executar(tx, "INSERT INTO log (msg) VALUES (?)", ["inicio"])
+    aguarde banco_tx_executar(tx, "INSERT INTO log (msg) VALUES (?)", ["fim"])
+    aguarde banco_transacao_confirmar(tx)
+
+    dados = aguarde banco_consultar(conn, "SELECT id, msg FROM log ORDER BY id")
+    exibir(dados[0]["msg"])
+
+    aguarde banco_fechar(conn)
+fim

@@ -1,0 +1,5 @@
+assíncrona função principal()
+    r = aguarde http_get("https://httpbin.org/get")
+    exibir(r["status"])
+    exibir(r["json"] != nulo)
+fim

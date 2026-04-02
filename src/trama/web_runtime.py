@@ -21,6 +21,7 @@ from urllib.parse import parse_qs, urlparse
 import uuid
 import unicodedata
 
+from . import cache_runtime
 from . import observability_runtime
 from . import security_runtime
 
@@ -2077,6 +2078,7 @@ class WebRuntime:
 
                 schema = dict(route.data.get("schema", {}))
                 options = dict(route.data.get("options", {}))
+                cache_cfg = dict(options.get("cache_resposta", {})) if isinstance(options.get("cache_resposta"), dict) else {}
                 miss = self._validate_schema(req, schema)
                 if miss:
                     headers = {"X-Request-Id": request_id} if request_id else None
@@ -2155,6 +2157,41 @@ class WebRuntime:
                     )
                     return
 
+                cache_chave: str | None = None
+                cache_ns = str(cache_cfg.get("namespace", "http"))
+                cache_ttl = cache_cfg.get("ttl_segundos")
+                cache_instancia = cache_cfg.get("instancia")
+                if self.command == "GET" and cache_cfg:
+                    chave_personalizada = cache_cfg.get("chave")
+                    if isinstance(chave_personalizada, str) and chave_personalizada:
+                        cache_chave = chave_personalizada
+                    else:
+                        query_str = parsed_url.query or ""
+                        cache_chave = f"{self.command}:{path}?{query_str}"
+                    try:
+                        cache_hit = cache_runtime.cache_distribuido_obter(
+                            cache_chave,
+                            None,
+                            namespace=cache_ns,
+                            instancia=cache_instancia,  # type: ignore[arg-type]
+                        )
+                    except Exception:
+                        cache_hit = None
+                    if isinstance(cache_hit, dict) and "body_b64" in cache_hit and "status" in cache_hit:
+                        try:
+                            cached_headers = dict(cache_hit.get("cabecalhos", {}))
+                            if request_id:
+                                cached_headers["X-Request-Id"] = request_id
+                            self._send_bytes(
+                                int(cache_hit.get("status", 200)),
+                                base64.b64decode(str(cache_hit.get("body_b64", ""))),
+                                str(cache_hit.get("content_type", "application/json; charset=utf-8")),
+                                {str(k): str(v) for k, v in cached_headers.items()},
+                            )
+                            return
+                        except Exception:
+                            pass
+
                 try:
                     for mw in app.middlewares_pre:
                         mw_res = invoke(mw, [req])
@@ -2210,6 +2247,25 @@ class WebRuntime:
                         final_headers["X-Contrato-Versao-Solicitada"] = versao_contrato_solicitada
                     if versao_contrato_aplicada:
                         final_headers["X-Contrato-Versao-Aplicada"] = versao_contrato_aplicada
+
+                    if cache_chave is not None:
+                        try:
+                            payload_cache = {
+                                "status": int(resp_map.get("status", status)),
+                                "cabecalhos": {str(k): str(v) for k, v in final_headers.items()},
+                                "content_type": ctype,
+                                "body_b64": base64.b64encode(body_bytes).decode("ascii"),
+                            }
+                            cache_runtime.cache_distribuido_definir(
+                                cache_chave,
+                                payload_cache,
+                                ttl_segundos=None if cache_ttl is None else float(cache_ttl),
+                                namespace=cache_ns,
+                                instancia=cache_instancia,  # type: ignore[arg-type]
+                            )
+                        except Exception:
+                            pass
+
                     self._send_bytes(int(resp_map.get("status", status)), body_bytes, ctype, final_headers)
                 except Exception as exc:  # noqa: BLE001
                     if app.error_handler is not None:

@@ -1,0 +1,14 @@
+função principal()
+    no = cache_distribuido_criar("g_metricas", "api", verdadeiro)
+    cache_distribuido_limpar("metricas", no)
+
+    cache_distribuido_definir("a", 1, 30, "metricas", no)
+    exibir(cache_distribuido_obter("a", nulo, "metricas", no))
+    exibir(cache_distribuido_obter("nao-existe", "padrao", "metricas", no))
+
+    st = cache_distribuido_stats("metricas", no)
+    exibir(st["hits"] >= 1)
+    exibir(st["misses"] >= 1)
+    exibir(st["hit_ratio"] >= 0)
+    exibir(st["latencias"]["obter"]["amostras"] >= 1)
+fim

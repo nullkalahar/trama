@@ -655,6 +655,115 @@ def make_builtins(
     def cache_stats(namespace: str = "padrao") -> dict[str, object]:
         return cache_runtime.cache_stats(namespace=namespace)
 
+    def cache_distribuido_criar(
+        grupo: str = "padrao",
+        id_instancia: str | None = None,
+        auto_sincronizar: bool = True,
+    ) -> object:
+        return cache_runtime.cache_distribuido_criar(
+            grupo=grupo,
+            id_instancia=id_instancia,
+            auto_sincronizar=auto_sincronizar,
+        )
+
+    def cache_distribuido_configurar_backplane(grupo: str = "padrao", disponivel: bool = True) -> dict[str, object]:
+        return cache_runtime.cache_distribuido_configurar_backplane(grupo=grupo, disponivel=disponivel)
+
+    def cache_distribuido_sincronizar(instancia: object | None = None) -> int:
+        return cache_runtime.cache_distribuido_sincronizar(instancia=instancia)  # type: ignore[arg-type]
+
+    def cache_distribuido_definir(
+        chave: str,
+        valor: object,
+        ttl_segundos: float | None = None,
+        namespace: str = "padrao",
+        instancia: object | None = None,
+    ) -> object:
+        return cache_runtime.cache_distribuido_definir(
+            chave,
+            valor,
+            ttl_segundos=ttl_segundos,
+            namespace=namespace,
+            instancia=instancia,  # type: ignore[arg-type]
+        )
+
+    def cache_distribuido_obter(
+        chave: str,
+        padrao: object | None = None,
+        namespace: str = "padrao",
+        instancia: object | None = None,
+    ) -> object:
+        return cache_runtime.cache_distribuido_obter(
+            chave,
+            padrao=padrao,
+            namespace=namespace,
+            instancia=instancia,  # type: ignore[arg-type]
+        )
+
+    def cache_distribuido_invalidar_chave(
+        chave: str,
+        namespace: str = "padrao",
+        instancia: object | None = None,
+    ) -> bool:
+        return cache_runtime.cache_distribuido_invalidar_chave(
+            chave,
+            namespace=namespace,
+            instancia=instancia,  # type: ignore[arg-type]
+        )
+
+    def cache_distribuido_invalidar_padrao(
+        padrao: str,
+        namespace: str = "padrao",
+        instancia: object | None = None,
+    ) -> int:
+        return cache_runtime.cache_distribuido_invalidar_padrao(
+            padrao,
+            namespace=namespace,
+            instancia=instancia,  # type: ignore[arg-type]
+        )
+
+    def cache_distribuido_stats(namespace: str = "padrao", instancia: object | None = None) -> dict[str, object]:
+        return cache_runtime.cache_distribuido_stats(namespace=namespace, instancia=instancia)  # type: ignore[arg-type]
+
+    def cache_distribuido_limpar(namespace: str | None = None, instancia: object | None = None) -> int:
+        return cache_runtime.cache_distribuido_limpar(namespace=namespace, instancia=instancia)  # type: ignore[arg-type]
+
+    async def cache_distribuido_obter_ou_carregar(
+        chave: str,
+        carregador_fn: object,
+        ttl_segundos: float | None = None,
+        namespace: str = "padrao",
+        timeout_coalescencia_segundos: float = 2.0,
+        fallback: object | None = None,
+        instancia: object | None = None,
+    ) -> object:
+        def _carregador() -> object:
+            if invoke_callable_sync is not None:
+                return invoke_callable_sync(carregador_fn, [])
+            if not callable(carregador_fn):
+                raise TypeError("cache_distribuido_obter_ou_carregar exige função chamável em 'carregador_fn'.")
+            return carregador_fn()
+        if invoke_callable_sync is not None:
+            return await asyncio.to_thread(
+                cache_runtime.cache_distribuido_obter_ou_carregar,
+                chave,
+                _carregador,
+                ttl_segundos,
+                namespace,
+                timeout_coalescencia_segundos,
+                fallback,
+                instancia,  # type: ignore[arg-type]
+            )
+        return cache_runtime.cache_distribuido_obter_ou_carregar(
+            chave,
+            _carregador,
+            ttl_segundos=ttl_segundos,
+            namespace=namespace,
+            timeout_coalescencia_segundos=timeout_coalescencia_segundos,
+            fallback=fallback,
+            instancia=instancia,  # type: ignore[arg-type]
+        )
+
     async def resiliencia_executar(
         nome: str,
         operacao_fn: object,
@@ -1774,6 +1883,15 @@ def make_builtins(
     web_realtime_reenviar_pendentes = web_tempo_real_reenviar_pendentes
     segredo_ler = segredo_obter
     cache_invalida_padrao = cache_invalidar_padrao
+    cache_dist_criar = cache_distribuido_criar
+    cache_dist_sincronizar = cache_distribuido_sincronizar
+    cache_dist_obter = cache_distribuido_obter
+    cache_dist_definir = cache_distribuido_definir
+    cache_dist_invalidar_chave = cache_distribuido_invalidar_chave
+    cache_dist_invalidar_padrao = cache_distribuido_invalidar_padrao
+    cache_dist_stats = cache_distribuido_stats
+    cache_dist_limpar = cache_distribuido_limpar
+    cache_dist_obter_ou_carregar = cache_distribuido_obter_ou_carregar
     armazenamento_local_criar = armazenamento_criar_local
     armazenamento_s3_criar = armazenamento_criar_s3
     midia_gzip_comprimir = midia_comprimir_gzip
@@ -1848,6 +1966,25 @@ def make_builtins(
         "cache_limpar": cache_limpar,
         "cache_aquecer": cache_aquecer,
         "cache_stats": cache_stats,
+        "cache_distribuido_criar": cache_distribuido_criar,
+        "cache_distribuido_configurar_backplane": cache_distribuido_configurar_backplane,
+        "cache_distribuido_sincronizar": cache_distribuido_sincronizar,
+        "cache_distribuido_definir": cache_distribuido_definir,
+        "cache_distribuido_obter": cache_distribuido_obter,
+        "cache_distribuido_invalidar_chave": cache_distribuido_invalidar_chave,
+        "cache_distribuido_invalidar_padrao": cache_distribuido_invalidar_padrao,
+        "cache_distribuido_obter_ou_carregar": cache_distribuido_obter_ou_carregar,
+        "cache_distribuido_stats": cache_distribuido_stats,
+        "cache_distribuido_limpar": cache_distribuido_limpar,
+        "cache_dist_criar": cache_dist_criar,
+        "cache_dist_sincronizar": cache_dist_sincronizar,
+        "cache_dist_obter": cache_dist_obter,
+        "cache_dist_definir": cache_dist_definir,
+        "cache_dist_invalidar_chave": cache_dist_invalidar_chave,
+        "cache_dist_invalidar_padrao": cache_dist_invalidar_padrao,
+        "cache_dist_obter_ou_carregar": cache_dist_obter_ou_carregar,
+        "cache_dist_stats": cache_dist_stats,
+        "cache_dist_limpar": cache_dist_limpar,
         "resiliencia_executar": resiliencia_executar,
         "circuito_status": circuito_status,
         "circuito_resetar": circuito_resetar,

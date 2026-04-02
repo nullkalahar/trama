@@ -1,0 +1,15 @@
+função principal()
+    no_a = cache_distribuido_criar("g_produtos", "a", verdadeiro)
+    no_b = cache_distribuido_criar("g_produtos", "b", verdadeiro)
+
+    cache_distribuido_limpar("produtos", no_a)
+    cache_distribuido_limpar("produtos", no_b)
+
+    cache_distribuido_definir("produto:1", {"id": 1, "nome": "Teclado"}, 60, "produtos", no_a)
+
+    valor = cache_distribuido_obter("produto:1", nulo, "produtos", no_b)
+    exibir(valor["nome"])
+
+    st = cache_distribuido_stats("produtos", no_b)
+    exibir(st["hit_ratio"] >= 0)
+fim

@@ -1,0 +1,21 @@
+função principal()
+    no_a = cache_distribuido_criar("g_catalogo", "a", falso)
+    no_b = cache_distribuido_criar("g_catalogo", "b", falso)
+
+    cache_distribuido_limpar("catalogo", no_a)
+    cache_distribuido_limpar("catalogo", no_b)
+
+    cache_distribuido_definir("produto:1", {"id": 1}, 60, "catalogo", no_a)
+    cache_distribuido_definir("produto:2", {"id": 2}, 60, "catalogo", no_a)
+    cache_distribuido_definir("carrinho:1", {"id": 10}, 60, "catalogo", no_a)
+
+    exibir(cache_distribuido_obter("produto:1", nulo, "catalogo", no_b)["id"])
+    exibir(cache_distribuido_obter("produto:2", nulo, "catalogo", no_b)["id"])
+
+    cache_distribuido_invalidar_padrao("produto:*", "catalogo", no_a)
+    cache_distribuido_sincronizar(no_b)
+
+    exibir(cache_distribuido_obter("produto:1", nulo, "catalogo", no_b) == nulo)
+    exibir(cache_distribuido_obter("produto:2", nulo, "catalogo", no_b) == nulo)
+    exibir(cache_distribuido_obter("carrinho:1", nulo, "catalogo", no_b)["id"])
+fim

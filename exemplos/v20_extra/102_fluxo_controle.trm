@@ -1,0 +1,14 @@
+função principal()
+    i = 0
+    soma = 0
+    enquanto i < 5
+        soma = soma + i
+        i = i + 1
+    fim
+
+    se soma >= 10
+        exibir("ok")
+    senão
+        exibir("falhou")
+    fim
+fim

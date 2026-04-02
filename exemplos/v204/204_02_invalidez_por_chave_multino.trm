@@ -1,0 +1,16 @@
+função principal()
+    no_a = cache_distribuido_criar("g_sessao", "a", falso)
+    no_b = cache_dist_criar("g_sessao", "b", falso)
+
+    cache_distribuido_limpar("sessao", no_a)
+    cache_dist_limpar("sessao", no_b)
+
+    cache_distribuido_definir("sessao:42", {"usuario": "ana"}, 120, "sessao", no_a)
+    exibir(cache_dist_obter("sessao:42", nulo, "sessao", no_b)["usuario"])
+
+    cache_distribuido_invalidar_chave("sessao:42", "sessao", no_a)
+    exibir(cache_dist_obter("sessao:42", nulo, "sessao", no_b)["usuario"])
+
+    cache_dist_sincronizar(no_b)
+    exibir(cache_distribuido_obter("sessao:42", nulo, "sessao", no_b) == nulo)
+fim

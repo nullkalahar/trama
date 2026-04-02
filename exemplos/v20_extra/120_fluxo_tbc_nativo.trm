@@ -1,0 +1,6 @@
+função principal()
+    exibir("Fluxo recomendado:")
+    exibir("1) trama compilar arquivo.trm -o arquivo.tbc")
+    exibir("2) trama executar-tbc arquivo.tbc")
+    exibir("3) ./dist/native/trama-native executar-tbc arquivo.tbc")
+fim

@@ -776,16 +776,34 @@ DoD v2.0.3:
 - métricas de entrega e reconexão auditáveis.
 
 ### v2.0.4 - Cache distribuído e coerência
-- [ ] cache distribuído com TTL/invalidação por chave e por padrão.
-- [ ] estratégia cache-aside/read-through para consultas críticas.
-- [ ] sincronização de invalidação entre instâncias.
-- [ ] proteção contra stampede (lock/coalescing).
-- [ ] fallback seguro quando cache indisponível.
-- [ ] métricas de hit ratio, latência e invalidação.
+- [x] cache distribuído com TTL/invalidação por chave e por padrão.
+- [x] estratégia cache-aside/read-through para consultas críticas.
+- [x] sincronização de invalidação entre instâncias.
+- [x] proteção contra stampede (lock/coalescing).
+- [x] fallback seguro quando cache indisponível.
+- [x] métricas de hit ratio, latência e invalidação.
 
 DoD v2.0.4:
 - cache consistente entre nós.
 - sem regressão de integridade de dados com cache ativo.
+
+Entregas implementadas em v2.0.4:
+- runtime de cache distribuído (`cache_runtime`) com:
+  - namespace/chave/padrão, TTL e invalidação local/remota;
+  - estratégia cache-aside/read-through (`cache_distribuido_obter`, `cache_distribuido_obter_ou_carregar`);
+  - sincronização entre instâncias por backplane pub/sub em memória (`cache_distribuido_sincronizar`);
+  - proteção contra stampede com lock por chave + coalescência + timeout/fallback;
+  - fallback degradado com registro de falhas de backend e uso de fallback.
+- superfície canônica em `builtins`/`semantic`:
+  - `cache_distribuido_*` (pt-BR canônico) + aliases `cache_dist_*` para compatibilidade.
+- integração no runtime HTTP (`web_runtime`):
+  - cache de resposta por rota via `opcoes.cache_resposta` (GET), com invalidação reutilizando runtime distribuído.
+- testes:
+  - `tests/test_cache_runtime_v204.py` (unitário, multi-node, TTL, invalidação, fallback e métricas);
+  - `tests/test_web_cache_v204.py` (integração HTTP + cache de rota);
+  - `tests/test_vm.py::test_v204_cache_distribuido_em_vm` (integração VM/.trm).
+- documentação:
+  - manual da versão em `docs/LINGUAGEM_V2_0_4.md`.
 
 ### v2.0.5 - Segurança de produção
 - [ ] refresh token rotation e revogação por sessão/dispositivo.

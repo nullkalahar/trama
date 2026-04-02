@@ -1,0 +1,4 @@
+função principal()
+    importe "../modulos/matematica.trm" como mat
+    exibir(mat["somar"](7, 9))
+fim

@@ -1,0 +1,7 @@
+função principal()
+    itens = ["espada", "arco", "poção"]
+    jogador = {"nome": "ana", "nivel": 5, "itens": itens}
+
+    exibir(jogador["nome"])
+    exibir(jogador["itens"][1])
+fim

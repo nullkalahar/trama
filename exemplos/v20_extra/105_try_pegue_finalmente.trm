@@ -1,0 +1,10 @@
+função principal()
+    tente
+        lance "erro esperado"
+    pegue e
+        exibir("capturado")
+        exibir(e)
+    finalmente
+        exibir("fim do bloco")
+    fim
+fim

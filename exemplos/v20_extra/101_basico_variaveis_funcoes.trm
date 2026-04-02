@@ -1,0 +1,10 @@
+função dobro(x)
+    retorne x * 2
+fim
+
+função principal()
+    nome = "trama"
+    valor = dobro(21)
+    exibir(nome)
+    exibir(valor)
+fim

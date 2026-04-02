@@ -1,0 +1,12 @@
+função principal()
+    segredo = "segredo_local"
+    t = jwt_criar({"sub": "u1", "papel": "admin"}, segredo, 3600)
+    c = jwt_verificar(t, segredo)
+
+    modelo = rbac_criar({"admin": ["usuarios:ler", "usuarios:editar"]})
+    mapa = {}
+    mapa = rbac_atribuir(mapa, "u1", "admin")
+
+    exibir(c["sub"])
+    exibir(rbac_tem_permissao(modelo, mapa, "u1", "usuarios:editar"))
+fim

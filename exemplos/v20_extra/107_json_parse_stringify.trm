@@ -1,0 +1,8 @@
+função principal()
+    obj = {"app": "trama", "versao": "2.0", "ok": verdadeiro}
+    txt = json_stringify(obj)
+    dado = json_parse(txt)
+
+    exibir(dado["app"])
+    exibir(dado["ok"])
+fim

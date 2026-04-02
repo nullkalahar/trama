@@ -1,0 +1,6 @@
+função principal()
+    fila = fila_criar("emails")
+    fila_enfileirar(fila, {"tipo": "boas_vindas", "usuario": "u1"})
+    item = fila_desenfileirar(fila)
+    exibir(item["tipo"])
+fim

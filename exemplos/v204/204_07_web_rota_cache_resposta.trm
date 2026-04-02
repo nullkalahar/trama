@@ -1,0 +1,25 @@
+assíncrona função principal()
+    cache_distribuido_criar("g_http", "web-1", verdadeiro)
+    app = web_criar_app()
+
+    contador = 0
+    função listar_produtos(ctx)
+        contador = contador + 1
+        retorne {"ok": verdadeiro, "dados": {"contador_execucao": contador, "itens": []}}
+    fim
+
+    opcoes_cache = {"cache_resposta": {"namespace": "http", "ttl_segundos": 30}}
+    web_rota(app, "GET", "/produtos", listar_produtos, nulo, opcoes_cache)
+
+    servidor = aguarde web_iniciar(app, "127.0.0.1", 0)
+    base = servidor["base_url"]
+
+    r1 = aguarde http_get(base + "/produtos")
+    r2 = aguarde http_get(base + "/produtos")
+
+    exibir(r1["status"])
+    exibir(r2["status"])
+    exibir(r1["corpo"] == r2["corpo"])
+
+    aguarde web_parar(servidor)
+fim

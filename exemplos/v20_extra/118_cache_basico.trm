@@ -1,0 +1,6 @@
+função principal()
+    cache_salvar("chave:1", {"nome": "ana"}, 60)
+    valor = cache_obter("chave:1")
+    exibir(valor["nome"])
+    cache_invalidar("chave:1")
+fim

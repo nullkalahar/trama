@@ -1,0 +1,17 @@
+assíncrona função principal()
+    no = cache_distribuido_criar("g_preco", "api-1", verdadeiro)
+    cache_distribuido_limpar("precos", no)
+
+    contador = 0
+    função carregar_preco()
+        contador = contador + 1
+        retorne {"sku": "A1", "preco": 99.9, "versao": contador}
+    fim
+
+    p1 = aguarde cache_distribuido_obter_ou_carregar("preco:A1", carregar_preco, 30, "precos", 0.2, nulo, no)
+    p2 = aguarde cache_distribuido_obter_ou_carregar("preco:A1", carregar_preco, 30, "precos", 0.2, nulo, no)
+
+    exibir(p1["versao"])
+    exibir(p2["versao"])
+    exibir(contador)
+fim

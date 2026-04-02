@@ -322,6 +322,38 @@ def test_v11_cache_resiliencia_config_segredos(monkeypatch) -> None:
     assert out[5].endswith("ef")
 
 
+def test_v204_cache_distribuido_em_vm() -> None:
+    codigo = (
+        "assíncrona função principal()\n"
+        "    a = cache_distribuido_criar(\"vm-g\", \"a\", falso)\n"
+        "    b = cache_dist_criar(\"vm-g\", \"b\", falso)\n"
+        "    cache_distribuido_limpar(\"vm\", a)\n"
+        "    cache_dist_limpar(\"vm\", b)\n"
+        "    cache_distribuido_definir(\"k\", {\"v\": 1}, 10, \"vm\", a)\n"
+        "    exibir(cache_dist_obter(\"k\", nulo, \"vm\", b)[\"v\"])\n"
+        "    cache_distribuido_invalidar_chave(\"k\", \"vm\", a)\n"
+        "    exibir(cache_dist_obter(\"k\", nulo, \"vm\", b)[\"v\"])\n"
+        "    cache_dist_sincronizar(b)\n"
+        "    exibir(cache_distribuido_obter(\"k\", nulo, \"vm\", b) == nulo)\n"
+        "    contador = 0\n"
+        "    função carregar()\n"
+        "        contador = contador + 1\n"
+        "        retorne {\"n\": contador}\n"
+        "    fim\n"
+        "    r1 = aguarde cache_distribuido_obter_ou_carregar(\"coalescido\", carregar, 5, \"vm\", 0.2, nulo, a)\n"
+        "    r2 = aguarde cache_dist_obter_ou_carregar(\"coalescido\", carregar, 5, \"vm\", 0.2, nulo, a)\n"
+        "    exibir(r1[\"n\"])\n"
+        "    exibir(r2[\"n\"])\n"
+        "    exibir(contador)\n"
+        "    st = cache_distribuido_stats(\"vm\", a)\n"
+        "    exibir(st[\"hit_ratio\"] >= 0)\n"
+        "    exibir(st[\"latencias\"][\"obter\"][\"amostras\"] >= 1)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["1", "1", "True", "1", "1", "1", "True", "True"]
+
+
 def test_v12_storage_media_local(tmp_path) -> None:
     storage_dir = tmp_path / "storage"
     codigo = (

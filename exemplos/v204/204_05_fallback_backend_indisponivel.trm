@@ -1,0 +1,28 @@
+assíncrona função principal()
+    no = cache_distribuido_criar("g_fallback", "api", verdadeiro)
+    cache_distribuido_limpar("critico", no)
+
+    cache_distribuido_configurar_backplane("g_fallback", falso)
+
+    função carregar_origem()
+        retorne {"ok": verdadeiro, "origem": "db"}
+    fim
+
+    dado = aguarde cache_distribuido_obter_ou_carregar(
+        "consulta:principal",
+        carregar_origem,
+        10,
+        "critico",
+        0.1,
+        {"ok": verdadeiro, "origem": "fallback"},
+        no
+    )
+    exibir(dado["ok"])
+    exibir(dado["origem"])
+
+    st = cache_distribuido_stats("critico", no)
+    exibir(st["falhas_backend"] >= 1)
+    exibir(st["fallback_usado"] >= 0)
+
+    cache_distribuido_configurar_backplane("g_fallback", verdadeiro)
+fim
