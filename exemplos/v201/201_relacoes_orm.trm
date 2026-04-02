@@ -1,0 +1,16 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_v201_relacoes.db")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS autores (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL)")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, autor_id INTEGER NOT NULL, titulo TEXT NOT NULL)")
+
+    aid = aguarde modelo_inserir(conn, "autores", {"nome": "ana"})
+    _ = aguarde modelo_inserir(conn, "posts", {"autor_id": aid, "titulo": "post 1"})
+
+    m = orm_modelo("posts")
+    m = orm_relacao_um_para_um(m, "autor", "autores", "autor_id", "id", "eager")
+
+    lista = aguarde modelo_listar(conn, m)
+    exibir(lista["itens"][0]["autor"]["nome"])
+
+    aguarde banco_fechar(conn)
+fim

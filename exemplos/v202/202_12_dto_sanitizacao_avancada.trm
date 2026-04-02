@@ -1,0 +1,20 @@
+função principal()
+    dto = {
+        "tipo": "objeto",
+        "campos": {
+            "apelido": {
+                "tipo": "texto",
+                "sanitizar": {
+                    "trim": verdadeiro,
+                    "colapsar_espacos": verdadeiro,
+                    "minusculo": verdadeiro,
+                    "remover_acentos": verdadeiro,
+                    "remover_html": verdadeiro
+                }
+            }
+        }
+    }
+    r = dto_validar(dto, {"apelido": "  <b>JoÃO   dÉv</b>  "}, "corpo")
+    exibir(r["ok"])
+    exibir(r["dados"]["apelido"])
+fim

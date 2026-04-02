@@ -627,6 +627,54 @@ def test_v10_jobs_fila_retry_idempotencia() -> None:
     assert out == ["True", "True", "1", "0"]
 
 
+def test_v202_dto_contrato_versionado_em_vm() -> None:
+    codigo = (
+        "função criar(req)\n"
+        "    retorne {\"status\": 201, \"json\": {\"ok\": verdadeiro, \"dados\": req[\"corpo\"], \"erro\": nulo, \"meta\": {\"v\": 2}, \"links\": {\"self\": \"/api/v1/usuarios/1\"}}}\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    app = web_criar_app()\n"
+        "    dto = {\n"
+        "        \"corpo\": {\n"
+        "            \"tipo\": \"objeto\",\n"
+        "            \"permitir_campos_extras\": falso,\n"
+        "            \"campos\": {\n"
+        "                \"nome\": {\"tipo\": \"texto\", \"obrigatorio\": verdadeiro, \"sanitizar\": {\"trim\": verdadeiro}},\n"
+        "                \"idade\": {\"tipo\": \"inteiro\", \"coagir\": verdadeiro, \"minimo\": 0},\n"
+        "                \"ativo\": {\"tipo\": \"logico\", \"coagir\": verdadeiro, \"padrao\": verdadeiro}\n"
+        "            }\n"
+        "        }\n"
+        "    }\n"
+        "    contrato = {\n"
+        "        \"versao_padrao\": \"v2\",\n"
+        "        \"versoes\": {\n"
+        "            \"v1\": {\"envelope\": verdadeiro, \"campos_obrigatorios\": [\"ok\", \"dados\", \"erro\", \"meta\"]},\n"
+        "            \"v2\": {\"envelope\": verdadeiro, \"campos_obrigatorios\": [\"ok\", \"dados\", \"erro\", \"meta\", \"links\"]}\n"
+        "        },\n"
+        "        \"retrocompativel\": {\"legacy\": \"v1\"}\n"
+        "    }\n"
+        "    web_rota_dto(app, \"POST\", \"/api/v1/usuarios\", criar, dto, contrato, nulo, {\"contrato_entrada\": {\"campos_permitidos\": {\"corpo\": [\"nome\", \"idade\", \"ativo\"]}}})\n"
+        "    servidor = aguarde web_iniciar(app, \"127.0.0.1\", 0)\n"
+        "    base = servidor[\"base_url\"]\n"
+        "    r1 = aguarde http_post(base + \"/api/v1/usuarios\", {\"nome\": \"  Ana  \", \"idade\": \"33\", \"ativo\": \"true\", \"extra\": 1}, {\"Content-Type\": \"application/json\", \"X-Contrato-Versao\": \"legacy\"})\n"
+        "    exibir(r1[\"status\"])\n"
+        "    exibir(r1[\"json\"][\"dados\"][\"nome\"])\n"
+        "    exibir(r1[\"json\"][\"dados\"][\"idade\"])\n"
+        "    exibir(r1[\"headers\"][\"X-Contrato-Versao-Aplicada\"])\n"
+        "    r2 = aguarde http_post(base + \"/api/v1/usuarios\", {\"nome\": \"a\", \"idade\": \"x\"}, {\"Content-Type\": \"application/json\"})\n"
+        "    exibir(r2[\"status\"])\n"
+        "    exibir(r2[\"json\"][\"erro\"][\"codigo\"])\n"
+        "    exibir(r2[\"json\"][\"erro\"][\"detalhes\"][\"campos\"][0][\"codigo\"])\n"
+        "    ex = dto_gerar_exemplos(dto, \"corpo\")\n"
+        "    exibir(ex[\"validos\"][0][\"nome\"])\n"
+        "    exibir(ex[\"invalidos\"][0][\"descricao\"])\n"
+        "    aguarde web_parar(servidor)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["201", "Ana", "33", "v1", "422", "VALIDACAO_FALHOU", "TIPO_INVALIDO", "texto", "tipo_invalido"]
+
+
 def test_v10_migracao_versionada_e_rollback(tmp_path) -> None:
     db_file = tmp_path / "trama_v10.db"
     codigo = (
@@ -669,6 +717,34 @@ def test_v10_migracao_dry_run_e_compatibilidade(tmp_path) -> None:
     )
     _, out = _run_capture(codigo)
     assert out == ["True", "True", "True", "True", "False"]
+
+
+def test_v201_orm_relacoes_schema_diff_seed_ambiente(tmp_path) -> None:
+    db_file = tmp_path / "trama_v201.db"
+    codigo = (
+        "assíncrona função principal()\n"
+        f"    conn = aguarde banco_conectar(\"sqlite:///{db_file}\")\n"
+        "    aguarde banco_executar(conn, \"CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE)\")\n"
+        "    aguarde banco_executar(conn, \"CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, titulo TEXT NOT NULL)\")\n"
+        "    exibir(aguarde modelo_inserir(conn, \"usuarios\", {\"email\": \"ana@x\"}) == 1)\n"
+        "    exibir(aguarde modelo_inserir(conn, \"posts\", {\"usuario_id\": 1, \"titulo\": \"p1\"}) == 1)\n"
+        "    m = orm_modelo(\"posts\")\n"
+        "    m = orm_relacao_um_para_um(m, \"autor\", \"usuarios\", \"usuario_id\", \"id\", \"eager\")\n"
+        "    l = aguarde modelo_listar(conn, m)\n"
+        "    exibir(l[\"itens\"][0][\"autor\"][\"email\"])\n"
+        "    mig = aguarde migracao_aplicar_versionada_v2(conn, \"201.001\", \"x\", \"CREATE TABLE IF NOT EXISTS z (id INTEGER PRIMARY KEY);\", \"DROP TABLE IF EXISTS z;\", \"teste\")\n"
+        "    exibir(mig[\"ambiente\"])\n"
+        "    tri = aguarde migracao_trilha(conn, 10)\n"
+        "    exibir(tamanho(tri) >= 1)\n"
+        "    sem1 = aguarde semente_aplicar_ambiente(conn, \"teste\", \"001\", \"INSERT INTO z (id) VALUES (1);\")\n"
+        "    sem2 = aguarde semente_aplicar_ambiente(conn, \"teste\", \"002\", \"INSERT INTO z (id) VALUES (2);\")\n"
+        "    exibir(sem1[\"ok\"])\n"
+        "    exibir(sem2[\"ok\"])\n"
+        "    aguarde banco_fechar(conn)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["True", "True", "ana@x", "teste", "True", "True", "True"]
 
 
 def test_v10_carga_basica_http() -> None:

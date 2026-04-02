@@ -1,0 +1,12 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_v201_seed.db")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS itens (id INTEGER PRIMARY KEY, nome TEXT)")
+
+    s1 = aguarde semente_aplicar_ambiente(conn, "dev", "001_base", "INSERT INTO itens (id, nome) VALUES (1, 'a')")
+    s2 = aguarde semente_aplicar_ambiente(conn, "dev", "001_base", "INSERT INTO itens (id, nome) VALUES (1, 'a')")
+
+    exibir(s1["aplicada"])
+    exibir(s2["aplicada"])
+
+    aguarde banco_fechar(conn)
+fim

@@ -1,0 +1,22 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_ex_v201_210.db")
+
+    itens = schema_definir_tabela(
+        "itens",
+        [
+            {"nome": "id", "tipo": "INTEGER", "pk": verdadeiro},
+            {"nome": "nome", "tipo": "TEXT", "nullable": falso}
+        ]
+    )
+    esperado = schema_definir([itens])
+    atual = aguarde schema_inspecionar(conn)
+    diff = schema_diff(atual, esperado)
+
+    dry = aguarde schema_aplicar_diff(conn, diff, verdadeiro)
+    exibir(dry["dry_run"])
+    exibir(json_stringify(dry))
+
+    real = aguarde schema_aplicar_diff(conn, diff, falso)
+    exibir(json_stringify(real))
+    aguarde banco_fechar(conn)
+fim

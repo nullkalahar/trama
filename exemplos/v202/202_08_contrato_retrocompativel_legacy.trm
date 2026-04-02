@@ -1,0 +1,24 @@
+função detalhar(req)
+    retorne {"status": 200, "json": {"ok": verdadeiro, "dados": {"id": 1}, "erro": nulo, "meta": {"v": 2}, "links": {"self": "/api/v1/usuarios/1"}}}
+fim
+
+assíncrona função principal()
+    app = web_criar_app()
+    dto = {"corpo": {"tipo": "objeto", "campos": {"x": {"tipo": "texto"}}}}
+    contrato = {
+        "versao_padrao": "v2",
+        "versoes": {
+            "v1": {"envelope": verdadeiro, "campos_obrigatorios": ["ok", "dados", "erro", "meta"]},
+            "v2": {"envelope": verdadeiro, "campos_obrigatorios": ["ok", "dados", "erro", "meta", "links"]}
+        },
+        "retrocompativel": {"legacy": "v1"}
+    }
+    web_rota_dto(app, "GET", "/api/v1/usuarios/1", detalhar, dto, contrato)
+    s = aguarde web_iniciar(app, "127.0.0.1", 0)
+    b = s["base_url"]
+    r = aguarde http_get(b + "/api/v1/usuarios/1", {"X-Contrato-Versao": "legacy"})
+    exibir(r["status"])
+    exibir(r["headers"]["X-Contrato-Versao-Solicitada"])
+    exibir(r["headers"]["X-Contrato-Versao-Aplicada"])
+    aguarde web_parar(s)
+fim

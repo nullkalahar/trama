@@ -1,0 +1,21 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_ex_v201_206.db")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS autores (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT);")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, autor_id INTEGER, titulo TEXT);")
+
+    id_autor = aguarde modelo_inserir(conn, "autores", {"nome": "ana"})
+    aguarde modelo_inserir(conn, "posts", {"autor_id": id_autor, "titulo": "p1"})
+    aguarde modelo_inserir(conn, "posts", {"autor_id": id_autor, "titulo": "p2"})
+    aguarde modelo_inserir(conn, "posts", {"autor_id": id_autor, "titulo": "p3"})
+
+    m = orm_modelo("posts")
+    f = {}
+    op1 = {"pagina": 1, "limite": 2, "ordenacao": "id asc"}
+    op2 = {"pagina": 2, "limite": 2, "ordenacao": "id asc"}
+    r1 = aguarde modelo_listar(conn, m, f, op1)
+    r2 = aguarde modelo_listar(conn, m, f, op2)
+
+    exibir(tamanho(r1["itens"]))
+    exibir(tamanho(r2["itens"]))
+    aguarde banco_fechar(conn)
+fim

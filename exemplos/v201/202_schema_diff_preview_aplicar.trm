@@ -1,0 +1,26 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_v201_schema.db")
+
+    t_usuarios = schema_definir_tabela(
+        "usuarios",
+        [
+            {"nome": "id", "tipo": "INTEGER", "pk": verdadeiro},
+            {"nome": "email", "tipo": "TEXT", "nulo": falso}
+        ],
+        [schema_constraint_unica(["email"], "uk_email")]
+    )
+
+    esperado = schema_definir([t_usuarios])
+    atual = aguarde schema_inspecionar(conn)
+    d = schema_diff(atual, esperado)
+    p = schema_preview_plano(d)
+    exibir(p["total"] >= 1)
+
+    dry = aguarde schema_aplicar_diff(conn, d, verdadeiro)
+    exibir(dry["dry_run"])
+
+    real = aguarde schema_aplicar_diff(conn, d, falso)
+    exibir(real["ok"])
+
+    aguarde banco_fechar(conn)
+fim

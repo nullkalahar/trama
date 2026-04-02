@@ -1,0 +1,16 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_ex_v201_212.db")
+
+    a = aguarde migracao_versionada_aplicar(
+        conn,
+        "001",
+        "criar_t",
+        "CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY);",
+        "DROP TABLE IF EXISTS t;"
+    )
+    d = aguarde migracao_desfazer_ultima(conn)
+
+    exibir(a["aplicada"])
+    exibir(json_stringify(d))
+    aguarde banco_fechar(conn)
+fim

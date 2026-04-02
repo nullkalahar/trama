@@ -19,9 +19,428 @@ import time
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 import uuid
+import unicodedata
 
 from . import observability_runtime
 from . import security_runtime
+
+
+def _erro_campo_validacao(
+    codigo: str,
+    campo: str,
+    mensagem: str,
+    detalhes: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return {
+        "codigo": str(codigo),
+        "campo": str(campo),
+        "mensagem": str(mensagem),
+        "detalhes": dict(detalhes or {}),
+    }
+
+
+def _coagir_logico(valor: object) -> tuple[bool, bool]:
+    if isinstance(valor, bool):
+        return True, valor
+    if isinstance(valor, (int, float)):
+        if float(valor) == 1.0:
+            return True, True
+        if float(valor) == 0.0:
+            return True, False
+        return False, False
+    if isinstance(valor, str):
+        v = valor.strip().lower()
+        if v in {"1", "true", "verdadeiro", "sim", "s", "on"}:
+            return True, True
+        if v in {"0", "false", "falso", "nao", "não", "n", "off"}:
+            return True, False
+    return False, False
+
+
+def _normalizar_texto(valor: str, sanitizar: dict[str, object]) -> str:
+    out = valor
+    if bool(sanitizar.get("trim", True)):
+        out = out.strip()
+    if bool(sanitizar.get("colapsar_espacos", False)):
+        out = re.sub(r"\s+", " ", out)
+    if bool(sanitizar.get("minusculo", False)):
+        out = out.lower()
+    if bool(sanitizar.get("maiusculo", False)):
+        out = out.upper()
+    if bool(sanitizar.get("remover_acentos", False)):
+        decomposed = unicodedata.normalize("NFD", out)
+        out = "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
+    if bool(sanitizar.get("remover_html", False)):
+        out = re.sub(r"<[^>]+>", "", out)
+    return out
+
+
+def _normalizar_spec_dto(spec: object) -> dict[str, object]:
+    if isinstance(spec, str):
+        return {"tipo": spec}
+    if not isinstance(spec, dict):
+        return {}
+    obj = dict(spec)
+    if "tipo" in obj:
+        return obj
+    if "campos" in obj or "propriedades" in obj:
+        obj["tipo"] = obj.get("tipo", "objeto")
+        return obj
+    # shorthand: mapa de campos
+    if obj and all(isinstance(k, str) for k in obj.keys()):
+        return {"tipo": "objeto", "campos": obj}
+    return obj
+
+
+def _validar_dto_valor(
+    valor: object,
+    spec_raw: object,
+    *,
+    campo: str,
+    erros: list[dict[str, object]],
+    aplicar_padrao: bool = True,
+) -> object:
+    spec = _normalizar_spec_dto(spec_raw)
+    tipo = str(spec.get("tipo", "qualquer")).lower()
+
+    if valor is None:
+        if "padrao" in spec and aplicar_padrao:
+            return spec.get("padrao")
+        if bool(spec.get("permitir_nulo", False)):
+            return None
+        erros.append(
+            _erro_campo_validacao(
+                "CAMPO_NULO_NAO_PERMITIDO",
+                campo,
+                "Campo não permite valor nulo.",
+                {"tipo_esperado": tipo},
+            )
+        )
+        return None
+
+    if "enum" in spec:
+        enum_vals = list(spec.get("enum", []))
+        if valor not in enum_vals:
+            erros.append(
+                _erro_campo_validacao(
+                    "VALOR_FORA_ENUM",
+                    campo,
+                    "Valor fora do conjunto permitido.",
+                    {"permitidos": enum_vals},
+                )
+            )
+            return valor
+
+    coagir = bool(spec.get("coagir", False))
+    if tipo in {"texto", "string"}:
+        texto: str
+        if isinstance(valor, str):
+            texto = valor
+        elif coagir:
+            texto = str(valor)
+        else:
+            erros.append(_erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "texto"}))
+            return valor
+        texto = _normalizar_texto(texto, dict(spec.get("sanitizar", {})))
+        tmin = spec.get("tamanho_min")
+        tmax = spec.get("tamanho_max")
+        if isinstance(tmin, (int, float)) and len(texto) < int(tmin):
+            erros.append(
+                _erro_campo_validacao(
+                    "TAMANHO_MINIMO_INVALIDO",
+                    campo,
+                    "Texto abaixo do tamanho mínimo.",
+                    {"tamanho_min": int(tmin), "tamanho_atual": len(texto)},
+                )
+            )
+        if isinstance(tmax, (int, float)) and len(texto) > int(tmax):
+            erros.append(
+                _erro_campo_validacao(
+                    "TAMANHO_MAXIMO_INVALIDO",
+                    campo,
+                    "Texto acima do tamanho máximo.",
+                    {"tamanho_max": int(tmax), "tamanho_atual": len(texto)},
+                )
+            )
+        return texto
+
+    if tipo in {"inteiro", "int"}:
+        out: int
+        if isinstance(valor, bool):
+            erros.append(_erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "inteiro"}))
+            return valor
+        if isinstance(valor, int):
+            out = valor
+        elif coagir and isinstance(valor, str) and re.fullmatch(r"[+-]?\d+", valor.strip()):
+            out = int(valor.strip())
+        elif coagir and isinstance(valor, float) and float(valor).is_integer():
+            out = int(valor)
+        else:
+            erros.append(_erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "inteiro"}))
+            return valor
+        minimo = spec.get("minimo")
+        maximo = spec.get("maximo")
+        if isinstance(minimo, (int, float)) and out < int(minimo):
+            erros.append(
+                _erro_campo_validacao(
+                    "VALOR_MINIMO_INVALIDO",
+                    campo,
+                    "Valor abaixo do mínimo.",
+                    {"minimo": int(minimo), "valor": out},
+                )
+            )
+        if isinstance(maximo, (int, float)) and out > int(maximo):
+            erros.append(
+                _erro_campo_validacao(
+                    "VALOR_MAXIMO_INVALIDO",
+                    campo,
+                    "Valor acima do máximo.",
+                    {"maximo": int(maximo), "valor": out},
+                )
+            )
+        return out
+
+    if tipo in {"numero", "float", "decimal"}:
+        out_num: float
+        if isinstance(valor, bool):
+            erros.append(_erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "numero"}))
+            return valor
+        if isinstance(valor, (int, float)):
+            out_num = float(valor)
+        elif coagir and isinstance(valor, str):
+            try:
+                out_num = float(valor.strip())
+            except ValueError:
+                erros.append(_erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "numero"}))
+                return valor
+        else:
+            erros.append(_erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "numero"}))
+            return valor
+        minimo = spec.get("minimo")
+        maximo = spec.get("maximo")
+        if isinstance(minimo, (int, float)) and out_num < float(minimo):
+            erros.append(
+                _erro_campo_validacao(
+                    "VALOR_MINIMO_INVALIDO",
+                    campo,
+                    "Valor abaixo do mínimo.",
+                    {"minimo": float(minimo), "valor": out_num},
+                )
+            )
+        if isinstance(maximo, (int, float)) and out_num > float(maximo):
+            erros.append(
+                _erro_campo_validacao(
+                    "VALOR_MAXIMO_INVALIDO",
+                    campo,
+                    "Valor acima do máximo.",
+                    {"maximo": float(maximo), "valor": out_num},
+                )
+            )
+        return out_num
+
+    if tipo in {"logico", "bool", "booleano"}:
+        ok_log, out_log = _coagir_logico(valor) if coagir or isinstance(valor, bool) else (False, False)
+        if not ok_log:
+            erros.append(_erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "logico"}))
+            return valor
+        return out_log
+
+    if tipo in {"lista", "array"}:
+        if not isinstance(valor, list):
+            if coagir and isinstance(valor, tuple):
+                valor = list(valor)
+            else:
+                erros.append(_erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "lista"}))
+                return valor
+        itens_spec = spec.get("itens")
+        out_list: list[object] = []
+        for idx, item in enumerate(valor):
+            item_campo = f"{campo}[{idx}]"
+            if itens_spec is None:
+                out_list.append(item)
+            else:
+                out_list.append(_validar_dto_valor(item, itens_spec, campo=item_campo, erros=erros, aplicar_padrao=False))
+        tmin = spec.get("tamanho_min")
+        tmax = spec.get("tamanho_max")
+        if isinstance(tmin, (int, float)) and len(out_list) < int(tmin):
+            erros.append(
+                _erro_campo_validacao(
+                    "TAMANHO_MINIMO_INVALIDO",
+                    campo,
+                    "Lista abaixo do tamanho mínimo.",
+                    {"tamanho_min": int(tmin), "tamanho_atual": len(out_list)},
+                )
+            )
+        if isinstance(tmax, (int, float)) and len(out_list) > int(tmax):
+            erros.append(
+                _erro_campo_validacao(
+                    "TAMANHO_MAXIMO_INVALIDO",
+                    campo,
+                    "Lista acima do tamanho máximo.",
+                    {"tamanho_max": int(tmax), "tamanho_atual": len(out_list)},
+                )
+            )
+        return out_list
+
+    if tipo in {"mapa", "objeto", "dict"}:
+        if not isinstance(valor, dict):
+            erros.append(_erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "objeto"}))
+            return valor
+        campos = spec.get("campos")
+        if not isinstance(campos, dict):
+            campos = spec.get("propriedades")
+        campos_map = dict(campos or {})
+        permitir_extras = bool(spec.get("permitir_campos_extras", True))
+        out_obj: dict[str, object] = {}
+        for nome_raw, campo_spec in campos_map.items():
+            nome = str(nome_raw)
+            campo_path = f"{campo}.{nome}" if campo else nome
+            if nome not in valor:
+                norm_spec = _normalizar_spec_dto(campo_spec)
+                if "padrao" in norm_spec:
+                    out_obj[nome] = norm_spec.get("padrao")
+                    continue
+                if bool(norm_spec.get("obrigatorio", False)):
+                    erros.append(
+                        _erro_campo_validacao(
+                            "CAMPO_OBRIGATORIO_AUSENTE",
+                            campo_path,
+                            "Campo obrigatório ausente.",
+                            {},
+                        )
+                    )
+                continue
+            out_obj[nome] = _validar_dto_valor(valor.get(nome), campo_spec, campo=campo_path, erros=erros)
+        if permitir_extras:
+            for k, v in valor.items():
+                if str(k) not in campos_map:
+                    out_obj[str(k)] = v
+        return out_obj
+
+    # tipo qualquer/desconhecido: preserva valor
+    return valor
+
+
+def dto_validar_payload(
+    dto_requisicao: dict[str, object],
+    payload: object,
+    *,
+    contexto: str = "corpo",
+) -> dict[str, object]:
+    dto = dict(dto_requisicao or {})
+    contexto_norm = str(contexto or "corpo")
+    spec_contexto = dto.get(contexto_norm, dto)
+    if isinstance(spec_contexto, dict) and contexto_norm in {"corpo", "consulta", "parametros", "formulario"}:
+        # Se recebeu um mapa com múltiplos contextos e o contexto existe, usa apenas ele.
+        if any(k in dto for k in ["corpo", "consulta", "parametros", "formulario"]) and contexto_norm in dto:
+            spec_contexto = dto[contexto_norm]
+    erros: list[dict[str, object]] = []
+    dados = _validar_dto_valor(payload, spec_contexto, campo=contexto_norm, erros=erros)
+    return {"ok": len(erros) == 0, "dados": dados, "erros": erros}
+
+
+def dto_gerar_exemplos(dto_requisicao: dict[str, object], *, contexto: str = "corpo") -> dict[str, object]:
+    dto = dict(dto_requisicao or {})
+    contexto_norm = str(contexto or "corpo")
+    spec_contexto = dto.get(contexto_norm, dto)
+    if isinstance(spec_contexto, dict) and any(k in dto for k in ["corpo", "consulta", "parametros", "formulario"]):
+        spec_contexto = dto.get(contexto_norm, {})
+    exemplo_base = _gerar_exemplo_por_spec(spec_contexto)
+    invalidos = _gerar_exemplos_invalidos_por_spec(spec_contexto, contexto_norm)
+    return {"validos": [exemplo_base], "invalidos": invalidos}
+
+
+def _gerar_exemplo_por_spec(spec_raw: object) -> object:
+    spec = _normalizar_spec_dto(spec_raw)
+    tipo = str(spec.get("tipo", "qualquer")).lower()
+    if "padrao" in spec:
+        return spec.get("padrao")
+    if "enum" in spec:
+        enum_vals = list(spec.get("enum", []))
+        if enum_vals:
+            return enum_vals[0]
+    if tipo in {"texto", "string"}:
+        return "texto"
+    if tipo in {"inteiro", "int"}:
+        return 1
+    if tipo in {"numero", "float", "decimal"}:
+        return 1.5
+    if tipo in {"logico", "bool", "booleano"}:
+        return True
+    if tipo in {"lista", "array"}:
+        item = _gerar_exemplo_por_spec(spec.get("itens", {"tipo": "texto"}))
+        return [item]
+    if tipo in {"mapa", "objeto", "dict"}:
+        campos = spec.get("campos")
+        if not isinstance(campos, dict):
+            campos = spec.get("propriedades")
+        out: dict[str, object] = {}
+        for k, v in dict(campos or {}).items():
+            s = _normalizar_spec_dto(v)
+            if bool(s.get("obrigatorio", False)) or "padrao" in s:
+                out[str(k)] = _gerar_exemplo_por_spec(v)
+        return out
+    return "valor"
+
+
+def _gerar_exemplos_invalidos_por_spec(spec_raw: object, campo: str) -> list[dict[str, object]]:
+    spec = _normalizar_spec_dto(spec_raw)
+    tipo = str(spec.get("tipo", "qualquer")).lower()
+    invalidos: list[dict[str, object]] = []
+    if tipo in {"inteiro", "int", "numero", "float", "decimal"}:
+        invalidos.append(
+            {
+                "descricao": "tipo_invalido",
+                "entrada": "abc",
+                "erro_esperado": _erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": tipo}),
+            }
+        )
+    elif tipo in {"logico", "bool", "booleano"}:
+        invalidos.append(
+            {
+                "descricao": "tipo_invalido",
+                "entrada": "talvez",
+                "erro_esperado": _erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "logico"}),
+            }
+        )
+    elif tipo in {"texto", "string"}:
+        invalidos.append(
+            {
+                "descricao": "tipo_invalido",
+                "entrada": 123,
+                "erro_esperado": _erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "texto"}),
+            }
+        )
+    elif tipo in {"mapa", "objeto", "dict"}:
+        invalidos.append(
+            {
+                "descricao": "tipo_invalido",
+                "entrada": "nao_objeto",
+                "erro_esperado": _erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "objeto"}),
+            }
+        )
+    elif tipo in {"lista", "array"}:
+        invalidos.append(
+            {
+                "descricao": "tipo_invalido",
+                "entrada": {},
+                "erro_esperado": _erro_campo_validacao("TIPO_INVALIDO", campo, "Tipo inválido.", {"tipo_esperado": "lista"}),
+            }
+        )
+    else:
+        invalidos.append(
+            {
+                "descricao": "campo_ausente",
+                "entrada": None,
+                "erro_esperado": _erro_campo_validacao(
+                    "CAMPO_NULO_NAO_PERMITIDO",
+                    campo,
+                    "Campo não permite valor nulo.",
+                    {"tipo_esperado": tipo},
+                ),
+            }
+        )
+    return invalidos
 
 
 def _parse_multipart_form_data(content_type: str, data: bytes) -> tuple[dict[str, object], dict[str, object]]:
@@ -552,6 +971,7 @@ class WebApp:
         self.static_dir: Path | None = None
         self.rate_limits: list[RateLimitPolicy] = []
         self.api_versions: set[str] = set()
+        self.contratos_http: dict[str, dict[str, object]] = {}
         self.observabilidade_ativa = False
         self.observabilidade_path = "/observabilidade"
         self.alertas_path = "/alertas"
@@ -1283,6 +1703,63 @@ class WebRuntime:
                         missing.append(f"arquivos.{k}")
                 return missing
 
+            @staticmethod
+            def _campos_validacao_por_faltando(missing: list[str]) -> list[dict[str, object]]:
+                return [
+                    _erro_campo_validacao(
+                        "CAMPO_OBRIGATORIO_AUSENTE",
+                        campo,
+                        "Campo obrigatório ausente.",
+                        {},
+                    )
+                    for campo in missing
+                ]
+
+            @staticmethod
+            def _aplicar_contrato_entrada(
+                req: dict[str, object],
+                options: dict[str, object],
+            ) -> dict[str, list[str]]:
+                contrato_entrada = dict(options.get("contrato_entrada", {}))
+                permitidos = dict(contrato_entrada.get("campos_permitidos", {}))
+                removidos: dict[str, list[str]] = {}
+                for secao in ["corpo", "consulta", "parametros", "formulario"]:
+                    campos_permitidos = permitidos.get(secao)
+                    dados = req.get(secao)
+                    if not isinstance(campos_permitidos, list) or not isinstance(dados, dict):
+                        continue
+                    keep = {str(x) for x in campos_permitidos}
+                    drop = [str(k) for k in dados.keys() if str(k) not in keep]
+                    if drop:
+                        for k in drop:
+                            dados.pop(k, None)
+                        removidos[secao] = drop
+                return removidos
+
+            @staticmethod
+            def _aplicar_dto_requisicao(
+                req: dict[str, object],
+                options: dict[str, object],
+            ) -> list[dict[str, object]]:
+                dto_req = options.get("dto_requisicao")
+                if not isinstance(dto_req, dict) or not dto_req:
+                    return []
+                erros: list[dict[str, object]] = []
+                for secao in ["corpo", "consulta", "parametros", "formulario"]:
+                    if secao in dto_req:
+                        spec = dto_req.get(secao)
+                    elif secao == "corpo":
+                        spec = dto_req
+                    else:
+                        continue
+                    dados_atual = req.get(secao, {})
+                    resultado = dto_validar_payload({secao: spec}, dados_atual, contexto=secao)
+                    if bool(resultado.get("ok", False)):
+                        req[secao] = resultado.get("dados", {})
+                    else:
+                        erros.extend(list(resultado.get("erros", [])))
+                return erros
+
             def _apply_auth(
                 self,
                 req: dict[str, object],
@@ -1363,8 +1840,46 @@ class WebRuntime:
                 return 200, {}, payload, "application/json; charset=utf-8"
 
             @staticmethod
-            def _validate_response_contract(value: object, options: dict[str, object]) -> tuple[bool, str | None]:
-                contrato = dict(options.get("contrato_resposta", {}))
+            def _resolver_contrato_resposta(
+                req: dict[str, object],
+                options: dict[str, object],
+            ) -> tuple[dict[str, object], str | None, str | None]:
+                contrato_raw = options.get("contrato_resposta")
+                contrato = dict(contrato_raw or {}) if isinstance(contrato_raw, dict) else {}
+                if not contrato:
+                    return {}, None, None
+
+                versoes = dict(contrato.get("versoes", {}))
+                if not versoes:
+                    return contrato, None, None
+
+                cabecalhos = req.get("cabecalhos", {})
+                consulta = req.get("consulta", {})
+                if not isinstance(cabecalhos, dict):
+                    cabecalhos = {}
+                if not isinstance(consulta, dict):
+                    consulta = {}
+                versao_solicitada = str(
+                    cabecalhos.get("x-contrato-versao")
+                    or cabecalhos.get("x-api-contract-version")
+                    or consulta.get("versao_contrato")
+                    or consulta.get("contract_version")
+                    or contrato.get("versao_padrao")
+                    or ""
+                ).strip()
+                if not versao_solicitada:
+                    versao_solicitada = sorted(str(k) for k in versoes.keys())[0]
+                if versao_solicitada in versoes:
+                    return dict(versoes.get(versao_solicitada, {})), versao_solicitada, versao_solicitada
+
+                retro = dict(contrato.get("retrocompativel", {}))
+                versao_aplicada = str(retro.get(versao_solicitada, "")).strip()
+                if versao_aplicada and versao_aplicada in versoes:
+                    return dict(versoes.get(versao_aplicada, {})), versao_solicitada, versao_aplicada
+                return {"__erro__": "VERSAO_CONTRATO_INVALIDA"}, versao_solicitada, None
+
+            @staticmethod
+            def _validate_response_contract(value: object, contrato: dict[str, object]) -> tuple[bool, str | None]:
                 if not contrato:
                     return True, None
                 required_top = list(contrato.get("campos_obrigatorios", []))
@@ -1567,7 +2082,44 @@ class WebRuntime:
                     headers = {"X-Request-Id": request_id} if request_id else None
                     self._send_json(
                         422,
-                        {"ok": False, "erro": {"codigo": "VALIDACAO_FALHOU", "detalhes": {"faltando": miss}}},
+                        {
+                            "ok": False,
+                            "erro": {
+                                "codigo": "VALIDACAO_FALHOU",
+                                "mensagem": "Falha de validação da requisição.",
+                                "detalhes": {
+                                    "faltando": miss,
+                                    "campos": self._campos_validacao_por_faltando(miss),
+                                },
+                            },
+                        },
+                        headers,
+                    )
+                    return
+
+                removidos = self._aplicar_contrato_entrada(req, options)
+                if removidos:
+                    req["campos_removidos"] = removidos
+
+                dto_erros = self._aplicar_dto_requisicao(req, options)
+                req["body"] = req["corpo"]
+                req["query"] = req["consulta"]
+                req["params"] = req["parametros"]
+                req["form"] = req["formulario"]
+                if dto_erros:
+                    headers = {"X-Request-Id": request_id} if request_id else None
+                    self._send_json(
+                        422,
+                        {
+                            "ok": False,
+                            "erro": {
+                                "codigo": "VALIDACAO_FALHOU",
+                                "mensagem": "Falha de validação da requisição.",
+                                "detalhes": {
+                                    "campos": dto_erros,
+                                },
+                            },
+                        },
                         headers,
                     )
                     return
@@ -1576,6 +2128,31 @@ class WebRuntime:
                 if not auth_ok and auth_err is not None:
                     headers = {"X-Request-Id": request_id} if request_id else None
                     self._send_json(auth_err[0], auth_err[1], headers)
+                    return
+
+                contrato_escolhido, versao_contrato_solicitada, versao_contrato_aplicada = self._resolver_contrato_resposta(req, options)
+                if contrato_escolhido.get("__erro__") == "VERSAO_CONTRATO_INVALIDA":
+                    headers = {"X-Request-Id": request_id} if request_id else {}
+                    if versao_contrato_solicitada:
+                        headers["X-Contrato-Versao-Solicitada"] = versao_contrato_solicitada
+                    self._send_json(
+                        400,
+                        {
+                            "ok": False,
+                            "erro": {
+                                "codigo": "CONTRATO_VERSAO_INVALIDA",
+                                "mensagem": "Versão de contrato não suportada.",
+                                "detalhes": {
+                                    "versao_solicitada": versao_contrato_solicitada,
+                                    "versoes_disponiveis": sorted(
+                                        str(k)
+                                        for k in dict(dict(options.get("contrato_resposta", {})).get("versoes", {})).keys()
+                                    ),
+                                },
+                            },
+                        },
+                        headers,
+                    )
                     return
 
                 try:
@@ -1589,9 +2166,13 @@ class WebRuntime:
                             return
 
                     result = invoke(route.data["handler"], [req])
-                    ok_contract, contract_err = self._validate_response_contract(result, options)
+                    ok_contract, contract_err = self._validate_response_contract(result, contrato_escolhido)
                     if not ok_contract:
-                        headers = {"X-Request-Id": request_id} if request_id else None
+                        headers = {"X-Request-Id": request_id} if request_id else {}
+                        if versao_contrato_solicitada:
+                            headers["X-Contrato-Versao-Solicitada"] = versao_contrato_solicitada
+                        if versao_contrato_aplicada:
+                            headers["X-Contrato-Versao-Aplicada"] = versao_contrato_aplicada
                         self._send_json(
                             500,
                             {
@@ -1599,7 +2180,11 @@ class WebRuntime:
                                 "erro": {
                                     "codigo": "CONTRATO_INVALIDO",
                                     "mensagem": "Resposta do handler violou contrato da API.",
-                                    "detalhes": contract_err,
+                                    "detalhes": {
+                                        "erro": contract_err,
+                                        "versao_solicitada": versao_contrato_solicitada,
+                                        "versao_aplicada": versao_contrato_aplicada,
+                                    },
                                 },
                             },
                             headers,
@@ -1621,6 +2206,10 @@ class WebRuntime:
                     final_headers = {str(k): str(v) for k, v in dict(resp_map.get("cabecalhos", {})).items()}
                     if request_id:
                         final_headers["X-Request-Id"] = request_id
+                    if versao_contrato_solicitada:
+                        final_headers["X-Contrato-Versao-Solicitada"] = versao_contrato_solicitada
+                    if versao_contrato_aplicada:
+                        final_headers["X-Contrato-Versao-Aplicada"] = versao_contrato_aplicada
                     self._send_bytes(int(resp_map.get("status", status)), body_bytes, ctype, final_headers)
                 except Exception as exc:  # noqa: BLE001
                     if app.error_handler is not None:

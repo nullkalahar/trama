@@ -1,0 +1,27 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_ex_v201_209.db")
+
+    usuarios = schema_definir_tabela(
+        "usuarios",
+        [
+            {"nome": "id", "tipo": "INTEGER", "pk": verdadeiro},
+            {"nome": "email", "tipo": "TEXT", "nullable": falso},
+            {"nome": "idade", "tipo": "INTEGER", "nullable": falso}
+        ],
+        [
+            schema_constraint_unica(["email"], "uk_usuarios_email"),
+            schema_constraint_check("idade >= 0", "chk_idade")
+        ]
+    )
+
+    esperado = schema_definir([usuarios])
+    atual = aguarde schema_inspecionar(conn)
+    diff = schema_diff(atual, esperado)
+    plano = schema_preview_plano(diff)
+
+    exibir(json_stringify(plano))
+    aguarde schema_aplicar_diff(conn, diff, falso)
+    atual2 = aguarde schema_inspecionar(conn)
+    exibir(tamanho(atual2["tabelas"]))
+    aguarde banco_fechar(conn)
+fim

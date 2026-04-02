@@ -918,6 +918,33 @@ def make_builtins(
         _ = web_api_versionar(app, versao_api)
         return None
 
+    def web_rota_dto(
+        app: object,
+        metodo: str,
+        caminho: str,
+        handler_fn: object,
+        dto_requisicao: dict[str, object],
+        contrato_resposta: dict[str, object] | None = None,
+        schema: dict[str, object] | None = None,
+        opcoes: dict[str, object] | None = None,
+    ) -> None:
+        opts = dict(opcoes or {})
+        opts["dto_requisicao"] = dict(dto_requisicao or {})
+        if contrato_resposta is not None:
+            opts["contrato_resposta"] = dict(contrato_resposta or {})
+        web_rota(app, metodo, caminho, handler_fn, schema or {}, opts)
+        return None
+
+    def dto_validar(
+        dto_requisicao: dict[str, object],
+        payload: object,
+        contexto: str = "corpo",
+    ) -> dict[str, object]:
+        return web_runtime.dto_validar_payload(dto_requisicao, payload, contexto=contexto)
+
+    def dto_gerar_exemplos(dto_requisicao: dict[str, object], contexto: str = "corpo") -> dict[str, object]:
+        return web_runtime.dto_gerar_exemplos(dto_requisicao, contexto=contexto)
+
     def web_middleware(app: object, middleware_fn: object, fase: str = "pre") -> None:
         web_app = _as_app(app)
         if fase == "pos":
@@ -1415,6 +1442,167 @@ def make_builtins(
             raise TypeError("conexão inválida")
         return await db_runtime.migracao_validar_compatibilidade(conn, versao, up_sql)
 
+    def orm_modelo(tabela: str, chave_primaria: str = "id") -> dict[str, object]:
+        return db_runtime.orm_modelo(tabela, chave_primaria)
+
+    def orm_relacao_um_para_um(
+        modelo: dict[str, object],
+        nome_relacao: str,
+        tabela_alvo: str,
+        fk_local: str,
+        pk_alvo: str = "id",
+        modo_relacao: str = "lazy",
+    ) -> dict[str, object]:
+        return db_runtime.orm_relacao_um_para_um(
+            modelo,
+            nome_relacao,
+            tabela_alvo,
+            fk_local,
+            pk_alvo=pk_alvo,
+            modo_relacao=modo_relacao,
+        )
+
+    def orm_relacao_um_para_muitos(
+        modelo: dict[str, object],
+        nome_relacao: str,
+        tabela_alvo: str,
+        fk_no_alvo: str,
+        pk_local: str = "id",
+        modo_relacao: str = "lazy",
+    ) -> dict[str, object]:
+        return db_runtime.orm_relacao_um_para_muitos(
+            modelo,
+            nome_relacao,
+            tabela_alvo,
+            fk_no_alvo,
+            pk_local=pk_local,
+            modo_relacao=modo_relacao,
+        )
+
+    def orm_relacao_muitos_para_muitos(
+        modelo: dict[str, object],
+        nome_relacao: str,
+        tabela_alvo: str,
+        tabela_juncao: str,
+        fk_local_juncao: str,
+        fk_alvo_juncao: str,
+        pk_local: str = "id",
+        pk_alvo: str = "id",
+        modo_relacao: str = "lazy",
+    ) -> dict[str, object]:
+        return db_runtime.orm_relacao_muitos_para_muitos(
+            modelo,
+            nome_relacao,
+            tabela_alvo,
+            tabela_juncao,
+            fk_local_juncao,
+            fk_alvo_juncao,
+            pk_local=pk_local,
+            pk_alvo=pk_alvo,
+            modo_relacao=modo_relacao,
+        )
+
+    async def orm_listar(
+        conn: object,
+        modelo: dict[str, object],
+        filtros: dict[str, object] | None = None,
+        opcoes: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.orm_listar(conn, modelo, filtros=filtros, opcoes=opcoes)
+
+    def schema_constraint_unica(colunas: list[str], nome: str | None = None) -> dict[str, object]:
+        return db_runtime.schema_constraint_unica(colunas, nome=nome)
+
+    def schema_constraint_fk(
+        colunas: list[str],
+        tabela_referencia: str,
+        colunas_referencia: list[str],
+        nome: str | None = None,
+        on_delete: str = "NO ACTION",
+        on_update: str = "NO ACTION",
+    ) -> dict[str, object]:
+        return db_runtime.schema_constraint_fk(
+            colunas,
+            tabela_referencia,
+            colunas_referencia,
+            nome=nome,
+            on_delete=on_delete,
+            on_update=on_update,
+        )
+
+    def schema_constraint_check(expressao: str, nome: str | None = None) -> dict[str, object]:
+        return db_runtime.schema_constraint_check(expressao, nome=nome)
+
+    def schema_definir_tabela(
+        nome: str,
+        colunas: list[dict[str, object]],
+        constraints: list[dict[str, object]] | None = None,
+    ) -> dict[str, object]:
+        return db_runtime.schema_definir_tabela(nome, colunas, constraints)
+
+    def schema_definir(tabelas: list[dict[str, object]]) -> dict[str, object]:
+        return db_runtime.schema_definir(tabelas)
+
+    async def schema_inspecionar(conn: object) -> dict[str, object]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.schema_inspecionar(conn)
+
+    def schema_diff(schema_atual: dict[str, object], schema_esperado: dict[str, object]) -> dict[str, object]:
+        return db_runtime.schema_diff(schema_atual, schema_esperado)
+
+    def schema_preview_plano(diff: dict[str, object]) -> dict[str, object]:
+        return db_runtime.schema_preview_plano(diff)
+
+    async def schema_aplicar_diff(
+        conn: object,
+        diff: dict[str, object],
+        dry_run: bool = False,
+    ) -> dict[str, object]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.schema_aplicar_diff(conn, diff, dry_run=dry_run)
+
+    async def migracao_aplicar_versionada_v2(
+        conn: object,
+        versao: str,
+        nome: str,
+        up_sql: str,
+        down_sql: str = "",
+        ambiente: str = "dev",
+        dry_run: bool = False,
+        lock_owner: str = "trama",
+    ) -> dict[str, object]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.migracao_aplicar_versionada_v2(
+            conn,
+            versao,
+            nome,
+            up_sql,
+            down_sql=down_sql,
+            ambiente=ambiente,
+            dry_run=dry_run,
+            lock_owner=lock_owner,
+        )
+
+    async def migracao_trilha_listar(conn: object, limite: int = 100) -> list[dict[str, object]]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.migracao_trilha_listar(conn, limite=limite)
+
+    async def seed_aplicar_ambiente(
+        conn: object,
+        ambiente: str,
+        nome: str,
+        sql_ou_plano: object,
+    ) -> dict[str, object]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return await db_runtime.seed_aplicar_ambiente(conn, ambiente, nome, sql_ou_plano)
+
     def jwt_criar(
         payload: dict[str, object],
         segredo: str,
@@ -1539,11 +1727,15 @@ def make_builtins(
     modelo_inserir = orm_inserir
     modelo_atualizar = orm_atualizar
     modelo_buscar_por_id = orm_buscar_por_id
+    modelo_listar = orm_listar
     semente_aplicar = seed_aplicar
+    semente_aplicar_ambiente = seed_aplicar_ambiente
     migracao_versionada_aplicar = migracao_aplicar_versionada
+    migracao_versionada_aplicar_v2 = migracao_aplicar_versionada_v2
     migracao_listar = migracao_status
     migracao_desfazer_ultima = migracao_reverter_ultima
     migracao_compatibilidade_validar = migracao_validar_compatibilidade
+    migracao_trilha = migracao_trilha_listar
     token_criar = jwt_criar
     token_verificar = jwt_verificar
     senha_gerar_hash = senha_hash
@@ -1566,6 +1758,7 @@ def make_builtins(
     web_limite_taxa = web_rate_limit
     web_api_versao = web_api_versionar
     web_rota_com_contrato = web_rota_contrato
+    web_rota_com_dto = web_rota_dto
     web_observabilidade_ativar = web_ativar_observabilidade
     web_socket_rota = web_tempo_real_rota
     web_websocket_rota = web_tempo_real_rota
@@ -1689,6 +1882,8 @@ def make_builtins(
         "web_rota": web_rota,
         "web_rota_contrato": web_rota_contrato,
         "web_rota_com_contrato": web_rota_com_contrato,
+        "web_rota_dto": web_rota_dto,
+        "web_rota_com_dto": web_rota_com_dto,
         "web_middleware": web_middleware,
         "web_tratador_erro": web_tratador_erro,
         "web_rate_limit": web_rate_limit,
@@ -1722,6 +1917,8 @@ def make_builtins(
         "web_realtime_reenviar_pendentes": web_realtime_reenviar_pendentes,
         "web_iniciar": web_iniciar,
         "web_parar": web_parar,
+        "dto_validar": dto_validar,
+        "dto_gerar_exemplos": dto_gerar_exemplos,
         "comunidade_criar": comunidade_criar,
         "comunidade_obter": comunidade_obter,
         "comunidade_listar": comunidade_listar,
@@ -1780,12 +1977,29 @@ def make_builtins(
         "orm_inserir": orm_inserir,
         "orm_atualizar": orm_atualizar,
         "orm_buscar_por_id": orm_buscar_por_id,
+        "orm_modelo": orm_modelo,
+        "orm_relacao_um_para_um": orm_relacao_um_para_um,
+        "orm_relacao_um_para_muitos": orm_relacao_um_para_muitos,
+        "orm_relacao_muitos_para_muitos": orm_relacao_muitos_para_muitos,
+        "orm_listar": orm_listar,
+        "schema_constraint_unica": schema_constraint_unica,
+        "schema_constraint_fk": schema_constraint_fk,
+        "schema_constraint_check": schema_constraint_check,
+        "schema_definir_tabela": schema_definir_tabela,
+        "schema_definir": schema_definir,
+        "schema_inspecionar": schema_inspecionar,
+        "schema_diff": schema_diff,
+        "schema_preview_plano": schema_preview_plano,
+        "schema_aplicar_diff": schema_aplicar_diff,
         "migracao_aplicar": migracao_aplicar,
         "seed_aplicar": seed_aplicar,
         "migracao_aplicar_versionada": migracao_aplicar_versionada,
+        "migracao_aplicar_versionada_v2": migracao_aplicar_versionada_v2,
         "migracao_status": migracao_status,
         "migracao_reverter_ultima": migracao_reverter_ultima,
         "migracao_validar_compatibilidade": migracao_validar_compatibilidade,
+        "migracao_trilha_listar": migracao_trilha_listar,
+        "seed_aplicar_ambiente": seed_aplicar_ambiente,
         "banco_conectar": banco_conectar,
         "banco_fechar": banco_fechar,
         "banco_executar": banco_executar,
@@ -1804,11 +2018,15 @@ def make_builtins(
         "modelo_inserir": modelo_inserir,
         "modelo_atualizar": modelo_atualizar,
         "modelo_buscar_por_id": modelo_buscar_por_id,
+        "modelo_listar": modelo_listar,
         "semente_aplicar": semente_aplicar,
+        "semente_aplicar_ambiente": semente_aplicar_ambiente,
         "migracao_versionada_aplicar": migracao_versionada_aplicar,
+        "migracao_versionada_aplicar_v2": migracao_versionada_aplicar_v2,
         "migracao_listar": migracao_listar,
         "migracao_desfazer_ultima": migracao_desfazer_ultima,
         "migracao_compatibilidade_validar": migracao_compatibilidade_validar,
+        "migracao_trilha": migracao_trilha,
         "jwt_criar": jwt_criar,
         "jwt_verificar": jwt_verificar,
         "senha_hash": senha_hash,

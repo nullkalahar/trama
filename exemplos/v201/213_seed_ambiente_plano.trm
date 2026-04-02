@@ -1,0 +1,15 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_ex_v201_213.db")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY, nome TEXT);")
+
+    plano = [
+        {"nome": "001_dev", "sql": "INSERT INTO usuarios (id, nome) VALUES (1, 'ana');"},
+        {"nome": "002_dev", "sql": "INSERT INTO usuarios (id, nome) VALUES (2, 'bia');"}
+    ]
+    r = aguarde semente_aplicar_ambiente(conn, "dev", "plano_dev", plano)
+    rows = aguarde banco_consultar(conn, "SELECT COUNT(*) AS total FROM usuarios")
+
+    exibir(json_stringify(r))
+    exibir(rows[0]["total"])
+    aguarde banco_fechar(conn)
+fim

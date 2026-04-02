@@ -1,0 +1,21 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_v201_migracao.db")
+
+    r1 = aguarde migracao_versionada_aplicar_v2(
+        conn,
+        "201.001",
+        "criar_tabela_eventos",
+        "CREATE TABLE IF NOT EXISTS eventos (id INTEGER PRIMARY KEY, nome TEXT)",
+        "DROP TABLE IF EXISTS eventos",
+        "teste"
+    )
+    exibir(r1["aplicada"])
+
+    trilha = aguarde migracao_trilha(conn, 10)
+    exibir(tamanho(trilha) >= 1)
+
+    rv = aguarde migracao_desfazer_ultima(conn)
+    exibir(rv["revertida"])
+
+    aguarde banco_fechar(conn)
+fim

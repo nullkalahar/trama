@@ -1,0 +1,15 @@
+função criar(req)
+    retorne {"status": 200, "json": {"ok": verdadeiro, "dados": req["corpo"]}}
+fim
+
+assíncrona função principal()
+    app = web_criar_app()
+    dto = {"corpo": {"tipo": "objeto", "campos": {"idade": {"tipo": "inteiro", "coagir": verdadeiro}}}}
+    web_rota_com_dto(app, "POST", "/api/v1/itens", criar, dto)
+    s = aguarde web_iniciar(app, "127.0.0.1", 0)
+    b = s["base_url"]
+    r = aguarde http_post(b + "/api/v1/itens", {"idade": "40"}, {"Content-Type": "application/json"})
+    exibir(r["status"])
+    exibir(r["json"]["dados"]["idade"])
+    aguarde web_parar(s)
+fim

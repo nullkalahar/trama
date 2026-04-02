@@ -87,6 +87,8 @@ Pipeline da linguagem:
 - manual da linguagem v1.4 em [`docs/LINGUAGEM_V1_4.md`](docs/LINGUAGEM_V1_4.md)
 - manual da linguagem v1.5-v1.8 em [`docs/LINGUAGEM_V1_5_V1_8.md`](docs/LINGUAGEM_V1_5_V1_8.md)
 - manual da linguagem v2.0 (andamento) em [`docs/LINGUAGEM_V2_0.md`](docs/LINGUAGEM_V2_0.md)
+- manual da linguagem v2.0.2 (DTO/contrato HTTP) em [`docs/LINGUAGEM_V2_0_2.md`](docs/LINGUAGEM_V2_0_2.md)
+- manual completo consolidado até v2.0.2 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_2.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_2.md)
 - manual completo consolidado até v1.4 em [`docs/MANUAL_COMPLETO_ATE_V1_4.md`](docs/MANUAL_COMPLETO_ATE_V1_4.md)
 - manual completo consolidado até v1.8 em [`docs/MANUAL_COMPLETO_ATE_V1_8.md`](docs/MANUAL_COMPLETO_ATE_V1_8.md)
 - manual prático da v2.0 fase 2 em [`docs/MANUAL_V2_0_FASE2.md`](docs/MANUAL_V2_0_FASE2.md)
@@ -707,30 +709,59 @@ Para o plano detalhado e versionado dos 7 eixos críticos (incluindo evolução 
 - [`docs/ROADMAP_IMPLEMENTACOES_FUTURAS_V2_1.md`](docs/ROADMAP_IMPLEMENTACOES_FUTURAS_V2_1.md)
 
 ### v2.0.1 - ORM e migrações nível produção
-- [ ] relações completas (1:1, 1:N, N:N), preload/eager/lazy e paginação robusta.
-- [ ] constraints avançadas (única composta, FKs complexas, checks) com validação consistente.
-- [ ] diff de schema confiável com preview antes de aplicar.
-- [ ] rollback seguro com trilha de execução de migrações.
-- [ ] seeds determinísticas por ambiente (`dev`, `teste`, `prod`).
-- [ ] testes de migração em banco vazio e banco legado.
+- [x] relações completas (1:1, 1:N, N:N), preload/eager/lazy e paginação robusta.
+- [x] constraints avançadas (única composta, FKs complexas, checks) com validação consistente.
+- [x] diff de schema confiável com preview antes de aplicar.
+- [x] rollback seguro com trilha de execução de migrações.
+- [x] seeds determinísticas por ambiente (`dev`, `teste`, `prod`).
+- [x] testes de migração em banco vazio e banco legado.
 
 DoD v2.0.1:
 - pipeline de migração idempotente.
 - rollback validado em cenários reais.
 - documentação de operação de banco atualizada.
 
+Entregas implementadas em v2.0.1:
+- `db_runtime` com:
+  - `orm_modelo`, relações `orm_relacao_um_para_um`, `orm_relacao_um_para_muitos`, `orm_relacao_muitos_para_muitos`;
+  - `orm_listar` com preload/eager/lazy e paginação (`pagina`, `limite`, `ordenacao`, `cursor`);
+  - constraints de schema (`schema_constraint_unica`, `schema_constraint_fk`, `schema_constraint_check`);
+  - diff/preview/aplicação de schema (`schema_inspecionar`, `schema_diff`, `schema_preview_plano`, `schema_aplicar_diff`);
+  - trilha de migração (`migracao_aplicar_versionada_v2`, `migracao_trilha_listar`);
+  - seeds por ambiente (`seed_aplicar_ambiente`).
+- superfície canônica em `builtins` e `semantic` para uso direto em `.trm`.
+- testes:
+  - `tests/test_db_runtime.py` (cobertura unitária de v2.0.1);
+  - `tests/test_vm.py` (fluxo de integração VM em banco vazio/legado);
+  - suíte local `.local/tests/v2_0_1_db_orm/run_local_v201.sh`.
+
 ### v2.0.2 - DTO/validação e contrato de API
-- [ ] camada de DTOs declarativos em pt-BR com validação profunda.
-- [ ] transformação e coerção de tipos de entrada.
-- [ ] sanitização automática de payload.
-- [ ] erros padronizados por campo (`codigo`, `campo`, `mensagem`, `detalhes`).
-- [ ] versionamento de contrato HTTP e compatibilidade retroativa.
-- [ ] geração de exemplos de payload válidos/inválidos para testes.
+- [x] camada de DTOs declarativos em pt-BR com validação profunda.
+- [x] transformação e coerção de tipos de entrada.
+- [x] sanitização automática de payload.
+- [x] erros padronizados por campo (`codigo`, `campo`, `mensagem`, `detalhes`).
+- [x] versionamento de contrato HTTP e compatibilidade retroativa.
+- [x] geração de exemplos de payload válidos/inválidos para testes.
 
 DoD v2.0.2:
 - validação uniforme em toda API.
 - erros de domínio/validação previsíveis e estáveis.
 - documentação de contrato publicada.
+
+Entregas implementadas em v2.0.2:
+- runtime HTTP (`web_runtime`) com:
+  - DTO declarativo por rota (`dto_requisicao`) em `corpo/consulta/parametros/formulario`;
+  - coerção de tipos (`coagir`) e sanitização (`sanitizar`) em campos de DTO;
+  - validação profunda de objetos/listas aninhados com erros por campo (`codigo`, `campo`, `mensagem`, `detalhes`);
+  - contrato de entrada para remoção de campos proibidos (`contrato_entrada.campos_permitidos`);
+  - contrato de resposta versionado (`contrato_resposta.versoes`) com fallback retrocompatível (`retrocompativel`).
+- superfície canônica em `builtins`/`semantic`:
+  - `web_rota_dto`, `dto_validar`, `dto_gerar_exemplos` (+ alias `web_rota_com_dto`).
+- testes:
+  - `tests/test_web_runtime_v202.py` (DTO, sanitização/coerção e contrato versionado);
+  - `tests/test_vm.py::test_v202_dto_contrato_versionado_em_vm` (integração fim a fim em `.trm`).
+- documentação:
+  - contrato e exemplos oficiais em `docs/LINGUAGEM_V2_0_2.md`.
 
 ### v2.0.3 - Realtime distribuído em escala
 - [ ] presença/salas com sincronização entre múltiplas instâncias.

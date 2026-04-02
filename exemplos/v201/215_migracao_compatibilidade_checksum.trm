@@ -1,0 +1,18 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_ex_v201_215.db")
+
+    aguarde migracao_versionada_aplicar(
+        conn,
+        "010",
+        "criar_base",
+        "CREATE TABLE IF NOT EXISTS base (id INTEGER PRIMARY KEY);",
+        "DROP TABLE IF EXISTS base;"
+    )
+
+    c1 = aguarde migracao_compatibilidade_validar(conn, "010", "CREATE TABLE IF NOT EXISTS base (id INTEGER PRIMARY KEY);")
+    c2 = aguarde migracao_compatibilidade_validar(conn, "010", "CREATE TABLE IF NOT EXISTS base (id INTEGER PRIMARY KEY, nome TEXT);")
+
+    exibir(json_stringify(c1))
+    exibir(json_stringify(c2))
+    aguarde banco_fechar(conn)
+fim

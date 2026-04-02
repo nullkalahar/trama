@@ -1,0 +1,15 @@
+função principal()
+    dto = {
+        "tipo": "objeto",
+        "campos": {
+            "nome": {"tipo": "texto", "obrigatorio": verdadeiro, "sanitizar": {"trim": verdadeiro}},
+            "idade": {"tipo": "inteiro", "coagir": verdadeiro},
+            "ativo": {"tipo": "logico", "coagir": verdadeiro, "padrao": verdadeiro}
+        }
+    }
+    r = dto_validar(dto, {"nome": "  Ana  ", "idade": "31", "ativo": "true"}, "corpo")
+    exibir(r["ok"])
+    exibir(r["dados"]["nome"])
+    exibir(r["dados"]["idade"])
+    exibir(r["dados"]["ativo"])
+fim

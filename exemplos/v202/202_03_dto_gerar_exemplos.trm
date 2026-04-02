@@ -1,0 +1,15 @@
+função principal()
+    dto = {
+        "corpo": {
+            "tipo": "objeto",
+            "campos": {
+                "nome": {"tipo": "texto", "obrigatorio": verdadeiro},
+                "idade": {"tipo": "inteiro", "obrigatorio": verdadeiro}
+            }
+        }
+    }
+    exs = dto_gerar_exemplos(dto, "corpo")
+    exibir(exs["validos"][0]["nome"])
+    exibir(exs["validos"][0]["idade"])
+    exibir(exs["invalidos"][0]["descricao"])
+fim

@@ -1,0 +1,33 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_v201_constraints.db")
+
+    t_usuarios = schema_definir_tabela(
+        "usuarios",
+        [
+            {"nome": "id", "tipo": "INTEGER", "pk": verdadeiro},
+            {"nome": "email", "tipo": "TEXT", "nulo": falso},
+            {"nome": "idade", "tipo": "INTEGER", "nulo": falso, "padrao": 0}
+        ],
+        [
+            schema_constraint_unica(["email"], "uk_usuarios_email"),
+            schema_constraint_check("idade >= 0", "chk_idade")
+        ]
+    )
+
+    t_perfis = schema_definir_tabela(
+        "perfis",
+        [
+            {"nome": "id", "tipo": "INTEGER", "pk": verdadeiro},
+            {"nome": "usuario_id", "tipo": "INTEGER", "nulo": falso}
+        ],
+        [schema_constraint_fk(["usuario_id"], "usuarios", ["id"], "fk_perfis_usuario")]
+    )
+
+    esperado = schema_definir([t_usuarios, t_perfis])
+    atual = aguarde schema_inspecionar(conn)
+    d = schema_diff(atual, esperado)
+    _ = aguarde schema_aplicar_diff(conn, d)
+
+    exibir(verdadeiro)
+    aguarde banco_fechar(conn)
+fim

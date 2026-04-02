@@ -1,0 +1,18 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_ex_v201_211.db")
+
+    r = aguarde migracao_aplicar_versionada_v2(
+        conn,
+        "201.001",
+        "criar_logs",
+        "CREATE TABLE IF NOT EXISTS logs (id INTEGER PRIMARY KEY AUTOINCREMENT, msg TEXT);",
+        "DROP TABLE IF EXISTS logs;",
+        "teste"
+    )
+    trilha = aguarde migracao_trilha(conn, 10)
+
+    exibir(r["aplicada"])
+    exibir(trilha[0]["versao"])
+    exibir(trilha[0]["status"])
+    aguarde banco_fechar(conn)
+fim

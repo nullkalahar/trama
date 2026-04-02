@@ -1,0 +1,18 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_ex_v201_208.db")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT);")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT);")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS post_tags (post_id INTEGER, tag_id INTEGER);")
+
+    p = aguarde modelo_inserir(conn, "posts", {"titulo": "orm"})
+    t = aguarde modelo_inserir(conn, "tags", {"nome": "db"})
+    aguarde banco_executar(conn, "INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)", [p, t])
+
+    m = orm_modelo("posts")
+    m = orm_relacao_muitos_para_muitos(m, "tags", "tags", "post_tags", "post_id", "tag_id", "id", "id", "eager")
+    lista = aguarde modelo_listar(conn, m)
+
+    exibir(lista["itens"][0]["titulo"])
+    exibir(lista["itens"][0]["tags"][0]["nome"])
+    aguarde banco_fechar(conn)
+fim

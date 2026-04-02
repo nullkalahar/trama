@@ -1,0 +1,19 @@
+função buscar(req)
+    retorne {"status": 200, "json": {"ok": verdadeiro, "dados": {"id": req["parametros"]["id"], "ativo": req["consulta"]["ativo"]}}}
+fim
+
+assíncrona função principal()
+    app = web_criar_app()
+    dto = {
+        "parametros": {"tipo": "objeto", "campos": {"id": {"tipo": "inteiro", "coagir": verdadeiro}}},
+        "consulta": {"tipo": "objeto", "campos": {"ativo": {"tipo": "logico", "coagir": verdadeiro}}}
+    }
+    web_rota_dto(app, "GET", "/api/v1/itens/:id", buscar, dto)
+    s = aguarde web_iniciar(app, "127.0.0.1", 0)
+    b = s["base_url"]
+    r = aguarde http_get(b + "/api/v1/itens/42?ativo=true")
+    exibir(r["status"])
+    exibir(r["json"]["dados"]["id"])
+    exibir(r["json"]["dados"]["ativo"])
+    aguarde web_parar(s)
+fim

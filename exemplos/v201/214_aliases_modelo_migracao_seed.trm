@@ -1,0 +1,14 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_ex_v201_214.db")
+
+    mig = aguarde migracao_aplicar(conn, "001_itens", "CREATE TABLE IF NOT EXISTS itens (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT);")
+    sem = aguarde semente_aplicar(conn, "001_seed", "INSERT INTO itens (nome) VALUES ('x');")
+
+    id = aguarde modelo_inserir(conn, "itens", {"nome": "y"})
+    obj = aguarde modelo_buscar_por_id(conn, "itens", id)
+
+    exibir(mig["aplicada"])
+    exibir(sem["aplicada"])
+    exibir(obj["nome"])
+    aguarde banco_fechar(conn)
+fim

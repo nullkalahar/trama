@@ -1,0 +1,16 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_ex_v201_207.db")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT);")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS perfis (id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER, bio TEXT);")
+
+    uid = aguarde modelo_inserir(conn, "usuarios", {"nome": "bia"})
+    aguarde modelo_inserir(conn, "perfis", {"usuario_id": uid, "bio": "dev"})
+
+    m = orm_modelo("perfis")
+    m = orm_relacao_um_para_um(m, "usuario", "usuarios", "usuario_id", "id", "eager")
+    lista = aguarde modelo_listar(conn, m)
+
+    exibir(lista["itens"][0]["bio"])
+    exibir(lista["itens"][0]["usuario"]["nome"])
+    aguarde banco_fechar(conn)
+fim

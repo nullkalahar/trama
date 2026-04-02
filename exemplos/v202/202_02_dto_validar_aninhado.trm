@@ -1,0 +1,23 @@
+função principal()
+    dto = {
+        "corpo": {
+            "tipo": "objeto",
+            "campos": {
+                "perfil": {
+                    "tipo": "objeto",
+                    "campos": {
+                        "bio": {"tipo": "texto", "sanitizar": {"trim": verdadeiro}},
+                        "idade": {"tipo": "inteiro", "coagir": verdadeiro}
+                    }
+                },
+                "tags": {"tipo": "lista", "itens": {"tipo": "texto", "sanitizar": {"trim": verdadeiro}}}
+            }
+        }
+    }
+    payload = {"perfil": {"bio": "  dev backend  ", "idade": "29"}, "tags": [" api ", " dto "]}
+    r = dto_validar(dto, payload, "corpo")
+    exibir(r["ok"])
+    exibir(r["dados"]["perfil"]["bio"])
+    exibir(r["dados"]["perfil"]["idade"])
+    exibir(r["dados"]["tags"][0])
+fim

@@ -1,6 +1,6 @@
 # Exemplos da Trama
 
-Este diretório traz exemplos cobrindo recursos da linguagem do v0.1 ao v1.8.
+Este diretório traz exemplos cobrindo recursos da linguagem do v0.1 ao v2.0.2.
 
 ## Como executar
 
@@ -76,6 +76,10 @@ trama executar exemplos/01_ola_mundo.trm
 - `v18/64_storage_lista_url_v18.trm`: listagem/url de storage local
 - `v18/65_deploy_health_paths_v18.trm`: endpoints de saúde (saude/pronto/vivo)
 - `v18/66_observabilidade_alerta_custom_v18.trm`: alerta customizado de erro/latência
+- `v201/README_V201_EXEMPLOS.md`: coleção v2.0.1 (ORM, schema diff, migrações/rollback/seed)
+- `v201/201_relacoes_orm.trm` até `v201/215_migracao_compatibilidade_checksum.trm`: exemplos detalhados de produção para ORM e migrações
+- `v202/README_V202_EXEMPLOS.md`: coleção v2.0.2 (DTO, validação profunda, contrato HTTP versionado)
+- `v202/202_01_dto_validar_basico.trm` até `v202/202_12_dto_sanitizacao_avancada.trm`: exemplos focados em DTO/contrato e retrocompatibilidade
 - `sintaxe/01_expressoes_multilinha.trm`: lista/mapa/chamada multilinha
 - `sintaxe/02_encadeamento_multilinha.trm`: encadeamento com indexação multilinha
 - `anilist/README_ANILIST_EXEMPLOS.md`: coleção completa de integrações AniList (anime/mangá + DB em `.local/tests/anilist/`)
