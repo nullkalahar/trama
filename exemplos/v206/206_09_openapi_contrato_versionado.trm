@@ -1,0 +1,12 @@
+função listar(req)
+    retorne {"status": 200, "json": {"ok": verdadeiro, "dados": [{"id": 1}], "meta": {"versao": "v2"}}}
+fim
+
+função principal()
+    app = web_criar_app()
+    dto = {"consulta": {"tipo": "objeto", "campos": {"busca": {"tipo": "texto", "obrigatorio": falso}}}}
+    contrato = {"versao_padrao": "v2", "versoes": {"v1": {"campos_obrigatorios": ["ok", "dados"]}, "v2": {"campos_obrigatorios": ["ok", "dados", "meta"]}}}
+    web_rota_dto(app, "GET", "/api/v2/usuarios", listar, dto, contrato)
+    spec = web_gerar_openapi(app, "API Contrato", "2.0.6")
+    exibir(spec["paths"]["/api/v2/usuarios"]["get"]["responses"]["200"]["description"])
+fim

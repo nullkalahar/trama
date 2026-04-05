@@ -949,6 +949,67 @@ def test_v203_tempo_real_distribuido_em_vm() -> None:
     assert out == ["True", "True", "True", "True", "True", "200", "True", "True", "True", "True"]
 
 
+def test_v206_tooling_openapi_sdk_em_vm(tmp_path) -> None:
+    openapi_path = tmp_path / "openapi_vm_206.json"
+    sdk_path = tmp_path / "sdk_vm_206.py"
+    codigo = (
+        "função ping(req)\n"
+        "    retorne {\"status\": 200, \"json\": {\"ok\": verdadeiro, \"dados\": {\"pong\": verdadeiro}, \"meta\": {\"v\": \"v1\"}}}\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    app = web_criar_app()\n"
+        "    dto = {\"consulta\": {\"tipo\": \"objeto\", \"campos\": {\"nome\": {\"tipo\": \"texto\", \"obrigatorio\": falso}}}}\n"
+        "    contrato = {\"versao_padrao\": \"v1\", \"versoes\": {\"v1\": {\"campos_obrigatorios\": [\"ok\", \"dados\", \"meta\"]}}}\n"
+        "    web_rota_dto(app, \"GET\", \"/api/v1/ping/:id\", ping, dto, contrato)\n"
+        "    spec = web_gerar_openapi(app, \"API VM 206\", \"2.0.6\", \"http://127.0.0.1:9999\")\n"
+        "    exibir(spec[\"openapi\"])\n"
+        "    exibir(spec[\"paths\"][\"/api/v1/ping/{id}\"][\"get\"][\"operationId\"])\n"
+        f"    o = web_exportar_openapi(app, \"{openapi_path}\", \"API VM 206\", \"2.0.6\")\n"
+        "    exibir(o[\"ok\"])\n"
+        f"    s = web_gerar_sdk(app, \"{sdk_path}\", \"python\", \"ClienteVm206\")\n"
+        "    exibir(s[\"ok\"])\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["3.0.3", "get_api_v1_ping_id", "True", "True"]
+
+
+def test_v207_observabilidade_exportadores_e_smoke_em_vm() -> None:
+    codigo = (
+        "função ping(req)\n"
+        "    retorne {\"status\": 200, \"json\": {\"ok\": verdadeiro}}\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    app = web_criar_app()\n"
+        "    web_rota(app, \"GET\", \"/ping\", ping)\n"
+        "    web_ativar_observabilidade(app, \"/observabilidade\", \"/alertas\", \"/metricas\", \"/otlp-json\")\n"
+        "    srv = aguarde web_iniciar(app, \"127.0.0.1\", 0)\n"
+        "    b = srv[\"base_url\"]\n"
+        "    r1 = aguarde http_get(b + \"/ping\")\n"
+        "    exibir(r1[\"status\"])\n"
+        "    p = aguarde http_get(b + \"/metricas\")\n"
+        "    exibir(p[\"status\"])\n"
+        "    exibir(tamanho(p[\"corpo\"]) > 0)\n"
+        "    o = aguarde http_get(b + \"/otlp-json\")\n"
+        "    exibir(o[\"status\"])\n"
+        "    exibir(o[\"json\"][\"otlp\"][\"resource\"][\"service.name\"])\n"
+        "    prom = observabilidade_exportar_prometheus()\n"
+        "    exibir(tamanho(prom) > 0)\n"
+        "    otlp = observabilidade_exportar_otel_json()\n"
+        "    exibir(otlp[\"resource\"][\"service.name\"])\n"
+        "    d = observabilidade_dashboards_prontos()\n"
+        "    rb = observabilidade_runbooks_prontos()\n"
+        "    exibir(tamanho(d[\"dashboards\"]) >= 4)\n"
+        "    exibir(tamanho(rb[\"runbooks\"]) >= 3)\n"
+        "    sm = operacao_smoke_checks(b, 2.0, [\"/saude\", \"/pronto\", \"/vivo\", \"/observabilidade\", \"/alertas\"])\n"
+        "    exibir(sm[\"ok\"])\n"
+        "    aguarde web_parar(srv)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["200", "200", "True", "200", "trama", "True", "trama", "True", "True", "True"]
+
+
 def test_parser_multilinha_chamada_lista_mapa() -> None:
     codigo = (
         "função soma(a, b)\n"

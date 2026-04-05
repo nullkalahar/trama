@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import json
 from contextlib import redirect_stderr, redirect_stdout
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from io import StringIO
+import os
 from pathlib import Path
+import threading
 
 from trama.cli import main
 
@@ -130,3 +133,182 @@ def test_cli_diagnostico_runtime_campos_canonicos_e_compat() -> None:
     assert "runtime_backend=" in text
     assert "compilador_backend=" in text
     assert "python_host_required=" in text
+
+
+def test_cli_template_servico_modulo_openapi_sdk_admin_ops(tmp_path: Path) -> None:
+    cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["template-servico", str(tmp_path / "serv"), "--json"])
+        assert code == 0
+        payload = json.loads(out.getvalue())
+        assert payload["ok"] is True
+        assert (tmp_path / "serv" / "src" / "servico.trm").exists()
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["template-modulo", str(tmp_path / "mod"), "--nome", "Módulo Ágil", "--json"])
+        assert code == 0
+        payload = json.loads(out.getvalue())
+        assert payload["ok"] is True
+        assert payload["nome_modulo"] == "modulo_agil"
+
+        contrato = tmp_path / "contrato.json"
+        contrato.write_text(
+            json.dumps(
+                {
+                    "openapi": "3.0.3",
+                    "info": {"title": "Api Teste", "version": "1.0.0"},
+                    "paths": {"/saude": {"get": {"operationId": "get_saude", "responses": {"200": {"description": "OK"}}}}},
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        out_openapi = tmp_path / "openapi.json"
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["openapi-gerar", "--contrato", str(contrato), "--saida", str(out_openapi)])
+        assert code == 0
+        assert out_openapi.exists()
+
+        out_sdk = tmp_path / "sdk.py"
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(
+                [
+                    "sdk-gerar",
+                    "--openapi",
+                    str(out_openapi),
+                    "--saida",
+                    str(out_sdk),
+                    "--linguagem",
+                    "python",
+                ]
+            )
+        assert code == 0
+        assert "class ClienteApiTrama" in out_sdk.read_text(encoding="utf-8")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["admin-usuario-criar", "--id", "u1", "--nome", "Admin", "--papeis", "ops,root"])
+        assert code == 0
+        payload = json.loads(out.getvalue())
+        assert payload["usuario"]["id"] == "u1"
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["admin-permissao-conceder", "--id", "u1", "--permissoes", "jobs:executar,usuarios:listar"])
+        assert code == 0
+        payload = json.loads(out.getvalue())
+        assert "jobs:executar" in payload["usuario"]["permissoes"]
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["admin-usuario-listar", "--json"])
+        assert code == 0
+        payload = json.loads(out.getvalue())
+        assert payload["total"] == 1
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["admin-jobs-listar", "--json"])
+        assert code == 0
+        payload = json.loads(out.getvalue())
+        assert payload["ok"] is True
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["admin-manutencao-status", "--json"])
+        assert code == 0
+        payload = json.loads(out.getvalue())
+        assert payload["estado"] == "operacional"
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["operacao-diagnostico", "--json"])
+        assert code == 0
+        payload = json.loads(out.getvalue())
+        assert payload["ok"] is True
+        assert "dashboards" in payload
+    finally:
+        os.chdir(cwd)
+
+
+def test_cli_migracao_seed_diagnostico_smoke(tmp_path: Path) -> None:
+    db_file = tmp_path / "cli_v206.db"
+    up = tmp_path / "up.sql"
+    down = tmp_path / "down.sql"
+    seed = tmp_path / "seed.sql"
+    up.write_text("CREATE TABLE IF NOT EXISTS itens (id INTEGER PRIMARY KEY, nome TEXT);\n", encoding="utf-8")
+    down.write_text("DROP TABLE IF EXISTS itens;\n", encoding="utf-8")
+    seed.write_text("INSERT INTO itens (id, nome) VALUES (1, 'x');\n", encoding="utf-8")
+    dsn = f"sqlite:///{db_file}"
+
+    out = StringIO()
+    with redirect_stdout(out):
+        code = main(
+            [
+                "migracao-aplicar-v2",
+                "--dsn",
+                dsn,
+                "--versao",
+                "206.001",
+                "--nome",
+                "init",
+                "--up-arquivo",
+                str(up),
+                "--down-arquivo",
+                str(down),
+                "--ambiente",
+                "teste",
+            ]
+        )
+    assert code == 0
+    payload = json.loads(out.getvalue())
+    assert payload["aplicada"] is True
+
+    out = StringIO()
+    with redirect_stdout(out):
+        code = main(["migracao-trilha-listar", "--dsn", dsn, "--limite", "10", "--json"])
+    assert code == 0
+    payload = json.loads(out.getvalue())
+    assert payload["ok"] is True
+    assert len(payload["trilha"]) >= 1
+
+    out = StringIO()
+    with redirect_stdout(out):
+        code = main(["seed-aplicar-ambiente", "--dsn", dsn, "--ambiente", "teste", "--nome", "s1", "--sql-arquivo", str(seed)])
+    assert code == 0
+    payload = json.loads(out.getvalue())
+    assert payload["ok"] is True
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            body = b"{\"ok\":true}"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format, *args):  # noqa: A003
+            return
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["operacao-smoke-check", "--base-url", f"http://127.0.0.1:{port}", "--json"])
+        assert code == 0
+        payload = json.loads(out.getvalue())
+        assert payload["ok"] is True
+        assert any(item["caminho"] == "/saude" for item in payload["resultados"])
+    finally:
+        server.shutdown()
+        server.server_close()

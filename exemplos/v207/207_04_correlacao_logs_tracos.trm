@@ -1,0 +1,6 @@
+função principal()
+    log = log_estruturado("info", "evento_teste", {"componente": "api"})
+    exibir(log["nivel"])
+    exibir(log["mensagem"])
+    exibir(log["contexto"]["componente"])
+fim

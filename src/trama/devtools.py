@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import re
+import unicodedata
 from typing import Any
 
 from .compiler import CompileError, compile_source
@@ -168,3 +169,116 @@ def gerar_template_backend(destino: str, forcar: bool = False) -> dict[str, Any]
         encoding="utf-8",
     )
     return {"ok": True, "destino": str(root.resolve())}
+
+
+def _normalizar_identificador_canonicamente(nome: str) -> str:
+    bruto = str(nome or "").strip().lower()
+    sem_acento = "".join(ch for ch in unicodedata.normalize("NFD", bruto) if unicodedata.category(ch) != "Mn")
+    sem_separador = re.sub(r"[^a-z0-9_]+", "_", sem_acento)
+    sem_repeticao = re.sub(r"_+", "_", sem_separador).strip("_")
+    if not sem_repeticao:
+        return "modulo_exemplo"
+    if sem_repeticao[0].isdigit():
+        return f"m_{sem_repeticao}"
+    return sem_repeticao
+
+
+def gerar_template_servico(destino: str, forcar: bool = False) -> dict[str, Any]:
+    root = Path(destino)
+    if root.exists() and any(root.iterdir()) and not forcar:
+        raise RuntimeError("Diretório de template não está vazio. Use --forcar para sobrescrever.")
+
+    (root / "src").mkdir(parents=True, exist_ok=True)
+    (root / "tests").mkdir(parents=True, exist_ok=True)
+    (root / "config").mkdir(parents=True, exist_ok=True)
+    (root / "docs").mkdir(parents=True, exist_ok=True)
+
+    (root / "README.md").write_text(
+        "# Template de Serviço Trama\n\n"
+        "Serviço HTTP canônico em pt-BR com observabilidade e contrato inicial.\n\n"
+        "## Comandos\n\n"
+        "```bash\n"
+        "trama executar src/servico.trm\n"
+        "trama testar tests\n"
+        "trama openapi-gerar --contrato config/contrato_base.json --saida build/openapi.json\n"
+        "```\n",
+        encoding="utf-8",
+    )
+    (root / "config" / ".env.exemplo").write_text(
+        "TRAMA_AMBIENTE=dev\nTRAMA_PORTA=8080\nTRAMA_HOST=127.0.0.1\n",
+        encoding="utf-8",
+    )
+    (root / "config" / "contrato_base.json").write_text(
+        "{\n"
+        "  \"openapi\": \"3.0.3\",\n"
+        "  \"info\": {\"title\": \"Servico Trama\", \"version\": \"1.0.0\"},\n"
+        "  \"paths\": {\n"
+        "    \"/saude\": {\n"
+        "      \"get\": {\n"
+        "        \"operationId\": \"get_saude\",\n"
+        "        \"responses\": {\"200\": {\"description\": \"OK\"}}\n"
+        "      }\n"
+        "    }\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (root / "src" / "servico.trm").write_text(
+        "assíncrona função principal()\n"
+        "    app = web_criar_app()\n"
+        "    web_adicionar_rota_json(app, \"GET\", \"/saude\", {\"ok\": verdadeiro, \"servico\": \"trama\"}, 200)\n"
+        "    web_ativar_observabilidade(app)\n"
+        "    servidor = aguarde web_iniciar(app, \"127.0.0.1\", 8080)\n"
+        "    exibir(\"servico_ativo\", servidor[\"base_url\"])\n"
+        "fim\n",
+        encoding="utf-8",
+    )
+    (root / "tests" / "test_smoke_servico.trm").write_text(
+        "função principal()\n"
+        "    exibir(\"smoke_servico_ok\")\n"
+        "fim\n",
+        encoding="utf-8",
+    )
+    (root / "docs" / "OPERACAO.md").write_text(
+        "# Operacao\n\n"
+        "1. Inicie o servico com `trama executar src/servico.trm`.\n"
+        "2. Valide saude em `/saude`, `/pronto`, `/vivo`.\n"
+        "3. Verifique observabilidade em `/observabilidade`, `/alertas`, `/metricas`, `/otlp-json`.\n",
+        encoding="utf-8",
+    )
+    return {"ok": True, "destino": str(root.resolve())}
+
+
+def gerar_template_modulo(destino: str, nome_modulo: str = "modulo_exemplo", forcar: bool = False) -> dict[str, Any]:
+    root = Path(destino)
+    if root.exists() and any(root.iterdir()) and not forcar:
+        raise RuntimeError("Diretório de template não está vazio. Use --forcar para sobrescrever.")
+
+    nome = _normalizar_identificador_canonicamente(nome_modulo)
+    arquivo_mod = f"{nome}.trm"
+    (root / "src").mkdir(parents=True, exist_ok=True)
+    (root / "tests").mkdir(parents=True, exist_ok=True)
+
+    (root / "README.md").write_text(
+        f"# Template de Modulo Trama: `{nome}`\n\n"
+        "Estrutura minima para criar modulo reutilizavel em pt-BR.\n",
+        encoding="utf-8",
+    )
+    (root / "src" / arquivo_mod).write_text(
+        "função processar(entrada)\n"
+        "    se entrada == nulo\n"
+        "        retorne {\"ok\": falso, \"erro\": \"entrada_nula\"}\n"
+        "    fim\n"
+        "    retorne {\"ok\": verdadeiro, \"dados\": entrada}\n"
+        "fim\n",
+        encoding="utf-8",
+    )
+    (root / "tests" / f"test_{nome}.trm").write_text(
+        f"importe \"../src/{arquivo_mod}\" como modulo\n"
+        "função principal()\n"
+        "    resultado = modulo[\"processar\"]({\"id\": 1})\n"
+        "    exibir(resultado)\n"
+        "fim\n",
+        encoding="utf-8",
+    )
+    return {"ok": True, "destino": str(root.resolve()), "nome_modulo": nome, "arquivo_modulo": arquivo_mod}

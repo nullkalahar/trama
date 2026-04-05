@@ -1,0 +1,8 @@
+função principal()
+    exibir("1) validar saude/pronto/vivo")
+    exibir("2) checar /observabilidade e /alertas")
+    exibir("3) exportar /metricas para Prometheus")
+    exibir("4) coletar /otlp-json para pipeline OTEL")
+    exibir("5) aplicar runbook conforme codigo do alerta")
+    exibir("6) registrar diagnostico: trama operacao-diagnostico --json")
+fim

@@ -1,0 +1,6 @@
+função principal()
+    metricas_reset()
+    metrica_incrementar("http.requisicoes_total", 5, {"rota": "/api/v1"})
+    prom = observabilidade_exportar_prometheus()
+    exibir(tamanho(prom) > 0)
+fim

@@ -1,0 +1,6 @@
+função principal()
+    exibir("# fluxo recomendado")
+    exibir("trama openapi-gerar --contrato config/contrato.json --saida build/openapi.json")
+    exibir("trama sdk-gerar --openapi build/openapi.json --saida sdk/cliente.py --linguagem python --cliente ClienteApi")
+    exibir("trama sdk-gerar --openapi build/openapi.json --saida sdk/cliente.ts --linguagem typescript --cliente ClienteApiTs")
+fim

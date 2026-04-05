@@ -31,6 +31,7 @@ from . import security_runtime
 from . import social_runtime
 from . import storage_runtime
 from . import sync_runtime
+from . import tooling_runtime
 from . import web_runtime
 from .bytecode import program_to_dict
 from .compiler import compile_source
@@ -1172,14 +1173,70 @@ def make_builtins(
         app: object,
         caminho_observabilidade: str = "/observabilidade",
         caminho_alertas: str = "/alertas",
+        caminho_metricas: object = "/metricas",
+        caminho_otlp: object = "/otlp-json",
         config_alertas: dict[str, object] | None = None,
     ) -> None:
         web_app = _as_app(app)
+        # Compatibilidade retroativa:
+        # assinatura antiga: (app, caminho_observabilidade, caminho_alertas, config_alertas)
+        if isinstance(caminho_metricas, dict) and config_alertas is None:
+            config_alertas = dict(caminho_metricas)
+            caminho_metricas = "/metricas"
+            caminho_otlp = "/otlp-json"
+        if isinstance(caminho_otlp, dict) and config_alertas is None:
+            config_alertas = dict(caminho_otlp)
+            caminho_otlp = "/otlp-json"
         web_app.observabilidade_ativa = True
-        web_app.observabilidade_path = caminho_observabilidade
-        web_app.alertas_path = caminho_alertas
+        web_app.observabilidade_path = str(caminho_observabilidade)
+        web_app.alertas_path = str(caminho_alertas)
+        web_app.metricas_path = str(caminho_metricas)
+        web_app.otlp_path = str(caminho_otlp)
         web_app.alertas_config = dict(config_alertas or {})
         return None
+
+    def web_gerar_openapi(
+        app: object,
+        titulo: str = "API Trama",
+        versao: str = "1.0.0",
+        servidor_base: str | None = None,
+    ) -> dict[str, object]:
+        web_app = _as_app(app)
+        return tooling_runtime.gerar_openapi_web_app(
+            web_app,
+            titulo=titulo,
+            versao=versao,
+            servidor_base=servidor_base,
+        )
+
+    def web_exportar_openapi(
+        app: object,
+        arquivo_saida: str,
+        titulo: str = "API Trama",
+        versao: str = "1.0.0",
+        servidor_base: str | None = None,
+    ) -> dict[str, object]:
+        spec = web_gerar_openapi(app, titulo=titulo, versao=versao, servidor_base=servidor_base)
+        out = tooling_runtime.salvar_openapi(spec, arquivo_saida)
+        out["openapi"] = spec.get("openapi")
+        return out
+
+    def web_gerar_sdk(
+        app: object,
+        arquivo_saida: str,
+        linguagem: str = "python",
+        nome_cliente: str = "ClienteApiTrama",
+        titulo: str = "API Trama",
+        versao: str = "1.0.0",
+        servidor_base: str | None = None,
+    ) -> dict[str, object]:
+        spec = web_gerar_openapi(app, titulo=titulo, versao=versao, servidor_base=servidor_base)
+        return tooling_runtime.gerar_sdk_cliente(
+            spec,
+            destino_arquivo=arquivo_saida,
+            linguagem=linguagem,
+            nome_cliente=nome_cliente,
+        )
 
     def web_tempo_real_rota(
         app: object,
@@ -2017,6 +2074,29 @@ def make_builtins(
     def alertas_avaliar(config_alerta: dict[str, object] | None = None) -> dict[str, object]:
         return observability_runtime.alertas_avaliar(config=config_alerta)
 
+    def observabilidade_exportar_prometheus() -> str:
+        return observability_runtime.exportar_prometheus()
+
+    def observabilidade_exportar_otel_json() -> dict[str, object]:
+        return observability_runtime.exportar_otel_json()
+
+    def observabilidade_dashboards_prontos() -> dict[str, object]:
+        return tooling_runtime.dashboards_operacionais_prontos()
+
+    def observabilidade_runbooks_prontos() -> dict[str, object]:
+        return tooling_runtime.runbooks_incidentes_prontos()
+
+    def operacao_smoke_checks(
+        base_url: str,
+        timeout_segundos: float = 2.0,
+        caminhos: list[str] | None = None,
+    ) -> dict[str, object]:
+        return tooling_runtime.smoke_checks_http(
+            base_url=base_url,
+            timeout_segundos=timeout_segundos,
+            caminhos=caminhos,
+        )
+
     # Aliases oficiais em pt-BR (mantém compatibilidade com nomes anteriores)
     banco_conectar = pg_conectar
     banco_fechar = pg_fechar
@@ -2067,6 +2147,10 @@ def make_builtins(
     traca_finalizar = traco_finalizar
     tracas_snapshot = tracos_snapshot
     tracas_reset = tracos_reset
+    observabilidade_exportar_prom = observabilidade_exportar_prometheus
+    observabilidade_exportar_otlp = observabilidade_exportar_otel_json
+    dashboards_operacionais_prontos = observabilidade_dashboards_prontos
+    runbooks_incidentes_prontos = observabilidade_runbooks_prontos
     requisicao = "requisicao"
     resposta = "resposta"
     http_obter = http_get
@@ -2078,6 +2162,9 @@ def make_builtins(
     web_rota_com_contrato = web_rota_contrato
     web_rota_com_dto = web_rota_dto
     web_observabilidade_ativar = web_ativar_observabilidade
+    web_openapi_gerar = web_gerar_openapi
+    web_openapi_exportar = web_exportar_openapi
+    web_sdk_gerar = web_gerar_sdk
     web_configurar_hardening = web_configurar_seguranca_http
     web_security_configure = web_configurar_seguranca_http
     web_socket_rota = web_tempo_real_rota
@@ -2250,6 +2337,12 @@ def make_builtins(
         "web_saude_paths": web_saude_paths,
         "web_ativar_observabilidade": web_ativar_observabilidade,
         "web_observabilidade_ativar": web_observabilidade_ativar,
+        "web_gerar_openapi": web_gerar_openapi,
+        "web_exportar_openapi": web_exportar_openapi,
+        "web_openapi_gerar": web_openapi_gerar,
+        "web_openapi_exportar": web_openapi_exportar,
+        "web_gerar_sdk": web_gerar_sdk,
+        "web_sdk_gerar": web_sdk_gerar,
         "web_tempo_real_rota": web_tempo_real_rota,
         "web_tempo_real_ativar_fallback": web_tempo_real_ativar_fallback,
         "web_tempo_real_definir_limites": web_tempo_real_definir_limites,
@@ -2442,6 +2535,15 @@ def make_builtins(
         "tracos_reset": tracos_reset,
         "observabilidade_resumo": observabilidade_resumo,
         "alertas_avaliar": alertas_avaliar,
+        "observabilidade_exportar_prometheus": observabilidade_exportar_prometheus,
+        "observabilidade_exportar_otel_json": observabilidade_exportar_otel_json,
+        "observabilidade_exportar_prom": observabilidade_exportar_prom,
+        "observabilidade_exportar_otlp": observabilidade_exportar_otlp,
+        "observabilidade_dashboards_prontos": observabilidade_dashboards_prontos,
+        "dashboards_operacionais_prontos": dashboards_operacionais_prontos,
+        "observabilidade_runbooks_prontos": observabilidade_runbooks_prontos,
+        "runbooks_incidentes_prontos": runbooks_incidentes_prontos,
+        "operacao_smoke_checks": operacao_smoke_checks,
         "metrica_inc": metrica_inc,
         "traca_iniciar": traca_iniciar,
         "traca_evento": traca_evento,

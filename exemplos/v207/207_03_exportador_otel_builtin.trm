@@ -1,0 +1,10 @@
+função principal()
+    metricas_reset()
+    tracos_reset()
+    span = traco_iniciar("processar", {"componente": "api"})
+    traco_evento(span, "inicio", {"fase": "entrada"})
+    traco_finalizar(span, "ok")
+    payload = observabilidade_exportar_otel_json()
+    exibir(payload["resource"]["service.name"])
+    exibir(tamanho(payload["spans"]) >= 1)
+fim

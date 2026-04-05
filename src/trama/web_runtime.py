@@ -1596,6 +1596,8 @@ class WebApp:
         self.observabilidade_ativa = False
         self.observabilidade_path = "/observabilidade"
         self.alertas_path = "/alertas"
+        self.metricas_path = "/metricas"
+        self.otlp_path = "/otlp-json"
         self.alertas_config: dict[str, object] = {}
         self.ambiente = "dev"
         self.cors_origens_por_ambiente: dict[str, list[str]] = {
@@ -2836,6 +2838,14 @@ class WebRuntime:
                 if app.observabilidade_ativa and path == app.alertas_path:
                     alertas = observability_runtime.alertas_avaliar(app.alertas_config)
                     self._send_json(200, {"ok": True, "alertas": alertas}, {})
+                    return
+                if app.observabilidade_ativa and path == app.metricas_path:
+                    prom = observability_runtime.exportar_prometheus().encode("utf-8")
+                    self._send_bytes(200, prom, "text/plain; version=0.0.4; charset=utf-8", {})
+                    return
+                if app.observabilidade_ativa and path == app.otlp_path:
+                    otlp = observability_runtime.exportar_otel_json()
+                    self._send_json(200, {"ok": True, "otlp": otlp}, {})
                     return
 
                 if app.health_enabled and path in {app.health_path, app.readiness_path, app.liveness_path}:

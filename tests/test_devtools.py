@@ -3,7 +3,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from trama.devtools import coverage_trm, format_trm, gerar_template_backend, lint_trm, run_test_runner
+from trama.devtools import (
+    coverage_trm,
+    format_trm,
+    gerar_template_backend,
+    gerar_template_modulo,
+    gerar_template_servico,
+    lint_trm,
+    run_test_runner,
+)
 
 
 def test_test_runner_lint_format_coverage(tmp_path: Path) -> None:
@@ -47,3 +55,21 @@ def test_gerar_template_backend(tmp_path: Path) -> None:
     assert (dst / "config" / ".env.exemplo").exists()
     assert "Projeto backend Trama" in (dst / "README.md").read_text(encoding="utf-8")
     json.dumps(out)
+
+
+def test_gerar_template_servico_e_modulo(tmp_path: Path) -> None:
+    dst_serv = tmp_path / "template_servico"
+    out_serv = gerar_template_servico(str(dst_serv))
+    assert out_serv["ok"] is True
+    assert (dst_serv / "src" / "servico.trm").exists()
+    assert (dst_serv / "config" / "contrato_base.json").exists()
+    assert (dst_serv / "docs" / "OPERACAO.md").exists()
+
+    dst_mod = tmp_path / "template_modulo"
+    out_mod = gerar_template_modulo(str(dst_mod), nome_modulo="Módulo de Teste 99")
+    assert out_mod["ok"] is True
+    assert out_mod["nome_modulo"] == "modulo_de_teste_99"
+    assert (dst_mod / "src" / "modulo_de_teste_99.trm").exists()
+    assert (dst_mod / "tests" / "test_modulo_de_teste_99.trm").exists()
+    json.dumps(out_serv)
+    json.dumps(out_mod)

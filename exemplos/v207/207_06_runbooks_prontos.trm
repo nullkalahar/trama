@@ -1,0 +1,6 @@
+função principal()
+    r = observabilidade_runbooks_prontos()
+    exibir(r["ok"])
+    exibir(tamanho(r["runbooks"]) >= 3)
+    exibir(r["runbooks"][0]["codigo"])
+fim

@@ -1,0 +1,15 @@
+função principal()
+    metricas_reset()
+    i = 0
+    enquanto i < 20
+        metrica_incrementar("http.requisicoes_total", 1, {"rota": "/critica"})
+        se i < 5
+            metrica_incrementar("http.erros_total", 1, {"rota": "/critica"})
+        fim
+        metrica_observar("http.latencia_ms", 900, {"rota": "/critica"})
+        i = i + 1
+    fim
+    alertas = alertas_avaliar({"erro_percentual_limite": 10, "latencia_ms_limite": 500, "requisicoes_minimas": 10})
+    exibir(alertas["estado"])
+    exibir(tamanho(alertas["ativos"]) >= 1)
+fim

@@ -1,0 +1,4 @@
+função principal()
+    exibir("trama operacao-diagnostico --json")
+    exibir("trama operacao-smoke-check --base-url http://127.0.0.1:8080 --json")
+fim

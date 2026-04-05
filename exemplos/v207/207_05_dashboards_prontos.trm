@@ -1,0 +1,6 @@
+função principal()
+    d = observabilidade_dashboards_prontos()
+    exibir(d["ok"])
+    exibir(tamanho(d["dashboards"]) >= 4)
+    exibir(d["dashboards"][0]["id"])
+fim

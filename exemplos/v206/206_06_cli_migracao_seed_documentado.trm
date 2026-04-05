@@ -1,0 +1,5 @@
+função principal()
+    exibir("trama migracao-aplicar-v2 --dsn sqlite:///./.local/app.db --versao 206.001 --nome inicial --up-arquivo migrations/206001_up.sql --down-arquivo migrations/206001_down.sql --ambiente teste")
+    exibir("trama migracao-trilha-listar --dsn sqlite:///./.local/app.db --json")
+    exibir("trama seed-aplicar-ambiente --dsn sqlite:///./.local/app.db --ambiente teste --nome base --sql-arquivo seeds/base.sql")
+fim

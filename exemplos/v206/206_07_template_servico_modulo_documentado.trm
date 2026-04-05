@@ -1,0 +1,5 @@
+função principal()
+    exibir("trama template-servico ./novo_servico")
+    exibir("trama template-modulo ./novo_modulo --nome faturamento_cobranca")
+    exibir("trama testar ./novo_servico/tests")
+fim

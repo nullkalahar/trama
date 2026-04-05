@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 from pathlib import Path
 import sys
@@ -10,8 +11,12 @@ import sys
 from .bytecode import format_program, program_to_dict
 from .compiler import CompileError, compile_source
 from .devtools import coverage_trm, format_trm, gerar_template_backend, lint_trm, run_test_runner
+from .devtools import gerar_template_modulo, gerar_template_servico
+from . import db_runtime
 from .lexer import LexError
+from . import observability_runtime
 from .parser import ParseError
+from . import tooling_runtime
 from trama_semente.semente import semente_compilar_arquivo
 from .vm import VMError, run_bytecode_file, run_source
 
@@ -83,6 +88,76 @@ def build_parser() -> argparse.ArgumentParser:
     template.add_argument("destino", help="Diretório de destino")
     template.add_argument("--forcar", action="store_true", help="Permite sobrescrever diretório não vazio")
     template.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    template_servico = sub.add_parser("template-servico", help="Gera template canônico de serviço")
+    template_servico.add_argument("destino", help="Diretório de destino")
+    template_servico.add_argument("--forcar", action="store_true", help="Permite sobrescrever diretório não vazio")
+    template_servico.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    template_modulo = sub.add_parser("template-modulo", help="Gera template canônico de módulo")
+    template_modulo.add_argument("destino", help="Diretório de destino")
+    template_modulo.add_argument("--nome", default="modulo_exemplo", help="Nome canônico do módulo")
+    template_modulo.add_argument("--forcar", action="store_true", help="Permite sobrescrever diretório não vazio")
+    template_modulo.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    openapi = sub.add_parser("openapi-gerar", help="Gera OpenAPI a partir de contrato em JSON")
+    openapi.add_argument("--contrato", required=True, help="Arquivo JSON com contrato (paths/openapi ou rota simplificada)")
+    openapi.add_argument("--saida", required=True, help="Arquivo OpenAPI de saída (.json)")
+    openapi.add_argument("--titulo", default="API Trama", help="Título da API")
+    openapi.add_argument("--versao", default="1.0.0", help="Versão da API")
+    openapi.add_argument("--servidor", default="", help="URL base do servidor (opcional)")
+
+    sdk = sub.add_parser("sdk-gerar", help="Gera SDK cliente a partir de OpenAPI")
+    sdk.add_argument("--openapi", required=True, help="Arquivo OpenAPI JSON")
+    sdk.add_argument("--saida", required=True, help="Arquivo SDK de saída")
+    sdk.add_argument("--linguagem", default="python", choices=["python", "typescript", "ts"], help="Linguagem do SDK")
+    sdk.add_argument("--cliente", default="ClienteApiTrama", help="Nome da classe cliente")
+
+    admin_usuario_criar = sub.add_parser("admin-usuario-criar", help="Cria usuário administrativo local")
+    admin_usuario_criar.add_argument("--id", required=True, help="ID do usuário")
+    admin_usuario_criar.add_argument("--nome", default="", help="Nome do usuário")
+    admin_usuario_criar.add_argument("--papeis", default="", help="Papeis separados por vírgula")
+
+    admin_usuario_listar = sub.add_parser("admin-usuario-listar", help="Lista usuários administrativos locais")
+    admin_usuario_listar.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    admin_permissao = sub.add_parser("admin-permissao-conceder", help="Concede permissões para usuário administrativo")
+    admin_permissao.add_argument("--id", required=True, help="ID do usuário")
+    admin_permissao.add_argument("--permissoes", required=True, help="Permissões separadas por vírgula")
+
+    admin_jobs = sub.add_parser("admin-jobs-listar", help="Lista resumo operacional de jobs")
+    admin_jobs.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    admin_manut = sub.add_parser("admin-manutencao-status", help="Status de manutenção operacional")
+    admin_manut.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    mig_aplicar = sub.add_parser("migracao-aplicar-v2", help="Aplica migração versionada v2 padronizada")
+    mig_aplicar.add_argument("--dsn", required=True, help="DSN de banco")
+    mig_aplicar.add_argument("--versao", required=True, help="Versão da migração")
+    mig_aplicar.add_argument("--nome", required=True, help="Nome da migração")
+    mig_aplicar.add_argument("--up-arquivo", required=True, help="Arquivo SQL up")
+    mig_aplicar.add_argument("--down-arquivo", default="", help="Arquivo SQL down")
+    mig_aplicar.add_argument("--ambiente", default="dev", help="Ambiente: dev/teste/prod")
+    mig_aplicar.add_argument("--dry-run", action="store_true", help="Executa em modo de simulação")
+
+    mig_trilha = sub.add_parser("migracao-trilha-listar", help="Lista trilha de migrações v2")
+    mig_trilha.add_argument("--dsn", required=True, help="DSN de banco")
+    mig_trilha.add_argument("--limite", default=20, type=int, help="Limite de registros")
+    mig_trilha.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    seed_aplicar = sub.add_parser("seed-aplicar-ambiente", help="Aplica seed por ambiente padronizada")
+    seed_aplicar.add_argument("--dsn", required=True, help="DSN de banco")
+    seed_aplicar.add_argument("--ambiente", required=True, help="Ambiente: dev/teste/prod")
+    seed_aplicar.add_argument("--nome", required=True, help="Nome da seed")
+    seed_aplicar.add_argument("--sql-arquivo", required=True, help="Arquivo SQL da seed")
+
+    op_diag = sub.add_parser("operacao-diagnostico", help="Diagnóstico operacional padronizado")
+    op_diag.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    op_smoke = sub.add_parser("operacao-smoke-check", help="Executa smoke checks HTTP")
+    op_smoke.add_argument("--base-url", required=True, help="URL base da aplicação")
+    op_smoke.add_argument("--timeout", default=2.0, type=float, help="Timeout por requisição")
+    op_smoke.add_argument("--json", action="store_true", help="Saída em JSON")
 
     sub.add_parser("repl", help="Abre REPL (planejado para fase futura)")
     return parser
@@ -204,6 +279,150 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(f"Template backend criado em: {report['destino']}")
             return 0
+        if args.command == "template-servico":
+            report = gerar_template_servico(args.destino, forcar=bool(args.forcar))
+            if args.json:
+                print(json.dumps(report, ensure_ascii=False, indent=2))
+            else:
+                print(f"Template de serviço criado em: {report['destino']}")
+            return 0
+        if args.command == "template-modulo":
+            report = gerar_template_modulo(args.destino, nome_modulo=args.nome, forcar=bool(args.forcar))
+            if args.json:
+                print(json.dumps(report, ensure_ascii=False, indent=2))
+            else:
+                print(f"Template de módulo criado em: {report['destino']}")
+            return 0
+        if args.command == "openapi-gerar":
+            contrato = json.loads(Path(args.contrato).read_text(encoding="utf-8"))
+            if "openapi" in contrato and "paths" in contrato:
+                spec = contrato
+                if args.titulo:
+                    spec.setdefault("info", {})
+                    if isinstance(spec["info"], dict):
+                        spec["info"]["title"] = args.titulo
+                        spec["info"]["version"] = args.versao
+                if args.servidor:
+                    spec["servers"] = [{"url": args.servidor}]
+            else:
+                spec = {
+                    "openapi": "3.0.3",
+                    "info": {"title": args.titulo, "version": args.versao},
+                    "servers": [{"url": args.servidor}] if args.servidor else [],
+                    "paths": dict(contrato.get("paths", {})),
+                }
+            out = tooling_runtime.salvar_openapi(spec, args.saida)
+            print(json.dumps(out, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "sdk-gerar":
+            spec = json.loads(Path(args.openapi).read_text(encoding="utf-8"))
+            out = tooling_runtime.gerar_sdk_cliente(spec, args.saida, linguagem=args.linguagem, nome_cliente=args.cliente)
+            print(json.dumps(out, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "admin-usuario-criar":
+            estado = _admin_carregar_estado()
+            uid = str(args.id)
+            usuarios = dict(estado.get("usuarios", {}))
+            usuario = dict(usuarios.get(uid, {}))
+            usuario["id"] = uid
+            usuario["nome"] = str(args.nome or usuario.get("nome", ""))
+            papeis = [p.strip() for p in str(args.papeis or "").split(",") if p.strip()]
+            usuario["papeis"] = sorted(set(list(usuario.get("papeis", [])) + papeis))
+            usuario.setdefault("permissoes", [])
+            usuarios[uid] = usuario
+            estado["usuarios"] = usuarios
+            _admin_salvar_estado(estado)
+            print(json.dumps({"ok": True, "usuario": usuario}, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "admin-usuario-listar":
+            estado = _admin_carregar_estado()
+            usuarios = list(dict(estado.get("usuarios", {})).values())
+            payload = {"ok": True, "total": len(usuarios), "usuarios": usuarios}
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print(f"Total usuários: {len(usuarios)}")
+                for u in usuarios:
+                    print(f"- {u.get('id')} ({u.get('nome', '')})")
+            return 0
+        if args.command == "admin-permissao-conceder":
+            estado = _admin_carregar_estado()
+            uid = str(args.id)
+            usuarios = dict(estado.get("usuarios", {}))
+            if uid not in usuarios:
+                raise RuntimeError("Usuário administrativo não encontrado.")
+            usuario = dict(usuarios[uid])
+            perms = [p.strip() for p in str(args.permissoes).split(",") if p.strip()]
+            usuario["permissoes"] = sorted(set(list(usuario.get("permissoes", [])) + perms))
+            usuarios[uid] = usuario
+            estado["usuarios"] = usuarios
+            _admin_salvar_estado(estado)
+            print(json.dumps({"ok": True, "usuario": usuario}, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "admin-jobs-listar":
+            snap = observability_runtime.metricas_snapshot()
+            payload = {"ok": True, "jobs": {"metricas": snap}}
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print("Resumo de jobs coletado de métricas.")
+            return 0
+        if args.command == "admin-manutencao-status":
+            payload = {
+                "ok": True,
+                "estado": "operacional",
+                "dashboards": tooling_runtime.dashboards_operacionais_prontos().get("dashboards", []),
+                "runbooks": tooling_runtime.runbooks_incidentes_prontos().get("runbooks", []),
+            }
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print("Manutenção operacional: estado=operacional")
+            return 0
+        if args.command == "migracao-aplicar-v2":
+            up_sql = Path(args.up_arquivo).read_text(encoding="utf-8")
+            down_sql = Path(args.down_arquivo).read_text(encoding="utf-8") if args.down_arquivo else ""
+            out = asyncio.run(
+                _db_migracao_aplicar_v2(
+                    dsn=args.dsn,
+                    versao=args.versao,
+                    nome=args.nome,
+                    up_sql=up_sql,
+                    down_sql=down_sql,
+                    ambiente=args.ambiente,
+                    dry_run=bool(args.dry_run),
+                )
+            )
+            print(json.dumps(out, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "migracao-trilha-listar":
+            trilha = asyncio.run(_db_migracao_trilha_listar(args.dsn, limite=int(args.limite)))
+            if args.json:
+                print(json.dumps({"ok": True, "trilha": trilha}, ensure_ascii=False, indent=2))
+            else:
+                print(f"Trilha: {len(trilha)} registros")
+                for item in trilha:
+                    print(f"- {item.get('versao')} {item.get('nome')} [{item.get('status')}]")
+            return 0
+        if args.command == "seed-aplicar-ambiente":
+            sql = Path(args.sql_arquivo).read_text(encoding="utf-8")
+            out = asyncio.run(_db_seed_aplicar_ambiente(args.dsn, args.ambiente, args.nome, sql))
+            print(json.dumps(out, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "operacao-diagnostico":
+            payload = _operacao_diagnostico()
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print(f"estado={payload['estado']} runtime={payload['runtime']}")
+            return 0
+        if args.command == "operacao-smoke-check":
+            payload = tooling_runtime.smoke_checks_http(base_url=args.base_url, timeout_segundos=float(args.timeout))
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print(f"smoke_ok={payload['ok']} duracao_ms={round(float(payload['duracao_ms']), 2)}")
+            return 0
     except (LexError, ParseError, CompileError, VMError, OSError) as exc:
         print(f"Erro: {exc}", file=sys.stderr)
         return 1
@@ -280,6 +499,81 @@ def _validar_paridade_selfhost(arquivo_fonte: str) -> bool:
     _autocompilar_via_selfhost(str(fonte), str(saida))
     selfhost = json.loads(saida.read_text(encoding="utf-8"))
     return tradicional == selfhost
+
+
+def _admin_estado_arquivo() -> Path:
+    p = Path(".local") / "admin_estado.json"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def _admin_carregar_estado() -> dict[str, object]:
+    path = _admin_estado_arquivo()
+    if not path.exists():
+        return {"usuarios": {}, "versao": "1"}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"usuarios": {}, "versao": "1"}
+
+
+def _admin_salvar_estado(estado: dict[str, object]) -> None:
+    path = _admin_estado_arquivo()
+    path.write_text(json.dumps(estado, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+async def _db_migracao_aplicar_v2(
+    dsn: str,
+    versao: str,
+    nome: str,
+    up_sql: str,
+    down_sql: str,
+    ambiente: str,
+    dry_run: bool,
+) -> dict[str, object]:
+    conn = await db_runtime.conectar(dsn)
+    try:
+        return await db_runtime.migracao_aplicar_versionada_v2(
+            conn=conn,
+            versao=versao,
+            nome=nome,
+            up_sql=up_sql,
+            down_sql=down_sql,
+            ambiente=ambiente,
+            dry_run=dry_run,
+        )
+    finally:
+        await db_runtime.fechar(conn)
+
+
+async def _db_migracao_trilha_listar(dsn: str, limite: int) -> list[dict[str, object]]:
+    conn = await db_runtime.conectar(dsn)
+    try:
+        return await db_runtime.migracao_trilha_listar(conn, limite=limite)
+    finally:
+        await db_runtime.fechar(conn)
+
+
+async def _db_seed_aplicar_ambiente(dsn: str, ambiente: str, nome: str, sql: str) -> dict[str, object]:
+    conn = await db_runtime.conectar(dsn)
+    try:
+        return await db_runtime.seed_aplicar_ambiente(conn, ambiente, nome, sql)
+    finally:
+        await db_runtime.fechar(conn)
+
+
+def _operacao_diagnostico() -> dict[str, object]:
+    alertas = observability_runtime.alertas_avaliar()
+    estado = "ok" if str(alertas.get("estado", "ok")) == "ok" else "degradado"
+    return {
+        "ok": True,
+        "estado": estado,
+        "runtime": "python_legado",
+        "backend_compilador": "python_com_ponte_selfhost",
+        "alertas": alertas,
+        "dashboards": tooling_runtime.dashboards_operacionais_prontos().get("dashboards", []),
+        "runbooks": tooling_runtime.runbooks_incidentes_prontos().get("runbooks", []),
+    }
 
 
 if __name__ == "__main__":

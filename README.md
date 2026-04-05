@@ -88,9 +88,13 @@ Pipeline da linguagem:
 - manual da linguagem v1.5-v1.8 em [`docs/LINGUAGEM_V1_5_V1_8.md`](docs/LINGUAGEM_V1_5_V1_8.md)
 - manual da linguagem v2.0 (andamento) em [`docs/LINGUAGEM_V2_0.md`](docs/LINGUAGEM_V2_0.md)
 - manual da linguagem v2.0.2 (DTO/contrato HTTP) em [`docs/LINGUAGEM_V2_0_2.md`](docs/LINGUAGEM_V2_0_2.md)
+- manual da linguagem v2.0.6 (tooling backend) em [`docs/LINGUAGEM_V2_0_6.md`](docs/LINGUAGEM_V2_0_6.md)
+- manual da linguagem v2.0.7 (observabilidade/SRE) em [`docs/LINGUAGEM_V2_0_7.md`](docs/LINGUAGEM_V2_0_7.md)
 - manual completo consolidado até v2.0.2 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_2.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_2.md)
+- manual completo consolidado até v2.0.7 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_7.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_7.md)
 - manual completo consolidado até v1.4 em [`docs/MANUAL_COMPLETO_ATE_V1_4.md`](docs/MANUAL_COMPLETO_ATE_V1_4.md)
 - manual completo consolidado até v1.8 em [`docs/MANUAL_COMPLETO_ATE_V1_8.md`](docs/MANUAL_COMPLETO_ATE_V1_8.md)
+- manual operacional comando a comando v2.0.6-v2.0.7 em [`docs/OPERACAO_COMANDOS_V2_0_6_V2_0_7.md`](docs/OPERACAO_COMANDOS_V2_0_6_V2_0_7.md)
 - manual prático da v2.0 fase 2 em [`docs/MANUAL_V2_0_FASE2.md`](docs/MANUAL_V2_0_FASE2.md)
 - roadmap detalhado de implementações futuras v2.1 em [`docs/ROADMAP_IMPLEMENTACOES_FUTURAS_V2_1.md`](docs/ROADMAP_IMPLEMENTACOES_FUTURAS_V2_1.md)
 - guia de auto-hospedagem v1.0 em [`docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md`](docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md)
@@ -102,6 +106,8 @@ Pipeline da linguagem:
 - auditoria de paridade real da fase 2 em [`docs/V2_FASE2_PARIDADE_VM_NATIVA.md`](docs/V2_FASE2_PARIDADE_VM_NATIVA.md)
 - checklist de entrega em [`docs/V0_1_CHECKLIST.md`](docs/V0_1_CHECKLIST.md)
 - exemplos v2.0 em [`exemplos/v20/`](exemplos/v20/)
+- exemplos v2.0.6 em [`exemplos/v206/`](exemplos/v206/)
+- exemplos v2.0.7 em [`exemplos/v207/`](exemplos/v207/)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
 - binário standalone gerável por [`scripts/build_standalone.sh`](scripts/build_standalone.sh)
@@ -300,6 +306,20 @@ trama lint [alvo]
 trama formatar [alvo] [--aplicar]
 trama cobertura [alvo]
 trama template-backend <destino>
+trama template-servico <destino>
+trama template-modulo <destino> [--nome modulo_exemplo]
+trama openapi-gerar --contrato <arquivo.json> --saida <openapi.json>
+trama sdk-gerar --openapi <openapi.json> --saida <sdk.py|sdk.ts> [--linguagem python|typescript]
+trama admin-usuario-criar --id <id> [--nome] [--papeis]
+trama admin-usuario-listar [--json]
+trama admin-permissao-conceder --id <id> --permissoes <p1,p2>
+trama admin-jobs-listar [--json]
+trama admin-manutencao-status [--json]
+trama migracao-aplicar-v2 --dsn <dsn> --versao <v> --nome <nome> --up-arquivo <sql> [--down-arquivo]
+trama migracao-trilha-listar --dsn <dsn> [--json]
+trama seed-aplicar-ambiente --dsn <dsn> --ambiente <dev|teste|prod> --nome <nome> --sql-arquivo <sql>
+trama operacao-diagnostico [--json]
+trama operacao-smoke-check --base-url <url> [--json]
 trama repl
 ```
 
@@ -862,28 +882,64 @@ Entregas implementadas em v2.0.5:
   - manual da versão em `docs/LINGUAGEM_V2_0_5.md`.
 
 ### v2.0.6 - Tooling de backend maduro
-- [ ] OpenAPI/Swagger gerado a partir do contrato da aplicação.
-- [ ] geração de cliente (SDK) para consumo de API.
-- [ ] CLI de administração (usuários, permissões, jobs, manutenção).
-- [ ] comandos de migração/seed/diagnóstico padronizados.
-- [ ] templates de serviço e módulo para acelerar novos projetos.
-- [ ] documentação operacional de comando a comando.
+- [x] OpenAPI/Swagger gerado a partir do contrato da aplicação.
+- [x] geração de cliente (SDK) para consumo de API.
+- [x] CLI de administração (usuários, permissões, jobs, manutenção).
+- [x] comandos de migração/seed/diagnóstico padronizados.
+- [x] templates de serviço e módulo para acelerar novos projetos.
+- [x] documentação operacional de comando a comando.
 
 DoD v2.0.6:
 - onboarding técnico previsível.
 - fluxo de desenvolvimento/admin padronizado.
 
 ### v2.0.7 - Observabilidade e SRE
-- [ ] exportadores padrão (OpenTelemetry/Prometheus compatível).
-- [ ] correlação completa de logs, métricas e traces.
-- [ ] dashboards operacionais prontos (API, DB, realtime, jobs).
-- [ ] alertas iniciais (erro, latência, saturação, fila).
-- [ ] runbooks de incidentes e procedimentos de recuperação.
-- [ ] smoke checks e health checks de produção.
+- [x] exportadores padrão (OpenTelemetry/Prometheus compatível).
+- [x] correlação completa de logs, métricas e traces.
+- [x] dashboards operacionais prontos (API, DB, realtime, jobs).
+- [x] alertas iniciais (erro, latência, saturação, fila).
+- [x] runbooks de incidentes e procedimentos de recuperação.
+- [x] smoke checks e health checks de produção.
 
 DoD v2.0.7:
 - operação observável ponta a ponta.
 - alertas e runbooks prontos para produção.
+
+Entregas implementadas em v2.0.6:
+- runtime de tooling (`tooling_runtime`) com:
+  - geração de OpenAPI a partir de `web_runtime` e contrato de rota/DTO;
+  - exportação de OpenAPI para arquivo e geração de SDK Python/TypeScript;
+  - catálogo operacional de dashboards/runbooks e smoke checks HTTP.
+- CLI padronizada de backend:
+  - `openapi-gerar`, `sdk-gerar`, `template-servico`, `template-modulo`;
+  - `admin-usuario-criar`, `admin-usuario-listar`, `admin-permissao-conceder`, `admin-jobs-listar`, `admin-manutencao-status`;
+  - `migracao-aplicar-v2`, `migracao-trilha-listar`, `seed-aplicar-ambiente`, `operacao-diagnostico`, `operacao-smoke-check`.
+- `devtools` com templates novos:
+  - `gerar_template_servico`, `gerar_template_modulo` com normalização canônica de identificador.
+- superfície canônica em `builtins`/`semantic`:
+  - `web_gerar_openapi`, `web_exportar_openapi`, `web_gerar_sdk` + aliases de compatibilidade.
+- testes:
+  - `tests/test_tooling_runtime_v206.py`, `tests/test_devtools.py`, `tests/test_cli.py`,
+  - `tests/test_vm.py::test_v206_tooling_openapi_sdk_em_vm`.
+- documentação:
+  - `docs/LINGUAGEM_V2_0_6.md`, `docs/OPERACAO_COMANDOS_V2_0_6_V2_0_7.md`, `exemplos/v206/`.
+
+Entregas implementadas em v2.0.7:
+- exportadores padrão no runtime de observabilidade (`observability_runtime`):
+  - `exportar_prometheus` e `exportar_otel_json`.
+- integração HTTP de observabilidade no `web_runtime`:
+  - novos endpoints canônicos `/metricas` e `/otlp-json` além de `/observabilidade` e `/alertas`.
+- builtins canônicos e aliases:
+  - `observabilidade_exportar_prometheus`, `observabilidade_exportar_otel_json`,
+  - `observabilidade_dashboards_prontos`, `observabilidade_runbooks_prontos`, `operacao_smoke_checks`.
+- correlação/logs/métricas/traces mantidos com IDs canônicos (`id_requisicao`, `id_traco`, `id_usuario`).
+- catálogo inicial de operação:
+  - dashboards prontos (API/DB/tempo_real/jobs), runbooks de incidentes e smoke checks.
+- testes:
+  - `tests/test_observability_v207.py`, `tests/test_web_observabilidade_v207.py`,
+  - `tests/test_vm.py::test_v207_observabilidade_exportadores_e_smoke_em_vm`.
+- documentação:
+  - `docs/LINGUAGEM_V2_0_7.md`, `docs/MANUAL_TRAMA_COMPLETO_V2_0_7.md`, `exemplos/v207/`.
 
 ### v2.0.8 - Testes avançados (integração/e2e/carga)
 - [ ] harness de integração com fixtures reais de banco.

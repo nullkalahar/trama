@@ -356,6 +356,87 @@ def observabilidade_resumo(config_alerta: dict[str, object] | None = None) -> di
     }
 
 
+def exportar_prometheus() -> str:
+    snap = metricas_snapshot()
+    linhas: list[str] = []
+    linhas.append("# HELP trama_runtime_info Informacoes basicas do runtime Trama")
+    linhas.append("# TYPE trama_runtime_info gauge")
+    linhas.append('trama_runtime_info{runtime="python",linguagem="trama"} 1')
+    for c in snap.get("counters", []):
+        nome = str(c.get("nome", "")).strip().replace(".", "_")
+        if not nome:
+            continue
+        labels_map = dict(c.get("labels", {}))
+        labels_txt = ",".join(f'{str(k)}="{str(v)}"' for k, v in sorted(labels_map.items()))
+        labels_fmt = "{" + labels_txt + "}" if labels_txt else ""
+        linhas.append(f"{nome}{labels_fmt} {float(c.get('valor', 0.0))}")
+    for o in snap.get("observacoes", []):
+        nome = str(o.get("nome", "")).strip().replace(".", "_")
+        if not nome:
+            continue
+        labels_map = dict(o.get("labels", {}))
+        labels_txt = ",".join(f'{str(k)}="{str(v)}"' for k, v in sorted(labels_map.items()))
+        labels_fmt = "{" + labels_txt + "}" if labels_txt else ""
+        linhas.append(f"{nome}_observacao{labels_fmt} {float(o.get('valor', 0.0))}")
+    return "\n".join(linhas) + "\n"
+
+
+def exportar_otel_json() -> dict[str, object]:
+    snap_m = metricas_snapshot()
+    snap_t = tracos_snapshot()
+    corr = correlacao_obter()
+    metricas = []
+    for c in snap_m.get("counters", []):
+        metricas.append(
+            {
+                "name": c.get("nome"),
+                "kind": "sum",
+                "value": float(c.get("valor", 0.0)),
+                "attributes": dict(c.get("labels", {})),
+            }
+        )
+    for o in snap_m.get("observacoes", []):
+        metricas.append(
+            {
+                "name": o.get("nome"),
+                "kind": "gauge",
+                "value": float(o.get("valor", 0.0)),
+                "attributes": dict(o.get("labels", {})),
+            }
+        )
+    spans = []
+    for s in snap_t.get("spans", []):
+        spans.append(
+            {
+                "trace_id": str(s.get("id_traco") or corr.get("id_traco") or ""),
+                "span_id": str(s.get("id", "")),
+                "name": str(s.get("nome", "")),
+                "status": str(s.get("status", "")),
+                "start_time": s.get("inicio_ts"),
+                "end_time": s.get("fim_ts"),
+                "attributes": dict(s.get("atributos", {})),
+            }
+        )
+    eventos = []
+    for e in snap_t.get("eventos", []):
+        eventos.append(
+            {
+                "span_id": str(e.get("span_id", "")),
+                "name": str(e.get("nome", "")),
+                "time": e.get("ts"),
+                "attributes": dict(e.get("atributos", {})),
+            }
+        )
+    return {
+        "resource": {"service.name": "trama"},
+        "metrics": metricas,
+        "spans": spans,
+        "events": eventos,
+        "correlacao": corr,
+        "gerado_em": _now_iso(),
+    }
+
+
 def operacao_validar_config(obrigatorios: list[str]) -> dict[str, object]:
     faltando = [k for k in obrigatorios if not k]
     return {"ok": len(faltando) == 0, "faltando": faltando}

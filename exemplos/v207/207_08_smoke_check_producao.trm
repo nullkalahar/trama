@@ -1,0 +1,5 @@
+função principal()
+    exibir("Use com servico ativo:")
+    exibir("operacao_smoke_checks(\"http://127.0.0.1:8080\", 2.0, [\"/saude\", \"/pronto\", \"/vivo\", \"/observabilidade\", \"/alertas\"])")
+    exibir("trama operacao-smoke-check --base-url http://127.0.0.1:8080 --json")
+fim

@@ -1,0 +1,7 @@
+função principal()
+    exibir("trama admin-usuario-criar --id admin --nome \"Administrador\" --papeis root,ops")
+    exibir("trama admin-permissao-conceder --id admin --permissoes usuarios:listar,jobs:executar")
+    exibir("trama admin-usuario-listar --json")
+    exibir("trama admin-jobs-listar --json")
+    exibir("trama admin-manutencao-status --json")
+fim
