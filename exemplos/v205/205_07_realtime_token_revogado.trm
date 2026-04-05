@@ -1,0 +1,14 @@
+função ws(req)
+    retorne {"aceitar": verdadeiro}
+fim
+
+função principal()
+    app = web_criar_app()
+    web_tempo_real_rota(app, "/ws/seguro", ws, {"jwt_segredo": "seg-v205", "jwt_validar_revogacao": verdadeiro})
+    web_tempo_real_ativar_fallback(app)
+
+    token = jwt_criar({"sub": "u10", "id_usuario": "u10"}, "seg-v205", 120)
+    auth_token_revogar(token, 120, "logout")
+
+    exibir(web_tempo_real_status(app, "/ws/seguro")["ok"])
+fim

@@ -1,0 +1,17 @@
+função principal()
+    ev = seguranca_auditoria_registrar(
+        "admin-1",
+        "usuario_remover",
+        "u-99",
+        "sucesso",
+        "req-123",
+        "tr-123",
+        "10.0.0.10",
+        {"motivo": "abuso"}
+    )
+    exibir(ev["ok"])
+
+    logs = seguranca_auditoria_listar(10, nulo, "usuario_remover")
+    exibir(tamanho(logs) >= 1)
+    exibir(logs[0]["resultado"])
+fim

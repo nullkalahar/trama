@@ -1,6 +1,6 @@
 # Exemplos da Trama
 
-Este diretório traz exemplos cobrindo recursos da linguagem do v0.1 ao v2.0.4.
+Este diretório traz exemplos cobrindo recursos da linguagem do v0.1 ao v2.0.5.
 
 ## Como executar
 
@@ -80,8 +80,12 @@ trama executar exemplos/01_ola_mundo.trm
 - `v201/201_relacoes_orm.trm` até `v201/215_migracao_compatibilidade_assinatura.trm`: exemplos detalhados de produção para ORM e migrações
 - `v202/README_V202_EXEMPLOS.md`: coleção v2.0.2 (DTO, validação profunda, contrato HTTP versionado)
 - `v202/202_01_dto_validar_basico.trm` até `v202/202_12_dto_sanitizacao_avancada.trm`: exemplos focados em DTO/contrato e retrocompatibilidade
+- `v203/README_V203_EXEMPLOS.md`: coleção v2.0.3 (realtime distribuído, cursor de reconexão, ack/nack/reenvio)
+- `v203/203_01_distribuicao_config_status.trm` até `v203/203_06_backplane_indisponivel_degradado.trm`: cenários de presença/salas multi-instância, broadcast distribuído, limites e degradação de backplane
 - `v204/README_V204_EXEMPLOS.md`: coleção v2.0.4 (cache distribuído, coerência, fallback, métricas)
 - `v204/204_01_cache_distribuido_basico.trm` até `v204/204_07_web_rota_cache_resposta.trm`: cenários de produção para cache multi-instância, invalidação remota e integração HTTP
+- `v205/README_V205_EXEMPLOS.md`: coleção v2.0.5 (segurança de produção, revogação, hardening e abuso)
+- `v205/205_01_auth_sessao_refresh_rotacao.trm` até `v205/205_07_realtime_token_revogado.trm`: fluxos reais de sessão/dispositivo, denylist, rate-limit distribuído, CORS estrito e auditoria sensível
 - `sintaxe/01_expressoes_multilinha.trm`: lista/mapa/chamada multilinha
 - `sintaxe/02_encadeamento_multilinha.trm`: encadeamento com indexação multilinha
 - `anilist/README_ANILIST_EXEMPLOS.md`: coleção completa de integrações AniList (anime/mangá + DB em `.local/tests/anilist/`)

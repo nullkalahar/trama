@@ -764,16 +764,35 @@ Entregas implementadas em v2.0.2:
   - contrato e exemplos oficiais em `docs/LINGUAGEM_V2_0_2.md`.
 
 ### v2.0.3 - Realtime distribuído em escala
-- [ ] presença/salas com sincronização entre múltiplas instâncias.
-- [ ] backplane pub/sub (ex.: Redis) para broadcast distribuído.
-- [ ] ack/nack/retry/reenvio com garantia de ordenação por canal.
-- [ ] reconexão com recuperação de estado recente por cursor.
-- [ ] limites por conexão/usuário/sala com proteção de abuso.
-- [ ] testes de concorrência e múltiplas instâncias.
+- [x] presença/salas com sincronização entre múltiplas instâncias.
+- [x] backplane pub/sub (ex.: Redis) para broadcast distribuído.
+- [x] ack/nack/retry/reenvio com garantia de ordenação por canal.
+- [x] reconexão com recuperação de estado recente por cursor.
+- [x] limites por conexão/usuário/sala com proteção de abuso.
+- [x] testes de concorrência e múltiplas instâncias.
 
 DoD v2.0.3:
 - realtime estável em ambiente com mais de uma instância.
 - métricas de entrega e reconexão auditáveis.
+
+Entregas implementadas em v2.0.3:
+- runtime realtime distribuído (`web_runtime.TempoRealHub`) com:
+  - presença e salas sincronizadas entre nós (`presenca`/`sala` via backplane);
+  - backplane plugável (`memoria` e `redis`) com fallback degradado e métricas de falha;
+  - publicação distribuída com cursor global por canal, ACK/NACK, retry e reenvio determinístico;
+  - reconexão por cursor (`cursor`/`cursor_ultimo`) com replay de histórico recente;
+  - limites por conexão/usuário/sala e métricas de backlog, entrega e reconexão.
+- superfície canônica em `builtins`/`semantic`:
+  - `web_tempo_real_configurar_distribuicao`, `web_tempo_real_sincronizar_distribuicao`, `web_tempo_real_configurar_backplane`;
+  - aliases de compatibilidade `web_realtime_*`.
+- integração HTTP/fallback:
+  - `POST /tempo-real/fallback/conectar` aceita `cursor_ultimo`;
+  - `GET /tempo-real/fallback/receber` aceita `cursor_desde` e retorna `cursor_ate`.
+- testes:
+  - `tests/test_realtime_v203.py` (multi-node, broadcast distribuído, ack/nack/reenvio, reconexão, limites, fallback, concorrência alta e integração redis real);
+  - `tests/test_vm.py::test_v203_tempo_real_distribuido_em_vm` (integração VM/.trm).
+- documentação:
+  - manual da versão em `docs/LINGUAGEM_V2_0_3.md`.
 
 ### v2.0.4 - Cache distribuído e coerência
 - [x] cache distribuído com TTL/invalidação por chave e por padrão.
@@ -806,16 +825,41 @@ Entregas implementadas em v2.0.4:
   - manual da versão em `docs/LINGUAGEM_V2_0_4.md`.
 
 ### v2.0.5 - Segurança de produção
-- [ ] refresh token rotation e revogação por sessão/dispositivo.
-- [ ] listas de bloqueio e invalidação de tokens.
-- [ ] rate-limit distribuído por rota/IP/usuário.
-- [ ] hardening HTTP (headers de segurança, CORS estrito por ambiente).
-- [ ] trilha de auditoria para ações administrativas sensíveis.
-- [ ] suíte de testes de segurança (authz/authn e abuso).
+- [x] refresh token rotation e revogação por sessão/dispositivo.
+- [x] listas de bloqueio e invalidação de tokens.
+- [x] rate-limit distribuído por rota/IP/usuário.
+- [x] hardening HTTP (headers de segurança, CORS estrito por ambiente).
+- [x] trilha de auditoria para ações administrativas sensíveis.
+- [x] suíte de testes de segurança (authz/authn e abuso).
 
 DoD v2.0.5:
 - fluxo de autenticação completo para produção.
 - controles de abuso e revogação validados.
+
+Entregas implementadas em v2.0.5:
+- runtime de segurança de produção (`security_runtime`) com:
+  - sessão/dispositivo (`sessao_criar`, `sessao_obter`, `sessao_ativa`) e revogação por sessão/dispositivo/usuário;
+  - rotação de refresh token com detecção de reuso e invalidação imediata;
+  - denylist com TTL para bloqueio/revogação de tokens (`token_bloquear`, `token_esta_bloqueado`);
+  - trilha de auditoria administrativa (`auditoria_seguranca_registrar`, `auditoria_seguranca_listar`).
+- rate-limit distribuído por rota/IP/usuário:
+  - backend memória multi-instância e backend redis com fallback degradado seguro;
+  - integração no HTTP por política distribuída (`RateLimitDistribuidoPolicy`).
+- hardening HTTP no `web_runtime`:
+  - headers seguros por padrão (HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, CSP por ambiente);
+  - CORS estrito por ambiente (`dev`, `teste`, `producao`) com bloqueio explícito de origem inválida em produção.
+- integração de autenticação/revogação em HTTP e realtime:
+  - validação de token revogado no fluxo `web_rota` e fallback realtime;
+  - suporte opcional para exigir sessão JWT ativa por rota/canal.
+- superfície canônica em `builtins`/`semantic`:
+  - `auth_*`, `seguranca_auditoria_*`, `web_configurar_seguranca_http`, `web_rate_limit_distribuido`;
+  - aliases de compatibilidade (`sessao_*`, `token_revogar`, `refresh_rotacionar`, `web_limite_taxa_distribuido`).
+- testes:
+  - `tests/test_security_runtime_v205.py` (refresh rotation/reuso, revogação, denylist, auditoria e rate-limit distribuído);
+  - `tests/test_web_security_v205.py` (hardening/CORS, revogação HTTP/realtime, rate-limit multi-node e fallback);
+  - `tests/test_vm.py::test_v205_seguranca_producao_em_vm` (integração VM/.trm).
+- documentação:
+  - manual da versão em `docs/LINGUAGEM_V2_0_5.md`.
 
 ### v2.0.6 - Tooling de backend maduro
 - [ ] OpenAPI/Swagger gerado a partir do contrato da aplicação.

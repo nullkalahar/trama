@@ -1,0 +1,10 @@
+função principal()
+    token = jwt_criar({"sub": "u3"}, "seg-v205", 300)
+    exibir(auth_token_revogado(token))
+
+    out = auth_token_revogar(token, 60, "logout")
+    exibir(out["ok"])
+    exibir(auth_token_revogado(token))
+
+    exibir(auth_token_limpar_denylist() >= 0)
+fim

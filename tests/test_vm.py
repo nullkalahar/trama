@@ -903,6 +903,52 @@ def test_v13_tempo_real_fallback_ptbr() -> None:
     assert out == ["200", "200", "200", "200", "True", "True", "True", "200"]
 
 
+def test_v203_tempo_real_distribuido_em_vm() -> None:
+    codigo = (
+        "função h(req)\n"
+        "    retorne {\"aceitar\": verdadeiro}\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    app_a = web_criar_app()\n"
+        "    app_b = web_criar_app()\n"
+        "    web_tempo_real_rota(app_a, \"/ws/dist\", h)\n"
+        "    web_tempo_real_rota(app_b, \"/ws/dist\", h)\n"
+        "    web_tempo_real_ativar_fallback(app_a)\n"
+        "    web_tempo_real_ativar_fallback(app_b)\n"
+        "    cfg_a = web_tempo_real_configurar_distribuicao(app_a, {\"ativar\": verdadeiro, \"grupo\": \"vm_v203\", \"id_instancia\": \"a\", \"auto_sincronizar\": falso, \"backplane\": \"memoria\"})\n"
+        "    cfg_b = web_tempo_real_configurar_distribuicao(app_b, {\"ativar\": verdadeiro, \"grupo\": \"vm_v203\", \"id_instancia\": \"b\", \"auto_sincronizar\": falso, \"backplane\": \"memoria\"})\n"
+        "    exibir(cfg_a[\"ok\"])\n"
+        "    exibir(cfg_b[\"ok\"])\n"
+        "    s1 = aguarde web_iniciar(app_a, \"127.0.0.1\", 0)\n"
+        "    s2 = aguarde web_iniciar(app_b, \"127.0.0.1\", 0)\n"
+        "    b1 = s1[\"base_url\"]\n"
+        "    b2 = s2[\"base_url\"]\n"
+        "    c1 = aguarde http_post(b1 + \"/tempo-real/fallback/conectar\", {\"canal\": \"/ws/dist\"}, {\"Content-Type\": \"application/json\"})\n"
+        "    c2 = aguarde http_post(b2 + \"/tempo-real/fallback/conectar\", {\"canal\": \"/ws/dist\"}, {\"Content-Type\": \"application/json\"})\n"
+        "    id1 = c1[\"json\"][\"id_conexao\"]\n"
+        "    id2 = c2[\"json\"][\"id_conexao\"]\n"
+        "    aguarde http_post(b1 + \"/tempo-real/fallback/enviar\", {\"id_conexao\": id1, \"mensagem\": {\"tipo\": \"entrar_sala\", \"sala\": \"lobby\"}}, {\"Content-Type\": \"application/json\"})\n"
+        "    aguarde http_post(b2 + \"/tempo-real/fallback/enviar\", {\"id_conexao\": id2, \"mensagem\": {\"tipo\": \"entrar_sala\", \"sala\": \"lobby\"}}, {\"Content-Type\": \"application/json\"})\n"
+        "    exibir(web_tempo_real_sincronizar_distribuicao(app_a) >= 1)\n"
+        "    exibir(web_tempo_real_sincronizar_distribuicao(app_b) >= 1)\n"
+        "    pub = web_tempo_real_publicar(app_a, \"/ws/dist\", \"evt\", {\"ok\": verdadeiro}, {\"sala\": \"lobby\", \"exigir_ack\": verdadeiro})\n"
+        "    exibir(pub[\"cursor\"] > 0)\n"
+        "    web_tempo_real_sincronizar_distribuicao(app_b)\n"
+        "    r2 = aguarde http_get(b2 + \"/tempo-real/fallback/receber?id_conexao=\" + id2 + \"&timeout_segundos=0.2\")\n"
+        "    exibir(r2[\"status\"])\n"
+        "    exibir(r2[\"json\"][\"cursor_ate\"] >= pub[\"cursor\"])\n"
+        "    exibir(tamanho(r2[\"json\"][\"eventos\"]) >= 1)\n"
+        "    st = web_tempo_real_status(app_b, \"/ws/dist\")\n"
+        "    exibir(st[\"distribuicao\"][\"ativo\"])\n"
+        "    exibir(st[\"metricas\"][\"entregues\"] >= 1)\n"
+        "    aguarde web_parar(s1)\n"
+        "    aguarde web_parar(s2)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["True", "True", "True", "True", "True", "200", "True", "True", "True", "True"]
+
+
 def test_parser_multilinha_chamada_lista_mapa() -> None:
     codigo = (
         "função soma(a, b)\n"
@@ -1051,3 +1097,30 @@ def test_v15_v18_social_admin_sync_e_realtime_avancado() -> None:
         "0",
         "True",
     ]
+
+
+def test_v205_seguranca_producao_em_vm() -> None:
+    codigo = (
+        "função principal()\n"
+        "    s = auth_sessao_criar(\"u_vm_205\", \"d_vm\", 120)\n"
+        "    rt = auth_refresh_emitir(\"u_vm_205\", \"seg-vm-205\", s[\"id_sessao\"], \"d_vm\", 120)\n"
+        "    novo = auth_refresh_rotacionar(rt, \"seg-vm-205\", 120)\n"
+        "    exibir(novo[\"ok\"])\n"
+        "    exibir(auth_token_revogado(rt))\n"
+        "    tentou_reuso = falso\n"
+        "    tente\n"
+        "        auth_refresh_rotacionar(rt, \"seg-vm-205\", 120)\n"
+        "    pegue e\n"
+        "        tentou_reuso = e == \"refresh_reuso_detectado\"\n"
+        "    fim\n"
+        "    exibir(tentou_reuso)\n"
+        "    exibir(auth_sessao_ativa(s[\"id_sessao\"]) == falso)\n"
+        "    app = web_criar_app()\n"
+        "    cfg_http = web_configurar_seguranca_http(app, \"producao\", [\"https://app.trama.local\"])\n"
+        "    exibir(cfg_http[\"ambiente\"] == \"producao\")\n"
+        "    cfg_rl = web_rate_limit_distribuido(app, 2, 30, \"/api/seguro\", \"GET\", [\"rota\", \"ip\", \"usuario\"], {\"grupo\": \"vm_v205\"})\n"
+        "    exibir(cfg_rl[\"ok\"])\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["True", "True", "True", "True", "True", "True"]

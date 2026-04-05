@@ -51,6 +51,11 @@ Fluxo principal:
 ### 2.5 Segurança, observabilidade e operação
 - JWT (`jwt_criar`, `jwt_verificar`);
 - hash de senha e RBAC;
+- sessão/dispositivo com refresh rotation e revogação (`auth_*`, `sessao_*`);
+- denylist de token com TTL e invalidação imediata;
+- rate-limit distribuído por rota/IP/usuário;
+- hardening HTTP com headers seguros e CORS estrito por ambiente;
+- auditoria de segurança para ações administrativas sensíveis;
 - logs estruturados;
 - métricas e tracing;
 - dashboard/alertas iniciais;
@@ -110,6 +115,7 @@ Há também um roadmap detalhado de maturidade em v2.1.x, com os 7 eixos crític
 
 - `README.md` (estado e roadmap)
 - `docs/LINGUAGEM_V2_0.md`
+- `docs/LINGUAGEM_V2_0_5.md`
 - `docs/MANUAL_V2_0_FASE2.md`
 - `docs/V2_FASE2_PARIDADE_VM_NATIVA.md`
 - `docs/ROADMAP_IMPLEMENTACOES_FUTURAS_V2_1.md`

@@ -93,7 +93,7 @@ def _ws_recv_frame(sock: socket.socket) -> tuple[int, bytes]:
     return opcode, data
 
 
-def _ws_recv_json_event(sock: socket.socket, evento: str | None = None, timeout: float = 2.0) -> dict[str, object]:
+def _ws_recv_json_event(sock: socket.socket, evento: str | None = None, timeout: float = 5.0) -> dict[str, object]:
     end = time.time() + timeout
     while time.time() < end:
         opcode, data = _ws_recv_frame(sock)

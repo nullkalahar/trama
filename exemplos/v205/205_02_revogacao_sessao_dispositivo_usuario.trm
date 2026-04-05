@@ -1,0 +1,13 @@
+função principal()
+    s1 = auth_sessao_criar("u2", "android")
+    s2 = auth_sessao_criar("u2", "android")
+    s3 = auth_sessao_criar("u2", "desktop")
+
+    exibir(auth_sessao_revogar_dispositivo("u2", "android")["revogadas"])
+    exibir(auth_sessao_ativa(s1["id_sessao"]))
+    exibir(auth_sessao_ativa(s2["id_sessao"]))
+    exibir(auth_sessao_ativa(s3["id_sessao"]))
+
+    exibir(auth_sessao_revogar_usuario("u2")["revogadas"])
+    exibir(auth_sessao_ativa(s3["id_sessao"]))
+fim

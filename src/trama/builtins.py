@@ -979,6 +979,36 @@ def make_builtins(
         web_app.cors_headers = headers
         return None
 
+    def web_configurar_seguranca_http(
+        app: object,
+        ambiente: str = "dev",
+        cors_origens: list[str] | None = None,
+        csp: str | None = None,
+        headers_seguranca: dict[str, object] | None = None,
+        auditoria_admin_ativa: bool = True,
+    ) -> dict[str, object]:
+        web_app = _as_app(app)
+        amb = str(ambiente or "dev").strip().lower() or "dev"
+        if amb not in {"dev", "teste", "producao"}:
+            raise ValueError("ambiente de segurança HTTP inválido (use dev/teste/producao).")
+        web_app.ambiente = amb
+        if cors_origens is not None:
+            web_app.cors_origens_por_ambiente[amb] = [str(x) for x in list(cors_origens)]
+            web_app.cors_enabled = False
+        if csp is not None:
+            web_app.csp_por_ambiente[amb] = str(csp)
+        if headers_seguranca is not None:
+            web_app.seguranca_http_headers.update({str(k): str(v) for k, v in dict(headers_seguranca).items()})
+        web_app.auditoria_admin_ativa = bool(auditoria_admin_ativa)
+        return {
+            "ok": True,
+            "ambiente": web_app.ambiente,
+            "cors_origens": list(web_app.cors_origens_por_ambiente.get(amb, [])),
+            "csp": str(web_app.csp_por_ambiente.get(amb, "")),
+            "headers": dict(web_app.seguranca_http_headers),
+            "auditoria_admin_ativa": bool(web_app.auditoria_admin_ativa),
+        }
+
     def web_ativar_healthcheck(app: object, caminho: str = "/saude") -> None:
         web_app = _as_app(app)
         web_app.health_enabled = True
@@ -1085,6 +1115,41 @@ def make_builtins(
         )
         return None
 
+    def web_rate_limit_distribuido(
+        app: object,
+        max_requisicoes: int,
+        janela_segundos: float,
+        caminho: str = "*",
+        metodo: str = "*",
+        chaves: list[str] | None = None,
+        opcoes: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        web_app = _as_app(app)
+        opts = dict(opcoes or {})
+        policy = web_runtime.RateLimitDistribuidoPolicy(
+            method=str(metodo or "*").upper(),
+            path=str(caminho or "*"),
+            max_requisicoes=int(max_requisicoes),
+            janela_segundos=float(janela_segundos),
+            chaves=[str(x) for x in list(chaves or ["rota", "ip"])],
+            grupo=str(opts.get("grupo", "padrao")),
+            id_instancia=str(opts.get("id_instancia")) if opts.get("id_instancia") is not None else None,
+            backend=str(opts.get("backend", "memoria")),
+            redis_url=str(opts.get("redis_url")) if opts.get("redis_url") is not None else None,
+            chave_prefixo=str(opts.get("chave_prefixo", "trama:seguranca:rl")),
+        )
+        web_app.rate_limits_distribuidos.append(policy)
+        return {
+            "ok": True,
+            "metodo": policy.method,
+            "caminho": policy.path,
+            "max_requisicoes": policy.max_requisicoes,
+            "janela_segundos": policy.janela_segundos,
+            "chaves": list(policy.chaves),
+            "backend": policy.backend,
+            "grupo": policy.grupo,
+        }
+
     def web_api_versionar(app: object, versao: str, base: str = "/api") -> str:
         web_app = _as_app(app)
         prefixo = f"{base.rstrip('/')}/{versao.strip('/')}"
@@ -1139,6 +1204,33 @@ def make_builtins(
         web_app = _as_app(app)
         web_app.tempo_real.definir_limites(limites)
         return None
+
+    def web_tempo_real_configurar_distribuicao(
+        app: object,
+        opcoes: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        web_app = _as_app(app)
+        opts = dict(opcoes or {})
+        return web_app.tempo_real.configurar_distribuicao(
+            ativar=bool(opts.get("ativar", True)),
+            grupo=str(opts.get("grupo", "padrao")),
+            id_instancia=str(opts.get("id_instancia")) if opts.get("id_instancia") is not None else None,
+            auto_sincronizar=bool(opts.get("auto_sincronizar", True)),
+            backplane=str(opts.get("backplane", "memoria")),
+            redis_url=str(opts.get("redis_url")) if opts.get("redis_url") is not None else None,
+            chave_prefixo_redis=str(opts.get("chave_prefixo_redis", "trama:tempo_real")),
+        )
+
+    def web_tempo_real_sincronizar_distribuicao(app: object) -> int:
+        web_app = _as_app(app)
+        return web_app.tempo_real.sincronizar_distribuicao()
+
+    def web_tempo_real_configurar_backplane(
+        app: object,
+        disponivel: bool = True,
+    ) -> dict[str, object]:
+        web_app = _as_app(app)
+        return web_app.tempo_real.configurar_backplane(disponivel=bool(disponivel))
 
     def web_tempo_real_emitir_sala(
         app: object,
@@ -1756,6 +1848,114 @@ def make_builtins(
     ) -> bool:
         return security_runtime.rbac_tem_permissao(modelo, usuarios_papeis, usuario, permissao)
 
+    def auth_sessao_criar(
+        id_usuario: str,
+        id_dispositivo: str | None = None,
+        ttl_refresh_segundos: int = 30 * 24 * 3600,
+        metadados: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        return security_runtime.sessao_criar(
+            id_usuario=id_usuario,
+            id_dispositivo=id_dispositivo,
+            ttl_refresh_segundos=ttl_refresh_segundos,
+            metadados=metadados,
+        )
+
+    def auth_token_acesso_emitir(
+        id_usuario: str,
+        segredo: str,
+        exp_segundos: int = 900,
+        id_sessao: str | None = None,
+        id_dispositivo: str | None = None,
+        permissoes: list[str] | None = None,
+        claims_extras: dict[str, object] | None = None,
+    ) -> str:
+        return security_runtime.token_acesso_emitir(
+            id_usuario=id_usuario,
+            segredo=segredo,
+            exp_segundos=exp_segundos,
+            id_sessao=id_sessao,
+            id_dispositivo=id_dispositivo,
+            permissoes=permissoes,
+            claims_extras=claims_extras,
+        )
+
+    def auth_refresh_emitir(
+        id_usuario: str,
+        segredo: str,
+        id_sessao: str,
+        id_dispositivo: str | None = None,
+        exp_segundos: int = 30 * 24 * 3600,
+        claims_extras: dict[str, object] | None = None,
+    ) -> str:
+        return security_runtime.refresh_token_emitir(
+            id_usuario=id_usuario,
+            segredo=segredo,
+            id_sessao=id_sessao,
+            id_dispositivo=id_dispositivo,
+            exp_segundos=exp_segundos,
+            claims_extras=claims_extras,
+        )
+
+    def auth_refresh_rotacionar(
+        token_refresh: str,
+        segredo: str,
+        exp_segundos: int = 30 * 24 * 3600,
+    ) -> dict[str, object]:
+        return security_runtime.refresh_token_trocar(token_refresh, segredo, exp_segundos=exp_segundos)
+
+    def auth_sessao_obter(id_sessao: str) -> dict[str, object] | None:
+        return security_runtime.sessao_obter(id_sessao)
+
+    def auth_sessao_ativa(id_sessao: str) -> bool:
+        return security_runtime.sessao_ativa(id_sessao)
+
+    def auth_sessao_revogar(id_sessao: str, motivo: str = "manual") -> dict[str, object]:
+        return security_runtime.sessao_revogar(id_sessao, motivo=motivo)
+
+    def auth_sessao_revogar_dispositivo(id_usuario: str, id_dispositivo: str, motivo: str = "dispositivo") -> dict[str, object]:
+        return security_runtime.sessao_revogar_dispositivo(id_usuario, id_dispositivo, motivo=motivo)
+
+    def auth_sessao_revogar_usuario(id_usuario: str, motivo: str = "usuario") -> dict[str, object]:
+        return security_runtime.sessao_revogar_usuario(id_usuario, motivo=motivo)
+
+    def auth_token_revogar(token: str, ttl_segundos: float | None = None, motivo: str = "manual") -> dict[str, object]:
+        return security_runtime.token_bloquear(token, ttl_segundos=ttl_segundos, motivo=motivo)
+
+    def auth_token_revogado(token: str) -> bool:
+        return security_runtime.token_esta_bloqueado(token)
+
+    def auth_token_limpar_denylist() -> int:
+        return security_runtime.token_denylist_limpar_expirados()
+
+    def seguranca_auditoria_registrar(
+        ator: str,
+        acao: str,
+        alvo: str,
+        resultado: str,
+        id_requisicao: str | None = None,
+        id_traco: str | None = None,
+        origem: str | None = None,
+        detalhes: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        return security_runtime.auditoria_seguranca_registrar(
+            ator=ator,
+            acao=acao,
+            alvo=alvo,
+            resultado=resultado,
+            id_requisicao=id_requisicao,
+            id_traco=id_traco,
+            origem=origem,
+            detalhes=detalhes,
+        )
+
+    def seguranca_auditoria_listar(
+        limite: int = 100,
+        ator: str | None = None,
+        acao: str | None = None,
+    ) -> list[dict[str, object]]:
+        return security_runtime.auditoria_seguranca_listar(limite=limite, ator=ator, acao=acao)
+
     def log_estruturado(
         nivel: str,
         mensagem: object,
@@ -1854,6 +2054,13 @@ def make_builtins(
     papel_listar_usuario = rbac_papeis_usuario
     papel_tem = rbac_tem_papel
     permissao_tem = rbac_tem_permissao
+    sessao_criar = auth_sessao_criar
+    sessao_ativa = auth_sessao_ativa
+    sessao_revogar = auth_sessao_revogar
+    token_revogar = auth_token_revogar
+    token_revogado = auth_token_revogado
+    refresh_emitir = auth_refresh_emitir
+    refresh_rotacionar = auth_refresh_rotacionar
     metrica_inc = metrica_incrementar
     traca_iniciar = traco_iniciar
     traca_evento = traco_evento
@@ -1865,10 +2072,14 @@ def make_builtins(
     http_obter = http_get
     http_postar = http_post
     web_limite_taxa = web_rate_limit
+    web_limite_taxa_distribuido = web_rate_limit_distribuido
+    web_rate_limit_dist = web_rate_limit_distribuido
     web_api_versao = web_api_versionar
     web_rota_com_contrato = web_rota_contrato
     web_rota_com_dto = web_rota_dto
     web_observabilidade_ativar = web_ativar_observabilidade
+    web_configurar_hardening = web_configurar_seguranca_http
+    web_security_configure = web_configurar_seguranca_http
     web_socket_rota = web_tempo_real_rota
     web_websocket_rota = web_tempo_real_rota
     web_realtime_rota = web_tempo_real_rota
@@ -1881,6 +2092,9 @@ def make_builtins(
     web_realtime_publicar = web_tempo_real_publicar
     web_realtime_confirmar_ack = web_tempo_real_confirmar_ack
     web_realtime_reenviar_pendentes = web_tempo_real_reenviar_pendentes
+    web_realtime_configurar_distribuicao = web_tempo_real_configurar_distribuicao
+    web_realtime_sincronizar_distribuicao = web_tempo_real_sincronizar_distribuicao
+    web_realtime_configurar_backplane = web_tempo_real_configurar_backplane
     segredo_ler = segredo_obter
     cache_invalida_padrao = cache_invalidar_padrao
     cache_dist_criar = cache_distribuido_criar
@@ -2014,6 +2228,9 @@ def make_builtins(
         "web_adicionar_rota_echo_json": web_adicionar_rota_echo_json,
         "web_usar_middleware": web_usar_middleware,
         "web_configurar_cors": web_configurar_cors,
+        "web_configurar_seguranca_http": web_configurar_seguranca_http,
+        "web_configurar_hardening": web_configurar_hardening,
+        "web_security_configure": web_security_configure,
         "web_ativar_healthcheck": web_ativar_healthcheck,
         "web_servir_estaticos": web_servir_estaticos,
         "web_rota": web_rota,
@@ -2025,6 +2242,9 @@ def make_builtins(
         "web_tratador_erro": web_tratador_erro,
         "web_rate_limit": web_rate_limit,
         "web_limite_taxa": web_limite_taxa,
+        "web_rate_limit_distribuido": web_rate_limit_distribuido,
+        "web_limite_taxa_distribuido": web_limite_taxa_distribuido,
+        "web_rate_limit_dist": web_rate_limit_dist,
         "web_api_versionar": web_api_versionar,
         "web_api_versao": web_api_versao,
         "web_saude_paths": web_saude_paths,
@@ -2033,6 +2253,9 @@ def make_builtins(
         "web_tempo_real_rota": web_tempo_real_rota,
         "web_tempo_real_ativar_fallback": web_tempo_real_ativar_fallback,
         "web_tempo_real_definir_limites": web_tempo_real_definir_limites,
+        "web_tempo_real_configurar_distribuicao": web_tempo_real_configurar_distribuicao,
+        "web_tempo_real_sincronizar_distribuicao": web_tempo_real_sincronizar_distribuicao,
+        "web_tempo_real_configurar_backplane": web_tempo_real_configurar_backplane,
         "web_tempo_real_emitir_sala": web_tempo_real_emitir_sala,
         "web_tempo_real_emitir_usuario": web_tempo_real_emitir_usuario,
         "web_tempo_real_emitir_conexao": web_tempo_real_emitir_conexao,
@@ -2045,6 +2268,9 @@ def make_builtins(
         "web_realtime_rota": web_realtime_rota,
         "web_realtime_ativar_fallback": web_realtime_ativar_fallback,
         "web_realtime_definir_limites": web_realtime_definir_limites,
+        "web_realtime_configurar_distribuicao": web_realtime_configurar_distribuicao,
+        "web_realtime_sincronizar_distribuicao": web_realtime_sincronizar_distribuicao,
+        "web_realtime_configurar_backplane": web_realtime_configurar_backplane,
         "web_realtime_emitir_sala": web_realtime_emitir_sala,
         "web_realtime_emitir_usuario": web_realtime_emitir_usuario,
         "web_realtime_emitir_conexao": web_realtime_emitir_conexao,
@@ -2173,6 +2399,27 @@ def make_builtins(
         "rbac_papeis_usuario": rbac_papeis_usuario,
         "rbac_tem_papel": rbac_tem_papel,
         "rbac_tem_permissao": rbac_tem_permissao,
+        "auth_sessao_criar": auth_sessao_criar,
+        "auth_sessao_obter": auth_sessao_obter,
+        "auth_sessao_ativa": auth_sessao_ativa,
+        "auth_sessao_revogar": auth_sessao_revogar,
+        "auth_sessao_revogar_dispositivo": auth_sessao_revogar_dispositivo,
+        "auth_sessao_revogar_usuario": auth_sessao_revogar_usuario,
+        "auth_token_acesso_emitir": auth_token_acesso_emitir,
+        "auth_refresh_emitir": auth_refresh_emitir,
+        "auth_refresh_rotacionar": auth_refresh_rotacionar,
+        "auth_token_revogar": auth_token_revogar,
+        "auth_token_revogado": auth_token_revogado,
+        "auth_token_limpar_denylist": auth_token_limpar_denylist,
+        "seguranca_auditoria_registrar": seguranca_auditoria_registrar,
+        "seguranca_auditoria_listar": seguranca_auditoria_listar,
+        "sessao_criar": sessao_criar,
+        "sessao_ativa": sessao_ativa,
+        "sessao_revogar": sessao_revogar,
+        "token_revogar": token_revogar,
+        "token_revogado": token_revogado,
+        "refresh_emitir": refresh_emitir,
+        "refresh_rotacionar": refresh_rotacionar,
         "token_criar": token_criar,
         "token_verificar": token_verificar,
         "senha_gerar_hash": senha_gerar_hash,

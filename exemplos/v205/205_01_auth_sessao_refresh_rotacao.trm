@@ -1,0 +1,9 @@
+função principal()
+    sessao = auth_sessao_criar("u1", "iphone-15", 3600)
+    refresh_1 = auth_refresh_emitir("u1", "segredo-v205", sessao["id_sessao"], "iphone-15", 3600)
+    refresh_2 = auth_refresh_rotacionar(refresh_1, "segredo-v205", 3600)
+
+    exibir(sessao["id_sessao"])
+    exibir(refresh_2["ok"])
+    exibir(auth_token_revogado(refresh_1))
+fim
