@@ -1,0 +1,17 @@
+função principal()
+    s1 = auth_sessao_criar("u_global", "d1")
+    s2 = auth_sessao_criar("u_global", "d2")
+    s3 = auth_sessao_criar("u_global", "d3")
+
+    exibir(auth_sessao_ativa(s1["id_sessao"]))
+    exibir(auth_sessao_ativa(s2["id_sessao"]))
+    exibir(auth_sessao_ativa(s3["id_sessao"]))
+
+    out = auth_sessao_revogar_usuario("u_global", "logout_global")
+    exibir(out["ok"])
+    exibir(out["revogadas"] >= 3)
+
+    exibir(auth_sessao_ativa(s1["id_sessao"]) == falso)
+    exibir(auth_sessao_ativa(s2["id_sessao"]) == falso)
+    exibir(auth_sessao_ativa(s3["id_sessao"]) == falso)
+fim

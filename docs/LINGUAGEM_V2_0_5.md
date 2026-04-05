@@ -98,6 +98,21 @@ Ver `exemplos/v205/`:
 - `205_05_web_hardening_cors_producao.trm`
 - `205_06_auditoria_admin_sensivel.trm`
 - `205_07_realtime_token_revogado.trm`
+- `205_08_auth_login_completo.trm`
+- `205_09_refresh_rotation_reuso_detectado.trm`
+- `205_10_logout_global_usuario.trm`
+- `205_11_web_auth_sessao_ativa.trm`
+- `205_12_rate_limit_distribuido_por_usuario.trm`
+- `205_13_rate_limit_distribuido_por_ip_rota.trm`
+- `205_14_hardening_multiambiente.trm`
+- `205_15_auditoria_consulta_filtrada.trm`
+- `205_16_realtime_jwt_sessao_ativa.trm`
+- `205_17_revogacao_token_acesso_imediata.trm`
+- `205_18_fluxo_admin_completo_v205.trm`
+
+Manual detalhado:
+
+- `docs/MANUAL_V2_0_5_SEGURANCA_PRODUCAO.md`
 
 ## Evidencias de teste
 

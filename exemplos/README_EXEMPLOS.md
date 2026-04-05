@@ -85,7 +85,7 @@ trama executar exemplos/01_ola_mundo.trm
 - `v204/README_V204_EXEMPLOS.md`: coleção v2.0.4 (cache distribuído, coerência, fallback, métricas)
 - `v204/204_01_cache_distribuido_basico.trm` até `v204/204_07_web_rota_cache_resposta.trm`: cenários de produção para cache multi-instância, invalidação remota e integração HTTP
 - `v205/README_V205_EXEMPLOS.md`: coleção v2.0.5 (segurança de produção, revogação, hardening e abuso)
-- `v205/205_01_auth_sessao_refresh_rotacao.trm` até `v205/205_07_realtime_token_revogado.trm`: fluxos reais de sessão/dispositivo, denylist, rate-limit distribuído, CORS estrito e auditoria sensível
+- `v205/205_01_auth_sessao_refresh_rotacao.trm` até `v205/205_18_fluxo_admin_completo_v205.trm`: fluxos reais de login/refresh/logout, revogação por escopo, hardening multiambiente, rate-limit distribuído (rota/IP/usuário), auditoria sensível e realtime protegido
 - `sintaxe/01_expressoes_multilinha.trm`: lista/mapa/chamada multilinha
 - `sintaxe/02_encadeamento_multilinha.trm`: encadeamento com indexação multilinha
 - `anilist/README_ANILIST_EXEMPLOS.md`: coleção completa de integrações AniList (anime/mangá + DB em `.local/tests/anilist/`)

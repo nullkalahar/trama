@@ -116,6 +116,7 @@ Há também um roadmap detalhado de maturidade em v2.1.x, com os 7 eixos crític
 - `README.md` (estado e roadmap)
 - `docs/LINGUAGEM_V2_0.md`
 - `docs/LINGUAGEM_V2_0_5.md`
+- `docs/MANUAL_V2_0_5_SEGURANCA_PRODUCAO.md`
 - `docs/MANUAL_V2_0_FASE2.md`
 - `docs/V2_FASE2_PARIDADE_VM_NATIVA.md`
 - `docs/ROADMAP_IMPLEMENTACOES_FUTURAS_V2_1.md`

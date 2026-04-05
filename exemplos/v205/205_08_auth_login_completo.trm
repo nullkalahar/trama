@@ -1,0 +1,23 @@
+função principal()
+    segredo = "seg-login-v205"
+
+    sessao = auth_sessao_criar("u_login", "ios-17", 86400, {"ip": "10.0.0.1", "app": "mobile"})
+    access = auth_token_acesso_emitir(
+        "u_login",
+        segredo,
+        900,
+        sessao["id_sessao"],
+        "ios-17",
+        ["conta:ler", "conta:editar"],
+        {"tenant": "t1"}
+    )
+    refresh = auth_refresh_emitir("u_login", segredo, sessao["id_sessao"], "ios-17", 86400)
+
+    claims = jwt_verificar(access, segredo)
+    exibir(sessao["ok"])
+    exibir(claims["tipo_token"] == "acesso")
+    exibir(claims["sid"] == sessao["id_sessao"])
+    exibir(claims["tenant"] == "t1")
+    exibir(tamanho(claims["permissoes"]) == 2)
+    exibir(refresh != "")
+fim

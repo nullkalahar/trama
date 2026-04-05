@@ -1,0 +1,11 @@
+função principal()
+    segredo = "seg-imediato"
+    tok = auth_token_acesso_emitir("u_cut", segredo, 900)
+
+    exibir(auth_token_revogado(tok) == falso)
+    out = auth_token_revogar(tok, 900, "incidente")
+    exibir(out["ok"])
+    exibir(auth_token_revogado(tok))
+
+    # em rota com jwt_validar_revogacao=true, este token seria rejeitado imediatamente
+fim

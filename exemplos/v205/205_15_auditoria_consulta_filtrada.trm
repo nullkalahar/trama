@@ -1,0 +1,12 @@
+função principal()
+    seguranca_auditoria_registrar("admin-1", "permissao_conceder", "u100", "sucesso", "req-1", "tr-1", "10.0.0.10")
+    seguranca_auditoria_registrar("admin-2", "permissao_conceder", "u101", "falha", "req-2", "tr-2", "10.0.0.11")
+    seguranca_auditoria_registrar("admin-1", "usuario_bloquear", "u102", "sucesso", "req-3", "tr-3", "10.0.0.12")
+
+    por_acao = seguranca_auditoria_listar(20, nulo, "permissao_conceder")
+    por_ator = seguranca_auditoria_listar(20, "admin-1", nulo)
+
+    exibir(tamanho(por_acao) >= 2)
+    exibir(tamanho(por_ator) >= 2)
+    exibir(por_acao[0]["acao"] == "permissao_conceder")
+fim

@@ -1,0 +1,19 @@
+função principal()
+    app = web_criar_app()
+
+    d = web_configurar_seguranca_http(app, "dev", ["*"], "default-src 'self' 'unsafe-inline';")
+    t = web_configurar_seguranca_http(app, "teste", ["http://localhost:3000"], "default-src 'self';")
+    p = web_configurar_seguranca_http(
+        app,
+        "producao",
+        ["https://app.trama.local", "https://admin.trama.local"],
+        "default-src 'self'; frame-ancestors 'none'; object-src 'none';",
+        {"Permissions-Policy": "geolocation=()"}
+    )
+
+    exibir(d["ok"])
+    exibir(t["ok"])
+    exibir(p["ambiente"] == "producao")
+    exibir(tamanho(p["cors_origens"]) == 2)
+    exibir(p["headers"]["Permissions-Policy"] == "geolocation=()")
+fim

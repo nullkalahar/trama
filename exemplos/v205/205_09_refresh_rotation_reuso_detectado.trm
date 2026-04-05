@@ -1,0 +1,19 @@
+função principal()
+    segredo = "seg-refresh-v205"
+    s = auth_sessao_criar("u_reuse", "android-14", 3600)
+    r1 = auth_refresh_emitir("u_reuse", segredo, s["id_sessao"], "android-14", 3600)
+
+    r2 = auth_refresh_rotacionar(r1, segredo, 3600)
+    exibir(r2["ok"])
+    exibir(auth_token_revogado(r1))
+
+    erro_reuso = ""
+    tente
+        auth_refresh_rotacionar(r1, segredo, 3600)
+    pegue e
+        erro_reuso = e
+    fim
+
+    exibir(erro_reuso == "refresh_reuso_detectado")
+    exibir(auth_sessao_ativa(s["id_sessao"]) == falso)
+fim
