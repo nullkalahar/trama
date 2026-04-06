@@ -206,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "bytecode":
             codigo = _ler_arquivo(args.arquivo)
-            program = compile_source(codigo)
+            program = compile_source(codigo, arquivo=args.arquivo)
             sys.stdout.write(format_program(program))
             return 0
 
@@ -216,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "compilar-legado":
             codigo = _ler_arquivo(args.arquivo)
-            program = compile_source(codigo)
+            program = compile_source(codigo, arquivo=args.arquivo)
             saida = Path(args.saida)
             if saida.parent != Path("."):
                 saida.parent.mkdir(parents=True, exist_ok=True)

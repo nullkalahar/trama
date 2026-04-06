@@ -1,0 +1,38 @@
+função evento_auditoria(ator: texto, acao: texto, alvo: texto, detalhes: mapa[texto,qualquer]): mapa[texto,qualquer]
+    retorne {
+        "ator": ator,
+        "acao": acao,
+        "alvo": alvo,
+        "detalhes": detalhes
+    }
+fim
+
+função pipeline_auditoria(eventos: lista[mapa[texto,qualquer]]): mapa[texto,qualquer]
+    total = tamanho(eventos)
+    alteracoes_permissao = 0
+    revogacoes = 0
+
+    para e em eventos
+        se e["acao"] == "permissao_conceder"
+            alteracoes_permissao = alteracoes_permissao + 1
+        fim
+        se e["acao"] == "sessao_revogar"
+            revogacoes = revogacoes + 1
+        fim
+    fim
+
+    retorne {
+        "total": total,
+        "alteracoes_permissao": alteracoes_permissao,
+        "revogacoes": revogacoes
+    }
+fim
+
+função principal()
+    eventos = [
+        evento_auditoria("u_admin", "permissao_conceder", "u_1", {"permissao": "financeiro:ler"}),
+        evento_auditoria("u_admin", "sessao_revogar", "u_2", {"motivo": "rotacao"}),
+        evento_auditoria("u_admin", "permissao_conceder", "u_3", {"permissao": "clientes:editar"})
+    ]
+    exibir(json_stringify_pretty(pipeline_auditoria(eventos)))
+fim

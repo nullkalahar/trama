@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 import threading
@@ -387,7 +388,7 @@ class VirtualMachine:
             return self.module_cache[key]
 
         code = path.read_text(encoding="utf-8")
-        program = compile_source(code)
+        program = compile_source(code, arquivo=str(path))
         module_vm = VirtualMachine(
             program=program,
             print_fn=self.print_fn,
@@ -396,11 +397,20 @@ class VirtualMachine:
         )
         await module_vm.execute_async(auto_call_principal=False)
 
-        exports = {
+        exports_brutos = {
             name: value
             for name, value in module_vm.globals_env.values.items()
             if name not in module_vm._builtins
         }
+        exports = dict(exports_brutos)
+        contrato = exports_brutos.get("__exportes__")
+        if isinstance(contrato, dict):
+            nomes = [str(k) for k, v in contrato.items() if bool(v)]
+            faltando = [n for n in nomes if n not in exports_brutos]
+            if faltando:
+                raise VMError(f"Contrato de módulo inválido em '{path}': exportes ausentes {faltando}.")
+            exports = {n: exports_brutos[n] for n in nomes}
+        exports.pop("__exportes__", None)
         self.module_cache[key] = exports
         return exports
 
@@ -408,20 +418,36 @@ class VirtualMachine:
         base_dir = self.source_path.parent if self.source_path else Path.cwd()
         module_path = Path(module_ref)
 
-        candidates: list[Path] = []
-        if module_path.suffix == ".trm":
-            candidates.append(module_path)
-            if not module_path.is_absolute():
-                candidates.append(base_dir / module_path)
-        elif "/" in module_ref or "\\" in module_ref:
-            candidates.append(base_dir / module_path)
-            candidates.append(base_dir / f"{module_ref}.trm")
-        else:
-            candidates.append(base_dir / f"{module_ref}.trm")
-            candidates.append(base_dir / module_ref / "mod.trm")
+        roots: list[Path] = [base_dir]
+        modpath = os.environ.get("TRAMA_MODPATH", "").strip()
+        if modpath:
+            for item in modpath.split(os.pathsep):
+                root = Path(item.strip())
+                if root and root not in roots:
+                    roots.append(root)
+        cwd = Path.cwd()
+        if cwd not in roots:
+            roots.append(cwd)
 
-        for candidate in candidates:
-            path = candidate.resolve() if candidate.is_absolute() else candidate.resolve()
+        candidates: list[Path] = []
+        def add_candidate(p: Path) -> None:
+            rp = p.resolve()
+            if rp not in candidates:
+                candidates.append(rp)
+
+        if module_path.is_absolute():
+            add_candidate(module_path if module_path.suffix == ".trm" else module_path.with_suffix(".trm"))
+        else:
+            if module_path.suffix == ".trm":
+                for root in roots:
+                    add_candidate(root / module_path)
+            else:
+                for root in roots:
+                    add_candidate(root / f"{module_ref}.trm")
+                    add_candidate(root / module_ref / "mod.trm")
+                    add_candidate(root / module_ref / "__init__.trm")
+
+        for path in candidates:
             if path.exists() and path.is_file():
                 return path
 
@@ -445,7 +471,7 @@ class VirtualMachine:
 
 
 def run_source(codigo: str, print_fn: Any | None = None, source_path: str | None = None) -> object:
-    program = compile_source(codigo)
+    program = compile_source(codigo, arquivo=source_path)
     vm = VirtualMachine(program=program, print_fn=print_fn, source_path=source_path)
     return vm.execute()
 

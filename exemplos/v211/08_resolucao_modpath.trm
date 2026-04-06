@@ -1,0 +1,9 @@
+# Rode com TRAMA_MODPATH configurado para controlar precedencia.
+# Exemplo:
+# TRAMA_MODPATH="./exemplos/v211/pacote_b:./exemplos/v211/pacote_a" trama executar exemplos/v211/08_resolucao_modpath.trm
+
+importe "pac" como p expondo origem
+
+função principal()
+    exibir(p["origem"])
+fim

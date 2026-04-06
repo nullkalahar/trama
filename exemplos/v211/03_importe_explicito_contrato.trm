@@ -1,0 +1,6 @@
+importe "mods/matematica_v211.trm" como mat expondo soma, media
+
+função principal()
+    exibir(mat["soma"](7, 9))
+    exibir(mat["media"]([10, 20, 30]))
+fim

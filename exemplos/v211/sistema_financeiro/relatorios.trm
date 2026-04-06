@@ -1,0 +1,53 @@
+exporte gerar_relatorio_mensal, top_categorias_debito
+
+função top_categorias_debito(lancamentos: lista[mapa[texto,qualquer]]): lista[mapa[texto,qualquer]]
+    aluguel = 0
+    folha = 0
+    marketing = 0
+    nuvem = 0
+    outros = 0
+
+    para item em lancamentos
+        se item["tipo"] == "debito"
+            se item["categoria"] == "aluguel"
+                aluguel = aluguel + item["valor"]
+            fim
+            se item["categoria"] == "folha"
+                folha = folha + item["valor"]
+            fim
+            se item["categoria"] == "marketing"
+                marketing = marketing + item["valor"]
+            fim
+            se item["categoria"] == "nuvem"
+                nuvem = nuvem + item["valor"]
+            fim
+            se item["categoria"] != "aluguel"
+                se item["categoria"] != "folha"
+                    se item["categoria"] != "marketing"
+                        se item["categoria"] != "nuvem"
+                            outros = outros + item["valor"]
+                        fim
+                    fim
+                fim
+            fim
+        fim
+    fim
+
+    retorne [
+        {"categoria": "aluguel", "total": aluguel},
+        {"categoria": "folha", "total": folha},
+        {"categoria": "marketing", "total": marketing},
+        {"categoria": "nuvem", "total": nuvem},
+        {"categoria": "outros", "total": outros}
+    ]
+fim
+
+função gerar_relatorio_mensal(lancamentos: lista[mapa[texto,qualquer]], saldo: numero, anomalias: lista[mapa[texto,qualquer]]): mapa[texto,qualquer]
+    retorne {
+        "periodo": "2026-03",
+        "total_lancamentos": tamanho(lancamentos),
+        "saldo": saldo,
+        "total_anomalias": tamanho(anomalias),
+        "categorias_debito": top_categorias_debito(lancamentos)
+    }
+fim

@@ -1,0 +1,11 @@
+função reduzir(nums: lista[inteiro]): inteiro
+    total: inteiro = 0
+    para n em nums
+        total = total + n
+    fim
+    retorne total
+fim
+
+função principal()
+    exibir(reduzir([1, 2, 3, 4]))
+fim

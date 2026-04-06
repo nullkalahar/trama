@@ -1,0 +1,4 @@
+# Exemplo negativo: deve falhar com SEM0204
+função dobro(x: inteiro): inteiro
+    retorne "texto"
+fim

@@ -1,0 +1,37 @@
+função gerar_lote(inicio: inteiro, quantidade: inteiro): lista[mapa[texto,qualquer]]
+    registros: lista[mapa[texto,qualquer]] = []
+    idx = 0
+    enquanto idx < quantidade
+        registro = {
+            "id": inicio + idx,
+            "tipo": "evento",
+            "peso": (inicio + idx) * 3
+        }
+        lista_adicionar(registros, registro)
+        idx = idx + 1
+    fim
+    retorne registros
+fim
+
+função agregar_peso(lotes: lista[lista[mapa[texto,qualquer]]]): inteiro
+    total: inteiro = 0
+    para lote em lotes
+        para r em lote
+            total = total + r["peso"]
+        fim
+    fim
+    retorne total
+fim
+
+função principal()
+    lote_a = gerar_lote(1, 50)
+    lote_b = gerar_lote(100, 50)
+    lote_c = gerar_lote(200, 50)
+
+    lotes = [lote_a, lote_b, lote_c]
+    exibir("=== ESCALA v211 ===")
+    exibir("total_registros")
+    exibir(tamanho(lote_a) + tamanho(lote_b) + tamanho(lote_c))
+    exibir("peso_agregado")
+    exibir(agregar_peso(lotes))
+fim

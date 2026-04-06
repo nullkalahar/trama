@@ -1,0 +1,24 @@
+importe "sistema_atendimento/dominio.trm" como dominio expondo normalizar_chamados, priorizar_chamados, separar_por_sla
+importe "sistema_atendimento/indicadores.trm" como indicadores expondo calcular_indicadores
+
+função principal()
+    chamados_brutos = [
+        {"id": "c1", "cliente": "acme", "canal": "api", "severidade": "alta", "minutos_aberto": 35, "status": "aberto"},
+        {"id": "c2", "cliente": "beta", "canal": "chat", "severidade": "critica", "minutos_aberto": 75, "status": "aberto"},
+        {"id": "c3", "cliente": "gama", "canal": "api", "severidade": "normal", "minutos_aberto": 10, "status": "fechado"},
+        {"id": "c4", "cliente": "delta", "canal": "chat", "severidade": "alta", "minutos_aberto": 62, "status": "aberto"}
+    ]
+
+    chamados = dominio["normalizar_chamados"](chamados_brutos)
+    fila = dominio["priorizar_chamados"](chamados)
+    sla = dominio["separar_por_sla"](fila, 60)
+    ind = indicadores["calcular_indicadores"](chamados)
+
+    exibir("=== ATENDIMENTO v211 ===")
+    exibir("primeiro da fila")
+    exibir(fila[0]["id"])
+    exibir("estourados_sla")
+    exibir(tamanho(sla["estourados"]))
+    exibir("indicadores")
+    exibir(json_stringify_pretty(ind))
+fim

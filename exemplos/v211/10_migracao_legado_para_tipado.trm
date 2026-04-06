@@ -1,0 +1,21 @@
+# Antes: sem tipo
+# função total(lista)
+#     s = 0
+#     para i em lista
+#         s = s + i
+#     fim
+#     retorne s
+# fim
+
+# Depois: com tipagem gradual
+função total(lista: lista[inteiro]): inteiro
+    s: inteiro = 0
+    para i em lista
+        s = s + i
+    fim
+    retorne s
+fim
+
+função principal()
+    exibir(total([5, 5, 5]))
+fim

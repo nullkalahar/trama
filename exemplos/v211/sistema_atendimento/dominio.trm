@@ -1,0 +1,63 @@
+exporte normalizar_chamados, priorizar_chamados, separar_por_sla
+
+função normalizar_chamados(chamados: lista[mapa[texto,qualquer]]): lista[mapa[texto,qualquer]]
+    saida: lista[mapa[texto,qualquer]] = []
+    para c em chamados
+        item = {
+            "id": c["id"],
+            "cliente": c["cliente"],
+            "canal": c["canal"],
+            "severidade": c["severidade"],
+            "minutos_aberto": c["minutos_aberto"],
+            "status": c["status"]
+        }
+        lista_adicionar(saida, item)
+    fim
+    retorne saida
+fim
+
+função priorizar_chamados(chamados: lista[mapa[texto,qualquer]]): lista[mapa[texto,qualquer]]
+    criticos: lista[mapa[texto,qualquer]] = []
+    altos: lista[mapa[texto,qualquer]] = []
+    normais: lista[mapa[texto,qualquer]] = []
+
+    para c em chamados
+        se c["severidade"] == "critica"
+            lista_adicionar(criticos, c)
+        fim
+        se c["severidade"] == "alta"
+            lista_adicionar(altos, c)
+        fim
+        se c["severidade"] == "normal"
+            lista_adicionar(normais, c)
+        fim
+    fim
+
+    saida: lista[mapa[texto,qualquer]] = []
+    para c em criticos
+        lista_adicionar(saida, c)
+    fim
+    para c em altos
+        lista_adicionar(saida, c)
+    fim
+    para c em normais
+        lista_adicionar(saida, c)
+    fim
+    retorne saida
+fim
+
+função separar_por_sla(chamados: lista[mapa[texto,qualquer]], limite_minutos: inteiro): mapa[texto,qualquer]
+    dentro: lista[mapa[texto,qualquer]] = []
+    estourados: lista[mapa[texto,qualquer]] = []
+
+    para c em chamados
+        se c["minutos_aberto"] > limite_minutos
+            lista_adicionar(estourados, c)
+        fim
+        se c["minutos_aberto"] <= limite_minutos
+            lista_adicionar(dentro, c)
+        fim
+    fim
+
+    retorne {"dentro": dentro, "estourados": estourados}
+fim

@@ -1,0 +1,8 @@
+função serializar_id(id: uniao[inteiro|texto]): texto
+    retorne json_stringify({"id": id})
+fim
+
+função principal()
+    exibir(serializar_id(99))
+    exibir(serializar_id("abc"))
+fim

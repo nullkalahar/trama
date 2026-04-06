@@ -1,0 +1,48 @@
+exporte detectar_anomalias, classificar_risco_conta
+
+função detectar_anomalias(lancamentos: lista[mapa[texto,qualquer]], limite_debito: numero): lista[mapa[texto,qualquer]]
+    anomalias: lista[mapa[texto,qualquer]] = []
+
+    para item em lancamentos
+        se item["tipo"] == "debito"
+            se item["valor"] > limite_debito
+                lista_adicionar(anomalias, {
+                    "codigo": "RISCO_DEBITO_ALTO",
+                    "id_lancamento": item["id"],
+                    "valor": item["valor"],
+                    "conta": item["conta"]
+                })
+            fim
+        fim
+    fim
+
+    retorne anomalias
+fim
+
+função classificar_risco_conta(lancamentos: lista[mapa[texto,qualquer]], conta_alvo: texto): texto
+    score = 0
+
+    para item em lancamentos
+        se item["conta"] == conta_alvo
+            se item["tipo"] == "debito"
+                se item["valor"] > 10000
+                    score = score + 3
+                fim
+                se item["valor"] > 5000
+                    score = score + 2
+                fim
+            fim
+            se item["tipo"] == "credito"
+                score = score - 1
+            fim
+        fim
+    fim
+
+    se score >= 8
+        retorne "alto"
+    fim
+    se score >= 4
+        retorne "medio"
+    fim
+    retorne "baixo"
+fim

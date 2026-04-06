@@ -1,0 +1,32 @@
+exporte calcular_indicadores
+
+função calcular_indicadores(chamados: lista[mapa[texto,qualquer]]): mapa[texto,qualquer]
+    total = tamanho(chamados)
+    abertos = 0
+    fechados = 0
+    canal_api = 0
+    canal_chat = 0
+
+    para c em chamados
+        se c["status"] == "aberto"
+            abertos = abertos + 1
+        fim
+        se c["status"] == "fechado"
+            fechados = fechados + 1
+        fim
+        se c["canal"] == "api"
+            canal_api = canal_api + 1
+        fim
+        se c["canal"] == "chat"
+            canal_chat = canal_chat + 1
+        fim
+    fim
+
+    retorne {
+        "total": total,
+        "abertos": abertos,
+        "fechados": fechados,
+        "canal_api": canal_api,
+        "canal_chat": canal_chat
+    }
+fim

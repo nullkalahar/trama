@@ -1,0 +1,8 @@
+função dobro(x: inteiro): inteiro
+    retorne x * 2
+fim
+
+função principal()
+    base: inteiro = 21
+    exibir(dobro(base))
+fim

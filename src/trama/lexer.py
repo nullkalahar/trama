@@ -35,6 +35,9 @@ KEYWORDS: dict[str, str] = {
     "lance": "LANCE",
     "importe": "IMPORTE",
     "como": "COMO",
+    "expondo": "EXPONDO",
+    "exporte": "EXPORTE",
+    "export": "EXPORTE",
     "assincrona": "ASSINCRONA",
     "async": "ASSINCRONA",
     "aguarde": "AGUARDE",
@@ -57,6 +60,7 @@ SINGLE_CHAR_TOKENS: dict[str, str] = {
     "-": "MENOS",
     "*": "ASTERISCO",
     "/": "BARRA",
+    "|": "BARRA_VERTICAL",
     ">": "MAIOR",
     "<": "MENOR",
 }

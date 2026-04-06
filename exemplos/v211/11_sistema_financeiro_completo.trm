@@ -1,0 +1,29 @@
+importe "sistema_financeiro/modelos.trm" como modelos expondo normalizar_lancamentos, saldo_periodo
+importe "sistema_financeiro/riscos.trm" como riscos expondo detectar_anomalias, classificar_risco_conta
+importe "sistema_financeiro/relatorios.trm" como relatorios expondo gerar_relatorio_mensal
+
+função principal()
+    dados_brutos = [
+        {"id": "l1", "tipo": "credito", "categoria": "vendas", "valor": 18000, "competencia": "2026-03", "conta": "operacional"},
+        {"id": "l2", "tipo": "debito", "categoria": "folha", "valor": 6200, "competencia": "2026-03", "conta": "operacional"},
+        {"id": "l3", "tipo": "debito", "categoria": "nuvem", "valor": 2400, "competencia": "2026-03", "conta": "operacional"},
+        {"id": "l4", "tipo": "debito", "categoria": "marketing", "valor": 11700, "competencia": "2026-03", "conta": "expansao"},
+        {"id": "l5", "tipo": "credito", "categoria": "servicos", "valor": 4300, "competencia": "2026-03", "conta": "expansao"}
+    ]
+
+    lancamentos = modelos["normalizar_lancamentos"](dados_brutos)
+    saldo = modelos["saldo_periodo"](lancamentos)
+    alertas = riscos["detectar_anomalias"](lancamentos, 9000)
+    risco_operacional = riscos["classificar_risco_conta"](lancamentos, "operacional")
+    relatorio = relatorios["gerar_relatorio_mensal"](lancamentos, saldo, alertas)
+
+    exibir("=== FINANCEIRO v211 ===")
+    exibir("saldo")
+    exibir(saldo)
+    exibir("risco conta operacional")
+    exibir(risco_operacional)
+    exibir("anomalias")
+    exibir(tamanho(alertas))
+    exibir("resumo")
+    exibir(json_stringify_pretty(relatorio))
+fim

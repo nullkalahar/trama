@@ -1,0 +1,9 @@
+exporte criar_usuario, remover_usuario
+
+função criar_usuario(nome: texto): mapa[texto,qualquer]
+    retorne {"ok": verdadeiro, "nome": nome}
+fim
+
+função remover_usuario(id: inteiro): mapa[texto,qualquer]
+    retorne {"ok": verdadeiro, "id": id}
+fim

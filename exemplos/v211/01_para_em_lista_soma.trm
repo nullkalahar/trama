@@ -1,0 +1,10 @@
+função principal()
+    valores = [10, 20, 30, 40]
+    soma = 0
+
+    para valor em valores
+        soma = soma + valor
+    fim
+
+    exibir(soma)
+fim

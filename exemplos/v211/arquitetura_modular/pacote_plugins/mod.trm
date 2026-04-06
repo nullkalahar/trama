@@ -1,0 +1,11 @@
+exporte carregar_plugins_ativos
+
+função carregar_plugins_ativos(plano: texto): lista[texto]
+    se plano == "enterprise"
+        retorne ["auditoria", "fraude", "insights", "backup"]
+    fim
+    se plano == "pro"
+        retorne ["auditoria", "insights"]
+    fim
+    retorne ["auditoria"]
+fim

@@ -1,0 +1,45 @@
+exporte validar_lancamento, normalizar_lancamentos, total_por_tipo, saldo_periodo
+
+função validar_lancamento(item: mapa[texto,qualquer]): logico
+    se item["tipo"] == "credito"
+        retorne verdadeiro
+    fim
+    se item["tipo"] == "debito"
+        retorne verdadeiro
+    fim
+    retorne falso
+fim
+
+função normalizar_lancamentos(lancamentos: lista[mapa[texto,qualquer]]): lista[mapa[texto,qualquer]]
+    saida: lista[mapa[texto,qualquer]] = []
+    para item em lancamentos
+        se validar_lancamento(item)
+            limpo = {
+                "id": item["id"],
+                "tipo": item["tipo"],
+                "categoria": item["categoria"],
+                "valor": item["valor"],
+                "competencia": item["competencia"],
+                "conta": item["conta"]
+            }
+            lista_adicionar(saida, limpo)
+        fim
+    fim
+    retorne saida
+fim
+
+função total_por_tipo(lancamentos: lista[mapa[texto,qualquer]], tipo_alvo: texto): numero
+    total = 0
+    para item em lancamentos
+        se item["tipo"] == tipo_alvo
+            total = total + item["valor"]
+        fim
+    fim
+    retorne total
+fim
+
+função saldo_periodo(lancamentos: lista[mapa[texto,qualquer]]): numero
+    creditos = total_por_tipo(lancamentos, "credito")
+    debitos = total_por_tipo(lancamentos, "debito")
+    retorne creditos - debitos
+fim

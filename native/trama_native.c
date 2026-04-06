@@ -194,6 +194,7 @@ typedef enum {
     VAL_BUILTIN_COM_TIMEOUT,
     VAL_BUILTIN_CANCELAR_TAREFA,
     VAL_BUILTIN_DORMIR,
+    VAL_BUILTIN_TAMANHO,
     VAL_FUNC,
     VAL_AWAITABLE,
     VAL_TASK
@@ -432,6 +433,12 @@ static Value value_builtin_cancelar_tarefa(void) {
 static Value value_builtin_dormir(void) {
     Value v;
     v.type = VAL_BUILTIN_DORMIR;
+    return v;
+}
+
+static Value value_builtin_tamanho(void) {
+    Value v;
+    v.type = VAL_BUILTIN_TAMANHO;
     return v;
 }
 
@@ -901,6 +908,7 @@ static void value_print(Value v) {
         case VAL_BUILTIN_COM_TIMEOUT: printf("<builtin com_timeout>"); break;
         case VAL_BUILTIN_CANCELAR_TAREFA: printf("<builtin cancelar_tarefa>"); break;
         case VAL_BUILTIN_DORMIR: printf("<builtin dormir>"); break;
+        case VAL_BUILTIN_TAMANHO: printf("<builtin tamanho>"); break;
         case VAL_TASK: printf("<tarefa>"); break;
     }
 }
@@ -1114,6 +1122,7 @@ static Value module_to_exports(Env *globals) {
         if (strcmp(globals->items[i].name, "com_timeout") == 0) continue;
         if (strcmp(globals->items[i].name, "cancelar_tarefa") == 0) continue;
         if (strcmp(globals->items[i].name, "dormir") == 0) continue;
+        if (strcmp(globals->items[i].name, "tamanho") == 0) continue;
         if (strcmp(globals->items[i].name, "create_task") == 0) continue;
         if (strcmp(globals->items[i].name, "with_timeout") == 0) continue;
         if (strcmp(globals->items[i].name, "cancel_task") == 0) continue;
@@ -1210,6 +1219,7 @@ static ExecResult import_module(Program *current_program, Value module_ref) {
     env_set_local(globals, "com_timeout", value_builtin_com_timeout());
     env_set_local(globals, "cancelar_tarefa", value_builtin_cancelar_tarefa());
     env_set_local(globals, "dormir", value_builtin_dormir());
+    env_set_local(globals, "tamanho", value_builtin_tamanho());
     env_set_local(globals, "create_task", value_builtin_criar_tarefa());
     env_set_local(globals, "with_timeout", value_builtin_com_timeout());
     env_set_local(globals, "cancel_task", value_builtin_cancelar_tarefa());
@@ -1253,6 +1263,23 @@ static ExecResult call_value(Program *p, Value callee, Value *args, size_t argc)
         if (argc >= 1 && args[0].type == VAL_NUM) seg = args[0].as.n;
         out.value = value_awaitable(awaitable_dormir_new(seg));
         return out;
+    }
+    if (callee.type == VAL_BUILTIN_TAMANHO) {
+        if (argc < 1) fatal("tamanho exige 1 argumento");
+        Value alvo = args[0];
+        if (alvo.type == VAL_LIST) {
+            out.value = value_num((double)alvo.as.list->len);
+            return out;
+        }
+        if (alvo.type == VAL_MAP) {
+            out.value = value_num((double)alvo.as.map->len);
+            return out;
+        }
+        if (alvo.type == VAL_STR) {
+            out.value = value_num((double)strlen(alvo.as.s));
+            return out;
+        }
+        fatal("tamanho exige lista, mapa ou texto");
     }
     if (callee.type == VAL_BUILTIN_CRIAR_TAREFA) {
         if (argc < 1) fatal("criar_tarefa exige 1 argumento");
@@ -2126,6 +2153,7 @@ static int executar_trm_nativo(const char *arquivo_fonte) {
     env_set_local(globals, "com_timeout", value_builtin_com_timeout());
     env_set_local(globals, "cancelar_tarefa", value_builtin_cancelar_tarefa());
     env_set_local(globals, "dormir", value_builtin_dormir());
+    env_set_local(globals, "tamanho", value_builtin_tamanho());
     env_set_local(globals, "create_task", value_builtin_criar_tarefa());
     env_set_local(globals, "with_timeout", value_builtin_com_timeout());
     env_set_local(globals, "cancel_task", value_builtin_cancelar_tarefa());
@@ -2171,6 +2199,7 @@ static int run_tbc(const char *path) {
     env_set_local(globals, "com_timeout", value_builtin_com_timeout());
     env_set_local(globals, "cancelar_tarefa", value_builtin_cancelar_tarefa());
     env_set_local(globals, "dormir", value_builtin_dormir());
+    env_set_local(globals, "tamanho", value_builtin_tamanho());
     env_set_local(globals, "create_task", value_builtin_criar_tarefa());
     env_set_local(globals, "with_timeout", value_builtin_com_timeout());
     env_set_local(globals, "cancel_task", value_builtin_cancelar_tarefa());

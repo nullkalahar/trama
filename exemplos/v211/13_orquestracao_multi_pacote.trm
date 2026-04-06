@@ -1,0 +1,19 @@
+importe "arquitetura_modular/pacote_nucleo" como nucleo expondo identificar_contexto, construir_resposta
+importe "arquitetura_modular/pacote_plugins" como plugins expondo carregar_plugins_ativos
+
+função principal()
+    contexto = nucleo["identificar_contexto"]("producao")
+    ativos = plugins["carregar_plugins_ativos"]("enterprise")
+    base = nucleo["construir_resposta"]("gateway", "2.1.1", contexto)
+    resposta = {
+        "modulo": base["modulo"],
+        "versao": base["versao"],
+        "contexto": base["contexto"],
+        "plugins_ativos": ativos
+    }
+
+    exibir("=== ORQUESTRACAO v211 ===")
+    exibir(resposta["contexto"])
+    exibir(tamanho(resposta["plugins_ativos"]))
+    exibir(json_stringify_pretty(resposta))
+fim

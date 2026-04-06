@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .ast_nodes import (
     AssignStmt,
@@ -14,6 +14,8 @@ from .ast_nodes import (
     DictExpr,
     Expr,
     ExprStmt,
+    ExportStmt,
+    ForStmt,
     FunctionDecl,
     Identifier,
     IfStmt,
@@ -26,13 +28,44 @@ from .ast_nodes import (
     Stmt,
     ThrowStmt,
     TryStmt,
+    TypeRef,
     UnaryExpr,
     WhileStmt,
 )
 
 
 class SemanticError(ValueError):
-    """Erro semântico do programa trama."""
+    """Erro semântico com diagnóstico estável e auditável."""
+
+    def __init__(
+        self,
+        *,
+        codigo: str,
+        mensagem: str,
+        arquivo: str | None = None,
+        linha: int | None = None,
+        coluna: int | None = None,
+        sugestao: str | None = None,
+        detalhes: dict[str, object] | None = None,
+    ) -> None:
+        self.codigo = codigo
+        self.mensagem = mensagem
+        self.arquivo = arquivo
+        self.linha = linha
+        self.coluna = coluna
+        self.sugestao = sugestao
+        self.detalhes = detalhes or {}
+
+        partes = [f"{codigo}: {mensagem}"]
+        if arquivo is not None:
+            partes.append(f"arquivo={arquivo}")
+        if linha is not None:
+            partes.append(f"linha={linha}")
+        if coluna is not None:
+            partes.append(f"coluna={coluna}")
+        if sugestao:
+            partes.append(f"sugestao={sugestao}")
+        super().__init__(" | ".join(partes))
 
 
 _BUILTIN_ARITY: dict[str, int | None] = {
@@ -377,32 +410,161 @@ _BUILTIN_ARITY: dict[str, int | None] = {
 }
 
 
+@dataclass(frozen=True)
+class _FuncSig:
+    aridade: int
+    param_types: list[TypeRef | None]
+    return_type: TypeRef | None
+
+
 @dataclass
 class _Context:
     in_function: bool = False
     in_async_function: bool = False
     loop_depth: int = 0
+    in_top_level: bool = True
+    current_function: str | None = None
+    current_return_type: TypeRef | None = None
+    variables: dict[str, TypeRef] = field(default_factory=dict)
 
 
-def validate_semantics(program: Program) -> None:
-    signatures: dict[str, int] = {}
+def _ref(nome: str, args: list[TypeRef] | None = None) -> TypeRef:
+    return TypeRef(nome=nome, args=args or [])
+
+
+def _normalize_type(t: TypeRef | None) -> TypeRef:
+    if t is None:
+        return _ref("qualquer")
+    return TypeRef(nome=t.nome.lower(), args=[_normalize_type(a) for a in t.args])
+
+
+def _describe(t: TypeRef | None) -> str:
+    tt = _normalize_type(t)
+    if not tt.args:
+        return tt.nome
+    return f"{tt.nome}[{', '.join(_describe(a) for a in tt.args)}]"
+
+
+def _is_numeric(t: TypeRef) -> bool:
+    n = _normalize_type(t).nome
+    return n in {"inteiro", "numero"}
+
+
+def _type_compatible(actual: TypeRef | None, expected: TypeRef | None) -> bool:
+    a = _normalize_type(actual)
+    e = _normalize_type(expected)
+
+    if e.nome in {"qualquer", "desconhecido"}:
+        return True
+    if a.nome in {"qualquer", "desconhecido"}:
+        return True
+
+    if e.nome == "uniao":
+        return any(_type_compatible(a, opt) for opt in e.args)
+    if a.nome == "uniao":
+        return all(_type_compatible(opt, e) for opt in a.args)
+
+    if e.nome == "numero" and a.nome == "inteiro":
+        return True
+
+    if a.nome != e.nome:
+        return False
+
+    if len(a.args) != len(e.args):
+        return False
+
+    return all(_type_compatible(aa, ee) for aa, ee in zip(a.args, e.args, strict=False))
+
+
+def _err(
+    codigo: str,
+    mensagem: str,
+    node: object | None = None,
+    *,
+    arquivo: str | None = None,
+    sugestao: str | None = None,
+    detalhes: dict[str, object] | None = None,
+) -> SemanticError:
+    linha = getattr(node, "linha", None) if node is not None else None
+    coluna = getattr(node, "coluna", None) if node is not None else None
+    if isinstance(linha, int) and linha <= 0:
+        linha = None
+    if isinstance(coluna, int) and coluna <= 0:
+        coluna = None
+    return SemanticError(
+        codigo=codigo,
+        mensagem=mensagem,
+        arquivo=arquivo,
+        linha=linha,
+        coluna=coluna,
+        sugestao=sugestao,
+        detalhes=detalhes,
+    )
+
+
+def validate_semantics(program: Program, arquivo: str | None = None) -> None:
+    signatures: dict[str, _FuncSig] = {}
     _collect_signatures(program.declarations, signatures)
 
-    ctx = _Context(in_function=False, in_async_function=False, loop_depth=0)
+    top_declared: set[str] = set(signatures.keys())
+    seen_export_stmt = False
+    exported_names: set[str] = set()
+
+    # pré-passo de símbolos de topo para contrato de módulo
     for decl in program.declarations:
-        _validate_stmt(decl, ctx, signatures)
+        if isinstance(decl, AssignStmt):
+            top_declared.add(decl.name)
+        elif isinstance(decl, ImportStmt):
+            top_declared.add(decl.alias)
+
+    ctx = _Context(in_function=False, in_async_function=False, loop_depth=0, in_top_level=True)
+    for decl in program.declarations:
+        _validate_stmt(decl, ctx, signatures, arquivo)
+        if isinstance(decl, ExportStmt):
+            seen_export_stmt = True
+            for n in decl.names:
+                if n in exported_names:
+                    raise _err(
+                        "SEM0403",
+                        f"Nome exportado duplicado no contrato de módulo: '{n}'.",
+                        decl,
+                        arquivo=arquivo,
+                        sugestao="Remova duplicatas em 'exporte'.",
+                    )
+                exported_names.add(n)
+
+    if seen_export_stmt:
+        missing = sorted(n for n in exported_names if n not in top_declared)
+        if missing:
+            raise SemanticError(
+                codigo="SEM0404",
+                mensagem=f"Contrato de módulo exporta nomes não declarados: {missing}.",
+                arquivo=arquivo,
+                sugestao="Declare os símbolos exportados antes do 'exporte'.",
+                detalhes={"faltando": missing},
+            )
 
 
-def _collect_signatures(stmts: list[Stmt], signatures: dict[str, int]) -> None:
+def _collect_signatures(stmts: list[Stmt], signatures: dict[str, _FuncSig]) -> None:
     for stmt in stmts:
         if isinstance(stmt, FunctionDecl):
-            signatures[stmt.name] = len(stmt.params)
+            param_types = [
+                _normalize_type(stmt.param_types.get(p) if stmt.param_types else None)
+                for p in stmt.params
+            ]
+            signatures[stmt.name] = _FuncSig(
+                aridade=len(stmt.params),
+                param_types=param_types,
+                return_type=_normalize_type(stmt.return_type),
+            )
             _collect_signatures(stmt.body, signatures)
         elif isinstance(stmt, IfStmt):
             _collect_signatures(stmt.then_branch, signatures)
             if stmt.else_branch:
                 _collect_signatures(stmt.else_branch, signatures)
         elif isinstance(stmt, WhileStmt):
+            _collect_signatures(stmt.body, signatures)
+        elif isinstance(stmt, ForStmt):
             _collect_signatures(stmt.body, signatures)
         elif isinstance(stmt, TryStmt):
             _collect_signatures(stmt.try_branch, signatures)
@@ -412,157 +574,370 @@ def _collect_signatures(stmts: list[Stmt], signatures: dict[str, int]) -> None:
                 _collect_signatures(stmt.finally_branch, signatures)
 
 
-def _validate_stmt(stmt: Stmt, ctx: _Context, signatures: dict[str, int]) -> None:
+def _validate_stmt(stmt: Stmt, ctx: _Context, signatures: dict[str, _FuncSig], arquivo: str | None) -> None:
     if isinstance(stmt, FunctionDecl):
-        child_ctx = _Context(in_function=True, in_async_function=stmt.is_async, loop_depth=0)
+        child_ctx = _Context(
+            in_function=True,
+            in_async_function=stmt.is_async,
+            loop_depth=0,
+            in_top_level=False,
+            current_function=stmt.name,
+            current_return_type=_normalize_type(stmt.return_type),
+            variables=dict(ctx.variables),
+        )
+        if stmt.param_types:
+            for pname, ptype in stmt.param_types.items():
+                child_ctx.variables[pname] = _normalize_type(ptype)
         for inner in stmt.body:
-            _validate_stmt(inner, child_ctx, signatures)
+            _validate_stmt(inner, child_ctx, signatures, arquivo)
         return
 
     if isinstance(stmt, ImportStmt):
         if not stmt.alias:
-            raise SemanticError("Alias de 'importe' não pode ser vazio.")
+            raise _err(
+                "SEM0401",
+                "Alias de 'importe' não pode ser vazio.",
+                stmt,
+                arquivo=arquivo,
+                sugestao="Use 'importe \"mod.trm\" como nome_modulo'.",
+            )
+        if stmt.names is not None:
+            if len(stmt.names) == 0:
+                raise _err(
+                    "SEM0402",
+                    "Lista de símbolos em 'expondo' não pode ser vazia.",
+                    stmt,
+                    arquivo=arquivo,
+                    sugestao="Informe pelo menos um nome após 'expondo'.",
+                )
+            vistos: set[str] = set()
+            for n in stmt.names:
+                if n in vistos:
+                    raise _err(
+                        "SEM0405",
+                        f"Símbolo duplicado em import explícito: '{n}'.",
+                        stmt,
+                        arquivo=arquivo,
+                        sugestao="Remova símbolos repetidos em 'expondo'.",
+                    )
+                vistos.add(n)
+        ctx.variables[stmt.alias] = _ref("mapa", [_ref("texto"), _ref("qualquer")])
+        return
+
+    if isinstance(stmt, ExportStmt):
+        if not ctx.in_top_level:
+            raise _err(
+                "SEM0406",
+                "'exporte' só pode ser usado no nível de módulo.",
+                stmt,
+                arquivo=arquivo,
+                sugestao="Mova o contrato de exportação para o topo do arquivo.",
+            )
         return
 
     if isinstance(stmt, IfStmt):
-        _validate_expr(stmt.condition, signatures, ctx)
+        _validate_expr(stmt.condition, signatures, ctx, arquivo)
         for inner in stmt.then_branch:
-            _validate_stmt(
-                inner,
-                _Context(ctx.in_function, ctx.in_async_function, ctx.loop_depth),
-                signatures,
-            )
+            _validate_stmt(inner, _clone_ctx(ctx), signatures, arquivo)
         if stmt.else_branch:
             for inner in stmt.else_branch:
-                _validate_stmt(
-                    inner,
-                    _Context(ctx.in_function, ctx.in_async_function, ctx.loop_depth),
-                    signatures,
-                )
+                _validate_stmt(inner, _clone_ctx(ctx), signatures, arquivo)
         return
 
     if isinstance(stmt, WhileStmt):
-        _validate_expr(stmt.condition, signatures, ctx)
-        child_ctx = _Context(
-            in_function=ctx.in_function,
-            in_async_function=ctx.in_async_function,
-            loop_depth=ctx.loop_depth + 1,
-        )
+        _validate_expr(stmt.condition, signatures, ctx, arquivo)
+        child_ctx = _clone_ctx(ctx)
+        child_ctx.loop_depth += 1
+        child_ctx.in_top_level = False
         for inner in stmt.body:
-            _validate_stmt(inner, child_ctx, signatures)
+            _validate_stmt(inner, child_ctx, signatures, arquivo)
+        return
+
+    if isinstance(stmt, ForStmt):
+        iterable_t = _validate_expr(stmt.iterable, signatures, ctx, arquivo)
+        elem_t = _iter_element_type(iterable_t)
+        if elem_t is None:
+            raise _err(
+                "SEM0306",
+                f"'para/em' exige iterável; recebido '{_describe(iterable_t)}'.",
+                stmt,
+                arquivo=arquivo,
+                sugestao="Itere sobre lista, mapa ou tipo compatível.",
+            )
+        child_ctx = _clone_ctx(ctx)
+        child_ctx.loop_depth += 1
+        child_ctx.in_top_level = False
+        child_ctx.variables[stmt.iterator] = elem_t
+        for inner in stmt.body:
+            _validate_stmt(inner, child_ctx, signatures, arquivo)
         return
 
     if isinstance(stmt, TryStmt):
         for inner in stmt.try_branch:
-            _validate_stmt(
-                inner,
-                _Context(ctx.in_function, ctx.in_async_function, ctx.loop_depth),
-                signatures,
-            )
+            _validate_stmt(inner, _clone_ctx(ctx), signatures, arquivo)
         if stmt.catch_branch is not None:
+            catch_ctx = _clone_ctx(ctx)
+            if stmt.catch_name:
+                catch_ctx.variables[stmt.catch_name] = _ref("qualquer")
             for inner in stmt.catch_branch:
-                _validate_stmt(
-                    inner,
-                    _Context(ctx.in_function, ctx.in_async_function, ctx.loop_depth),
-                    signatures,
-                )
+                _validate_stmt(inner, catch_ctx, signatures, arquivo)
         if stmt.finally_branch is not None:
             for inner in stmt.finally_branch:
-                _validate_stmt(
-                    inner,
-                    _Context(ctx.in_function, ctx.in_async_function, ctx.loop_depth),
-                    signatures,
-                )
+                _validate_stmt(inner, _clone_ctx(ctx), signatures, arquivo)
         return
 
     if isinstance(stmt, ThrowStmt):
-        _validate_expr(stmt.value, signatures, ctx)
+        _validate_expr(stmt.value, signatures, ctx, arquivo)
         return
 
     if isinstance(stmt, ReturnStmt):
         if not ctx.in_function:
-            raise SemanticError("'retorne' só pode ser usado dentro de função.")
+            raise _err(
+                "SEM0101",
+                "'retorne' só pode ser usado dentro de função.",
+                stmt,
+                arquivo=arquivo,
+                sugestao="Remova 'retorne' do topo ou envolva em função.",
+            )
         if stmt.value is not None:
-            _validate_expr(stmt.value, signatures, ctx)
+            ret_t = _validate_expr(stmt.value, signatures, ctx, arquivo)
+            if ctx.current_return_type is not None and not _type_compatible(ret_t, ctx.current_return_type):
+                raise _err(
+                    "SEM0204",
+                    f"Retorno incompatível em '{ctx.current_function}': esperado '{_describe(ctx.current_return_type)}', recebido '{_describe(ret_t)}'.",
+                    stmt,
+                    arquivo=arquivo,
+                    sugestao="Ajuste o tipo retornado ou a anotação de retorno.",
+                )
         return
 
     if isinstance(stmt, BreakStmt):
         if ctx.loop_depth <= 0:
-            raise SemanticError("'pare' só pode ser usado dentro de laço.")
+            raise _err(
+                "SEM0102",
+                "'pare' só pode ser usado dentro de laço.",
+                stmt,
+                arquivo=arquivo,
+                sugestao="Use 'pare' apenas em 'enquanto' ou 'para/em'.",
+            )
         return
 
     if isinstance(stmt, ContinueStmt):
         if ctx.loop_depth <= 0:
-            raise SemanticError("'continue' só pode ser usado dentro de laço.")
+            raise _err(
+                "SEM0103",
+                "'continue' só pode ser usado dentro de laço.",
+                stmt,
+                arquivo=arquivo,
+                sugestao="Use 'continue' apenas em 'enquanto' ou 'para/em'.",
+            )
         return
 
     if isinstance(stmt, AssignStmt):
-        _validate_expr(stmt.value, signatures, ctx)
+        value_t = _validate_expr(stmt.value, signatures, ctx, arquivo)
+        if stmt.annotation is not None:
+            declared = _normalize_type(stmt.annotation)
+            if not _type_compatible(value_t, declared):
+                raise _err(
+                    "SEM0201",
+                    f"Atribuição incompatível para '{stmt.name}': esperado '{_describe(declared)}', recebido '{_describe(value_t)}'.",
+                    stmt,
+                    arquivo=arquivo,
+                    sugestao="Corrija o valor atribuído ou ajuste a anotação.",
+                )
+            ctx.variables[stmt.name] = declared
+        else:
+            ctx.variables[stmt.name] = value_t
         return
 
     if isinstance(stmt, ExprStmt):
-        _validate_expr(stmt.expression, signatures, ctx)
+        _validate_expr(stmt.expression, signatures, ctx, arquivo)
         return
 
-    raise SemanticError(f"Statement sem validação semântica: {type(stmt).__name__}")
+    raise _err(
+        "SEM9999",
+        f"Statement sem validação semântica: {type(stmt).__name__}.",
+        stmt,
+        arquivo=arquivo,
+    )
 
 
-def _validate_expr(expr: Expr, signatures: dict[str, int], ctx: _Context) -> None:
-    if isinstance(expr, (Literal, Identifier)):
-        return
+def _iter_element_type(iterable_t: TypeRef | None) -> TypeRef | None:
+    t = _normalize_type(iterable_t)
+    if t.nome in {"qualquer", "desconhecido"}:
+        return _ref("qualquer")
+    if t.nome == "lista":
+        if t.args:
+            return t.args[0]
+        return _ref("qualquer")
+    return None
+
+
+def _clone_ctx(ctx: _Context) -> _Context:
+    return _Context(
+        in_function=ctx.in_function,
+        in_async_function=ctx.in_async_function,
+        loop_depth=ctx.loop_depth,
+        in_top_level=False,
+        current_function=ctx.current_function,
+        current_return_type=ctx.current_return_type,
+        variables=dict(ctx.variables),
+    )
+
+
+def _validate_expr(expr: Expr, signatures: dict[str, _FuncSig], ctx: _Context, arquivo: str | None) -> TypeRef:
+    if isinstance(expr, Literal):
+        if expr.value is None:
+            return _ref("nulo")
+        if isinstance(expr.value, bool):
+            return _ref("logico")
+        if isinstance(expr.value, int):
+            return _ref("inteiro")
+        if isinstance(expr.value, float):
+            return _ref("numero")
+        if isinstance(expr.value, str):
+            return _ref("texto")
+        return _ref("qualquer")
+
+    if isinstance(expr, Identifier):
+        return ctx.variables.get(expr.name, _ref("qualquer"))
 
     if isinstance(expr, UnaryExpr):
-        _validate_expr(expr.operand, signatures, ctx)
-        return
+        op_t = _validate_expr(expr.operand, signatures, ctx, arquivo)
+        if expr.operator == "MENOS":
+            if not _is_numeric(op_t):
+                raise _err(
+                    "SEM0301",
+                    f"Operador unário '-' exige tipo numérico; recebido '{_describe(op_t)}'.",
+                    expr,
+                    arquivo=arquivo,
+                    sugestao="Aplique '-' apenas a números.",
+                )
+            return op_t
+        return _ref("qualquer")
 
     if isinstance(expr, AwaitExpr):
         if not ctx.in_async_function:
-            raise SemanticError("'aguarde' só pode ser usado dentro de função assíncrona.")
-        _validate_expr(expr.expression, signatures, ctx)
-        return
+            raise _err(
+                "SEM0104",
+                "'aguarde' só pode ser usado dentro de função assíncrona.",
+                expr,
+                arquivo=arquivo,
+                sugestao="Marque a função como 'assíncrona'.",
+            )
+        return _validate_expr(expr.expression, signatures, ctx, arquivo)
 
     if isinstance(expr, BinaryExpr):
-        _validate_expr(expr.left, signatures, ctx)
-        _validate_expr(expr.right, signatures, ctx)
-        return
+        left_t = _validate_expr(expr.left, signatures, ctx, arquivo)
+        right_t = _validate_expr(expr.right, signatures, ctx, arquivo)
+        if expr.operator in {"MAIS", "MENOS", "ASTERISCO", "BARRA"}:
+            left_n = _normalize_type(left_t)
+            right_n = _normalize_type(right_t)
+
+            # Mantém compatibilidade dinâmica em código sem anotação.
+            if left_n.nome in {"qualquer", "desconhecido"} or right_n.nome in {"qualquer", "desconhecido"}:
+                return _ref("qualquer")
+
+            # Concatenação textual é permitida para '+'.
+            if expr.operator == "MAIS" and left_n.nome == "texto" and right_n.nome == "texto":
+                return _ref("texto")
+
+            if not _is_numeric(left_t) or not _is_numeric(right_t):
+                raise _err(
+                    "SEM0302",
+                    f"Operação aritmética exige números; recebido '{_describe(left_t)}' e '{_describe(right_t)}'.",
+                    expr,
+                    arquivo=arquivo,
+                    sugestao="Converta os operandos para tipo numérico.",
+                )
+            if left_t.nome == "numero" or right_t.nome == "numero" or expr.operator == "BARRA":
+                return _ref("numero")
+            return _ref("inteiro")
+        if expr.operator in {"IGUAL_IGUAL", "DIFERENTE", "MAIOR", "MAIOR_IGUAL", "MENOR", "MENOR_IGUAL"}:
+            return _ref("logico")
+        return _ref("qualquer")
 
     if isinstance(expr, ListExpr):
-        for element in expr.elements:
-            _validate_expr(element, signatures, ctx)
-        return
+        if not expr.elements:
+            return _ref("lista", [_ref("qualquer")])
+        elem_types = [_validate_expr(e, signatures, ctx, arquivo) for e in expr.elements]
+        head = elem_types[0]
+        if all(_type_compatible(t, head) for t in elem_types[1:]):
+            return _ref("lista", [head])
+        return _ref("lista", [_ref("qualquer")])
 
     if isinstance(expr, DictExpr):
+        if not expr.entries:
+            return _ref("mapa", [_ref("qualquer"), _ref("qualquer")])
+        key_types: list[TypeRef] = []
+        val_types: list[TypeRef] = []
         for key, value in expr.entries:
-            _validate_expr(key, signatures, ctx)
-            _validate_expr(value, signatures, ctx)
-        return
+            key_types.append(_validate_expr(key, signatures, ctx, arquivo))
+            val_types.append(_validate_expr(value, signatures, ctx, arquivo))
+        key_head = key_types[0]
+        val_head = val_types[0]
+        if not all(_type_compatible(t, key_head) for t in key_types[1:]):
+            key_head = _ref("qualquer")
+        if not all(_type_compatible(t, val_head) for t in val_types[1:]):
+            val_head = _ref("qualquer")
+        return _ref("mapa", [key_head, val_head])
 
     if isinstance(expr, IndexExpr):
-        _validate_expr(expr.target, signatures, ctx)
-        _validate_expr(expr.index, signatures, ctx)
-        return
+        target_t = _validate_expr(expr.target, signatures, ctx, arquivo)
+        _validate_expr(expr.index, signatures, ctx, arquivo)
+        t = _normalize_type(target_t)
+        if t.nome == "lista":
+            return t.args[0] if t.args else _ref("qualquer")
+        if t.nome == "mapa":
+            return t.args[1] if len(t.args) >= 2 else _ref("qualquer")
+        return _ref("qualquer")
 
     if isinstance(expr, CallExpr):
-        _validate_expr(expr.callee, signatures, ctx)
-        for arg in expr.arguments:
-            _validate_expr(arg, signatures, ctx)
+        callee_t = _validate_expr(expr.callee, signatures, ctx, arquivo)
+        arg_types = [_validate_expr(arg, signatures, ctx, arquivo) for arg in expr.arguments]
 
         if isinstance(expr.callee, Identifier):
             name = expr.callee.name
             if name in signatures:
-                expected = signatures[name]
+                sig = signatures[name]
                 got = len(expr.arguments)
-                if expected != got:
-                    raise SemanticError(
-                        f"Função '{name}' esperava {expected} argumentos, recebeu {got}."
+                if sig.aridade != got:
+                    raise _err(
+                        "SEM0105",
+                        f"Função '{name}' esperava {sig.aridade} argumentos, recebeu {got}.",
+                        expr,
+                        arquivo=arquivo,
+                        sugestao="Ajuste a quantidade de argumentos na chamada.",
                     )
-            elif name in _BUILTIN_ARITY:
-                expected_builtin = _BUILTIN_ARITY[name]
-                if expected_builtin is not None and len(expr.arguments) != expected_builtin:
-                    raise SemanticError(
-                        f"Builtin '{name}' esperava {expected_builtin} argumentos, "
-                        f"recebeu {len(expr.arguments)}."
-                    )
-        return
+                for idx, (arg_t, param_t) in enumerate(zip(arg_types, sig.param_types, strict=False), start=1):
+                    if param_t is not None and not _type_compatible(arg_t, param_t):
+                        raise _err(
+                            "SEM0203",
+                            f"Argumento {idx} incompatível em '{name}': esperado '{_describe(param_t)}', recebido '{_describe(arg_t)}'.",
+                            expr,
+                            arquivo=arquivo,
+                            sugestao="Ajuste o tipo do argumento ou a anotação do parâmetro.",
+                        )
+                return _normalize_type(sig.return_type)
 
-    raise SemanticError(f"Expressão sem validação semântica: {type(expr).__name__}")
+            if name in _BUILTIN_ARITY:
+                expected_builtin = _BUILTIN_ARITY[name]
+                if expected_builtin is not None and expected_builtin != len(expr.arguments):
+                    raise _err(
+                        "SEM0106",
+                        f"Builtin '{name}' esperava {expected_builtin} argumentos, recebeu {len(expr.arguments)}.",
+                        expr,
+                        arquivo=arquivo,
+                        sugestao="Consulte a assinatura do builtin e ajuste a chamada.",
+                    )
+                return _ref("qualquer")
+
+        _ = callee_t
+        return _ref("qualquer")
+
+    raise _err(
+        "SEM9998",
+        f"Expressão sem validação semântica: {type(expr).__name__}.",
+        expr,
+        arquivo=arquivo,
+    )

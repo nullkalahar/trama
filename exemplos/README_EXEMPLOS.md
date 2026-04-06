@@ -1,6 +1,6 @@
 # Exemplos da Trama
 
-Este diretório traz exemplos cobrindo recursos da linguagem do v0.1 ao v2.0.9.
+Este diretório traz exemplos cobrindo recursos da linguagem do v0.1 ao v2.1.1.
 
 ## Como executar
 
@@ -94,6 +94,8 @@ trama executar exemplos/01_ola_mundo.trm
 - `v208/208_01_harness_integracao_sqlite.trm` até `v208/208_10_pipeline_v208_documentado.trm`: execução operacional da suíte avançada e leitura de baseline/reports
 - `v209/README_V209_EXEMPLOS.md`: coleção v2.0.9 (runtime 100% nativo: compilação, import nativo e async concorrente)
 - `v209/209_01_compilacao_nativa_basica.trm` até `v209/209_08_erros_deterministicos_importe.trm`: cenários reais de compilação/execução nativa, import determinístico e scheduler assíncrono
+- `v211/README_V211.md`: coleção v2.1.1 (linguagem para codebase grande)
+- `v211/01_para_em_lista_soma.trm` até `v211/10_migracao_legado_para_tipado.trm`: `para/em`, contratos de módulo (`exporte`/`importe ... expondo ...`), tipagem gradual e troubleshooting de diagnósticos
 - `sintaxe/01_expressoes_multilinha.trm`: lista/mapa/chamada multilinha
 - `sintaxe/02_encadeamento_multilinha.trm`: encadeamento com indexação multilinha
 - `anilist/README_ANILIST_EXEMPLOS.md`: coleção completa de integrações AniList (anime/mangá + DB em `.local/tests/anilist/`)

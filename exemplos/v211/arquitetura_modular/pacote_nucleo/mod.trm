@@ -1,0 +1,19 @@
+exporte identificar_contexto, construir_resposta
+
+função identificar_contexto(ambiente: texto): texto
+    se ambiente == "producao"
+        retorne "contexto_prod"
+    fim
+    se ambiente == "teste"
+        retorne "contexto_teste"
+    fim
+    retorne "contexto_dev"
+fim
+
+função construir_resposta(modulo: texto, versao: texto, contexto: texto): mapa[texto,qualquer]
+    retorne {
+        "modulo": modulo,
+        "versao": versao,
+        "contexto": contexto
+    }
+fim

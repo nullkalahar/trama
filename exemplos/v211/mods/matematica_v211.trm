@@ -1,0 +1,15 @@
+exporte soma, media
+
+função soma(a: inteiro, b: inteiro): inteiro
+    retorne a + b
+fim
+
+função media(valores: lista[inteiro]): numero
+    total: inteiro = 0
+    para item em valores
+        total = total + item
+    fim
+    retorne total / tamanho(valores)
+fim
+
+interno = "nao exportado"

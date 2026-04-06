@@ -93,11 +93,15 @@ Pipeline da linguagem:
 - manual da linguagem v2.0.8 (testes avançados) em [`docs/LINGUAGEM_V2_0_8.md`](docs/LINGUAGEM_V2_0_8.md)
 - manual da linguagem v2.0.9 (runtime 100% nativo) em [`docs/LINGUAGEM_V2_0_9.md`](docs/LINGUAGEM_V2_0_9.md)
 - manual da linguagem v2.1.0 (engenharia de produto, CI/CD e governança) em [`docs/LINGUAGEM_V2_1_0.md`](docs/LINGUAGEM_V2_1_0.md)
+- manual da linguagem v2.1.1 (linguagem para codebase grande) em [`docs/LINGUAGEM_V2_1_1.md`](docs/LINGUAGEM_V2_1_1.md)
+- guia de codebase grande v2.1.1 em [`docs/GUIA_CODEBASE_GRANDE_V2_1_1.md`](docs/GUIA_CODEBASE_GRANDE_V2_1_1.md)
+- manual operacional de módulos/tipagem v2.1.1 em [`docs/OPERACAO_V2_1_1_MODULOS_TIPAGEM.md`](docs/OPERACAO_V2_1_1_MODULOS_TIPAGEM.md)
 - manual completo consolidado até v2.0.2 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_2.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_2.md)
 - manual completo consolidado até v2.0.7 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_7.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_7.md)
 - manual completo consolidado até v2.0.8 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_8.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_8.md)
 - manual completo consolidado até v2.0.9 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_9.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_9.md)
 - manual completo consolidado até v2.1.0 em [`docs/MANUAL_TRAMA_COMPLETO_V2_1_0.md`](docs/MANUAL_TRAMA_COMPLETO_V2_1_0.md)
+- manual completo consolidado até v2.1.1 em [`docs/MANUAL_TRAMA_COMPLETO_V2_1_1.md`](docs/MANUAL_TRAMA_COMPLETO_V2_1_1.md)
 - manual completo consolidado até v1.4 em [`docs/MANUAL_COMPLETO_ATE_V1_4.md`](docs/MANUAL_COMPLETO_ATE_V1_4.md)
 - manual completo consolidado até v1.8 em [`docs/MANUAL_COMPLETO_ATE_V1_8.md`](docs/MANUAL_COMPLETO_ATE_V1_8.md)
 - manual operacional comando a comando v2.0.6-v2.0.7 em [`docs/OPERACAO_COMANDOS_V2_0_6_V2_0_7.md`](docs/OPERACAO_COMANDOS_V2_0_6_V2_0_7.md)
@@ -123,6 +127,7 @@ Pipeline da linguagem:
 - exemplos v2.0.7 em [`exemplos/v207/`](exemplos/v207/)
 - exemplos v2.0.8 em [`exemplos/v208/`](exemplos/v208/)
 - exemplos v2.0.9 em [`exemplos/v209/`](exemplos/v209/)
+- exemplos v2.1.1 em [`exemplos/v211/`](exemplos/v211/)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
 - binário standalone gerável por [`scripts/build_standalone.sh`](scripts/build_standalone.sh)
@@ -1058,17 +1063,36 @@ Entregas implementadas em v2.1.0:
   - `docs/OPERACAO_CI_CD_RELEASE_V2_1_0.md`.
 
 ### v2.1.1 - Linguagem para codebase grande
-- [ ] implementação completa de `para/em` em parser, AST, compilador e VM (Python + nativa).
-- [ ] contratos de módulo com exportação/importação explícitas e espaços de nomes previsíveis.
-- [ ] resolução determinística de módulos para projetos multi-pacote.
-- [ ] tipagem gradual fase 1 (anotações opcionais e checagem estática básica).
-- [ ] tipagem gradual fase 2 (tipos compostos, fronteira de API e validação entre módulos).
-- [ ] diagnósticos semânticos com contexto consistente (arquivo, linha, coluna e sugestão de correção).
+- [x] implementação completa de `para/em` em parser, AST, compilador e VM (Python + nativa).
+- [x] contratos de módulo com exportação/importação explícitas e espaços de nomes previsíveis.
+- [x] resolução determinística de módulos para projetos multi-pacote.
+- [x] tipagem gradual fase 1 (anotações opcionais e checagem estática básica).
+- [x] tipagem gradual fase 2 (tipos compostos, fronteira de API e validação entre módulos).
+- [x] diagnósticos semânticos com contexto consistente (arquivo, linha, coluna e sugestão de correção).
 
 DoD v2.1.1:
 - manutenção de base grande com contratos explícitos e menor risco de refatoração.
 - redução mensurável de erros de runtime em fluxos cobertos por tipagem.
 - paridade de linguagem consolidada entre execução Python e nativa para recursos novos.
+
+Entregas implementadas em v2.1.1:
+- linguagem (`lexer`/`parser`/`AST`/compilador/VM Python):
+  - `para/em` com suporte completo de parsing, AST dedicado e compilação para bytecode;
+  - contratos de módulo explícitos: `exporte ...` e `importe ... expondo ...`;
+  - resolução determinística de módulos com ordem estável (`base`, `TRAMA_MODPATH`, `cwd`) e suporte a `mod.trm`/`__init__.trm`;
+  - tipagem gradual (fases 1 e 2) com anotações opcionais, tipos compostos (`lista`, `mapa`, `uniao`) e validação de fronteira de função/módulo;
+  - diagnósticos semânticos padronizados com `codigo`, mensagem estável, `linha`, `coluna` e `sugestao`.
+- VM nativa:
+  - paridade de execução para bytecode com `para/em`;
+  - builtin nativo `tamanho` para suportar laços compilados com iteráveis em bytecode v1.
+- testes:
+  - `tests/test_linguagem_v211.py` (parser/semântica/tipagem/contratos/módulos/VM Python);
+  - `tests/test_native_runtime_v211.py` (paridade VM nativa para `para/em` e import explícito);
+  - regressão mantida em `tests/test_lexer.py`, `tests/test_parser.py`, `tests/test_semantic.py`, `tests/test_vm.py`, `tests/test_native_runtime_v209.py`.
+- documentação:
+  - manual da versão em `docs/LINGUAGEM_V2_1_1.md`;
+  - manual consolidado em `docs/MANUAL_TRAMA_COMPLETO_V2_1_1.md`;
+  - exemplos práticos em `exemplos/v211/`.
 
 ## v2.5 (frontend)
 - [ ] toolkit de UI, estado e renderização

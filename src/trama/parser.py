@@ -14,6 +14,8 @@ from .ast_nodes import (
     DictExpr,
     Expr,
     ExprStmt,
+    ExportStmt,
+    ForStmt,
     FunctionDecl,
     Identifier,
     IfStmt,
@@ -25,6 +27,7 @@ from .ast_nodes import (
     ReturnStmt,
     Stmt,
     ThrowStmt,
+    TypeRef,
     TryStmt,
     UnaryExpr,
     WhileStmt,
@@ -62,38 +65,60 @@ class Parser:
         name = self._consume("IDENT", "Esperado nome da função.")
         self._consume("ABRE_PAREN", "Esperado '(' após nome da função.")
         params: list[str] = []
+        param_types: dict[str, TypeRef] = {}
         if not self._check("FECHA_PAREN"):
             while True:
                 param = self._consume("IDENT", "Esperado nome de parâmetro.")
                 params.append(param.lexema)
+                if self._match("DOIS_PONTOS"):
+                    param_types[param.lexema] = self._parse_type_ref(until={"VIRGULA", "FECHA_PAREN"})
                 if not self._match("VIRGULA"):
                     break
         self._consume("FECHA_PAREN", "Esperado ')' após parâmetros.")
+        return_type: TypeRef | None = None
+        if self._match("DOIS_PONTOS"):
+            return_type = self._parse_type_ref(until={"NOVA_LINHA", "PONTO_VIRGULA"})
         self._consume_optional_separators_or_error("Esperado nova linha após cabeçalho da função.")
         body = self._parse_block(until={"FIM"})
         self._consume("FIM", "Esperado 'fim' para encerrar função.")
-        return FunctionDecl(name=name.lexema, params=params, body=body, is_async=is_async)
+        return FunctionDecl(
+            name=name.lexema,
+            params=params,
+            body=body,
+            is_async=is_async,
+            param_types=(param_types or None),
+            return_type=return_type,
+            linha=name.linha,
+            coluna=name.coluna,
+        )
 
     def _statement(self) -> Stmt:
         if self._match("SE"):
             return self._if_stmt()
         if self._match("ENQUANTO"):
             return self._while_stmt()
+        if self._match("PARA"):
+            return self._for_stmt()
         if self._match("RETORNE"):
             return self._return_stmt()
         if self._match("PARE"):
-            return BreakStmt()
+            tok = self._previous()
+            return BreakStmt(linha=tok.linha, coluna=tok.coluna)
         if self._match("CONTINUE"):
-            return ContinueStmt()
+            tok = self._previous()
+            return ContinueStmt(linha=tok.linha, coluna=tok.coluna)
         if self._match("LANCE"):
             return self._throw_stmt()
         if self._match("TENTE"):
             return self._try_stmt()
         if self._match("IMPORTE"):
             return self._import_stmt()
+        if self._match("EXPORTE"):
+            return self._export_stmt()
         return self._assignment_or_expr_stmt()
 
     def _import_stmt(self) -> ImportStmt:
+        kw = self._previous()
         if self._match("TEXTO"):
             module = self._previous().lexema
             default_alias = module.rsplit("/", 1)[-1].removesuffix(".trm")
@@ -104,9 +129,26 @@ class Parser:
         alias = default_alias
         if self._match("COMO"):
             alias = self._consume("IDENT", "Esperado alias após 'como'.").lexema
-        return ImportStmt(module=module, alias=alias)
+        names: list[str] | None = None
+        if self._match("EXPONDO"):
+            names = []
+            while True:
+                names.append(self._consume("IDENT", "Esperado nome exportado após 'expondo'.").lexema)
+                if not self._match("VIRGULA"):
+                    break
+        return ImportStmt(module=module, alias=alias, names=names, linha=kw.linha, coluna=kw.coluna)
+
+    def _export_stmt(self) -> ExportStmt:
+        kw = self._previous()
+        names: list[str] = []
+        while True:
+            names.append(self._consume("IDENT", "Esperado nome após 'exporte'.").lexema)
+            if not self._match("VIRGULA"):
+                break
+        return ExportStmt(names=names, linha=kw.linha, coluna=kw.coluna)
 
     def _if_stmt(self) -> IfStmt:
+        kw = self._previous()
         condition = self._expression()
         self._consume_optional_separators_or_error("Esperado nova linha após condição do 'se'.")
         then_branch = self._parse_block(until={"SENAO", "FIM"})
@@ -115,24 +157,38 @@ class Parser:
             self._consume_optional_separators_or_error("Esperado nova linha após 'senão'.")
             else_branch = self._parse_block(until={"FIM"})
         self._consume("FIM", "Esperado 'fim' para encerrar bloco 'se'.")
-        return IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch)
+        return IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch, linha=kw.linha, coluna=kw.coluna)
 
     def _while_stmt(self) -> WhileStmt:
+        kw = self._previous()
         condition = self._expression()
         self._consume_optional_separators_or_error("Esperado nova linha após condição do 'enquanto'.")
         body = self._parse_block(until={"FIM"})
         self._consume("FIM", "Esperado 'fim' para encerrar 'enquanto'.")
-        return WhileStmt(condition=condition, body=body)
+        return WhileStmt(condition=condition, body=body, linha=kw.linha, coluna=kw.coluna)
+
+    def _for_stmt(self) -> ForStmt:
+        kw = self._previous()
+        it = self._consume("IDENT", "Esperado identificador de iteração em 'para'.")
+        self._consume("EM", "Esperado 'em' em 'para'.")
+        iterable = self._expression()
+        self._consume_optional_separators_or_error("Esperado nova linha após cabeçalho de 'para/em'.")
+        body = self._parse_block(until={"FIM"})
+        self._consume("FIM", "Esperado 'fim' para encerrar 'para'.")
+        return ForStmt(iterator=it.lexema, iterable=iterable, body=body, linha=kw.linha, coluna=kw.coluna)
 
     def _return_stmt(self) -> ReturnStmt:
+        tok = self._previous()
         if self._check_any({"NOVA_LINHA", "PONTO_VIRGULA", "EOF", "FIM"}):
-            return ReturnStmt(value=None)
-        return ReturnStmt(value=self._expression())
+            return ReturnStmt(value=None, linha=tok.linha, coluna=tok.coluna)
+        return ReturnStmt(value=self._expression(), linha=tok.linha, coluna=tok.coluna)
 
     def _throw_stmt(self) -> ThrowStmt:
-        return ThrowStmt(value=self._expression())
+        kw = self._previous()
+        return ThrowStmt(value=self._expression(), linha=kw.linha, coluna=kw.coluna)
 
     def _try_stmt(self) -> TryStmt:
+        kw = self._previous()
         self._consume_optional_separators_or_error("Esperado nova linha após 'tente'.")
         try_branch = self._parse_block(until={"PEGUE", "FINALMENTE", "FIM"})
 
@@ -162,15 +218,27 @@ class Parser:
             catch_name=catch_name,
             catch_branch=catch_branch,
             finally_branch=finally_branch,
+            linha=kw.linha,
+            coluna=kw.coluna,
         )
 
     def _assignment_or_expr_stmt(self) -> Stmt:
-        if self._check("IDENT") and self._check_next("IGUAL"):
-            name = self._advance().lexema
-            self._advance()  # IGUAL
+        if self._check("IDENT") and (self._check_next("IGUAL") or self._check_next("DOIS_PONTOS")):
+            name_tok = self._advance()
+            annotation: TypeRef | None = None
+            if self._match("DOIS_PONTOS"):
+                annotation = self._parse_type_ref(until={"IGUAL", "NOVA_LINHA", "PONTO_VIRGULA", "EOF"})
+            self._consume("IGUAL", "Esperado '=' em atribuição.")
             value = self._expression()
-            return AssignStmt(name=name, value=value)
-        return ExprStmt(expression=self._expression())
+            return AssignStmt(
+                name=name_tok.lexema,
+                value=value,
+                annotation=annotation,
+                linha=name_tok.linha,
+                coluna=name_tok.coluna,
+            )
+        expr = self._expression()
+        return ExprStmt(expression=expr)
 
     def _parse_block(self, until: set[str]) -> list[Stmt]:
         body: list[Stmt] = []
@@ -217,10 +285,12 @@ class Parser:
 
     def _unary(self) -> Expr:
         if self._match("AGUARDE"):
-            return AwaitExpr(expression=self._unary())
+            tok = self._previous()
+            return AwaitExpr(expression=self._unary(), linha=tok.linha, coluna=tok.coluna)
         if self._match("MENOS"):
             operator = self._previous().tipo
-            return UnaryExpr(operator=operator, operand=self._unary())
+            tok = self._previous()
+            return UnaryExpr(operator=operator, operand=self._unary(), linha=tok.linha, coluna=tok.coluna)
         return self._call()
 
     def _call(self) -> Expr:
@@ -239,7 +309,8 @@ class Parser:
                             break
                         self._skip_expr_separators()
                 self._consume("FECHA_PAREN", "Esperado ')' após argumentos.")
-                expr = CallExpr(callee=expr, arguments=args)
+                tok = self._previous()
+                expr = CallExpr(callee=expr, arguments=args, linha=tok.linha, coluna=tok.coluna)
                 continue
 
             self._skip_call_continuation_separators()
@@ -248,7 +319,8 @@ class Parser:
                 idx = self._expression()
                 self._skip_expr_separators()
                 self._consume("FECHA_COLCHETE", "Esperado ']' no índice.")
-                expr = IndexExpr(target=expr, index=idx)
+                tok = self._previous()
+                expr = IndexExpr(target=expr, index=idx, linha=tok.linha, coluna=tok.coluna)
                 continue
 
             break
@@ -257,19 +329,25 @@ class Parser:
     def _primary(self) -> Expr:
         if self._match("NUMERO"):
             lex = self._previous().lexema
+            tok = self._previous()
             if "." in lex:
-                return Literal(value=float(lex))
-            return Literal(value=int(lex))
+                return Literal(value=float(lex), linha=tok.linha, coluna=tok.coluna)
+            return Literal(value=int(lex), linha=tok.linha, coluna=tok.coluna)
         if self._match("TEXTO"):
-            return Literal(value=self._previous().lexema)
+            tok = self._previous()
+            return Literal(value=self._previous().lexema, linha=tok.linha, coluna=tok.coluna)
         if self._match("VERDADEIRO"):
-            return Literal(value=True)
+            tok = self._previous()
+            return Literal(value=True, linha=tok.linha, coluna=tok.coluna)
         if self._match("FALSO"):
-            return Literal(value=False)
+            tok = self._previous()
+            return Literal(value=False, linha=tok.linha, coluna=tok.coluna)
         if self._match("NULO"):
-            return Literal(value=None)
+            tok = self._previous()
+            return Literal(value=None, linha=tok.linha, coluna=tok.coluna)
         if self._match("IDENT"):
-            return Identifier(name=self._previous().lexema)
+            tok = self._previous()
+            return Identifier(name=self._previous().lexema, linha=tok.linha, coluna=tok.coluna)
         if self._match("ABRE_PAREN"):
             self._skip_expr_separators()
             expr = self._expression()
@@ -288,7 +366,8 @@ class Parser:
                         break
                     self._skip_expr_separators()
             self._consume("FECHA_COLCHETE", "Esperado ']' no literal de lista.")
-            return ListExpr(elements=elements)
+            tok = self._previous()
+            return ListExpr(elements=elements, linha=tok.linha, coluna=tok.coluna)
         if self._match("ABRE_CHAVE"):
             entries: list[tuple[Expr, Expr]] = []
             self._skip_expr_separators()
@@ -306,7 +385,8 @@ class Parser:
                         break
                     self._skip_expr_separators()
             self._consume("FECHA_CHAVE", "Esperado '}' no literal de mapa.")
-            return DictExpr(entries=entries)
+            tok = self._previous()
+            return DictExpr(entries=entries, linha=tok.linha, coluna=tok.coluna)
 
         token = self._peek()
         raise ParseError(f"Expressão inválida na linha {token.linha}, coluna {token.coluna}.")
@@ -374,6 +454,25 @@ class Parser:
 
     def _previous(self) -> Token:
         return self.tokens[self.current - 1]
+
+    def _parse_type_ref(self, until: set[str]) -> TypeRef:
+        tipo = self._consume("IDENT", "Esperado tipo na anotação.")
+        args: list[TypeRef] = []
+        if self._match("ABRE_COLCHETE"):
+            while True:
+                args.append(self._parse_type_ref(until={"VIRGULA", "FECHA_COLCHETE"}))
+                if not self._match("VIRGULA"):
+                    break
+            self._consume("FECHA_COLCHETE", "Esperado ']' na anotação de tipo.")
+        if self._check_any(until):
+            return TypeRef(nome=tipo.lexema, args=args)
+        # union opcional simplificada com `|`: tipo_a|tipo_b => uniao[tipo_a,tipo_b]
+        if self._match("BARRA_VERTICAL"):
+            outros = [self._parse_type_ref(until=until)]
+            while self._match("BARRA_VERTICAL"):
+                outros.append(self._parse_type_ref(until=until))
+            return TypeRef(nome="uniao", args=[TypeRef(nome=tipo.lexema, args=args), *outros])
+        return TypeRef(nome=tipo.lexema, args=args)
 
 
 def parse(codigo: str) -> Program:
