@@ -1,0 +1,5 @@
+importe "209_modulo_matematica.trm" como mat
+
+função resultado_relativo()
+    retorne mat["somar3"](14, 14, 14)
+fim

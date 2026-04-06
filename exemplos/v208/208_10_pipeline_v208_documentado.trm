@@ -1,0 +1,6 @@
+função principal()
+    exibir("1) executar harness")
+    exibir("2) validar relatorio JSON/MD")
+    exibir("3) avaliar SLO e contrato")
+    exibir("4) tratar regressao/caos antes do release")
+fim

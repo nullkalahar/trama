@@ -1,0 +1,4 @@
+função principal()
+    exibir("trama testes-avancados-v208 --perfil rapido --sem-postgres --sem-redis --json")
+    exibir("fixture SQLite: migracao v2 + seed por ambiente")
+fim

@@ -1,0 +1,6 @@
+importe "209_modulo_matematica.trm" como mat
+
+função principal()
+    exibir(mat["dobrar"](21))
+    exibir(mat["somar3"](10, 20, 12))
+fim

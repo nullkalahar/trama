@@ -1,0 +1,3 @@
+função principal()
+    exibir("trama testes-avancados-v208 --perfil completo --saida-json .local/test-results/v208_relatorio.json --saida-md .local/test-results/v208_relatorio.md")
+fim

@@ -90,11 +90,24 @@ Pipeline da linguagem:
 - manual da linguagem v2.0.2 (DTO/contrato HTTP) em [`docs/LINGUAGEM_V2_0_2.md`](docs/LINGUAGEM_V2_0_2.md)
 - manual da linguagem v2.0.6 (tooling backend) em [`docs/LINGUAGEM_V2_0_6.md`](docs/LINGUAGEM_V2_0_6.md)
 - manual da linguagem v2.0.7 (observabilidade/SRE) em [`docs/LINGUAGEM_V2_0_7.md`](docs/LINGUAGEM_V2_0_7.md)
+- manual da linguagem v2.0.8 (testes avançados) em [`docs/LINGUAGEM_V2_0_8.md`](docs/LINGUAGEM_V2_0_8.md)
+- manual da linguagem v2.0.9 (runtime 100% nativo) em [`docs/LINGUAGEM_V2_0_9.md`](docs/LINGUAGEM_V2_0_9.md)
+- manual da linguagem v2.1.0 (engenharia de produto, CI/CD e governança) em [`docs/LINGUAGEM_V2_1_0.md`](docs/LINGUAGEM_V2_1_0.md)
 - manual completo consolidado até v2.0.2 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_2.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_2.md)
 - manual completo consolidado até v2.0.7 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_7.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_7.md)
+- manual completo consolidado até v2.0.8 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_8.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_8.md)
+- manual completo consolidado até v2.0.9 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_9.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_9.md)
+- manual completo consolidado até v2.1.0 em [`docs/MANUAL_TRAMA_COMPLETO_V2_1_0.md`](docs/MANUAL_TRAMA_COMPLETO_V2_1_0.md)
 - manual completo consolidado até v1.4 em [`docs/MANUAL_COMPLETO_ATE_V1_4.md`](docs/MANUAL_COMPLETO_ATE_V1_4.md)
 - manual completo consolidado até v1.8 em [`docs/MANUAL_COMPLETO_ATE_V1_8.md`](docs/MANUAL_COMPLETO_ATE_V1_8.md)
 - manual operacional comando a comando v2.0.6-v2.0.7 em [`docs/OPERACAO_COMANDOS_V2_0_6_V2_0_7.md`](docs/OPERACAO_COMANDOS_V2_0_6_V2_0_7.md)
+- manual operacional de testes avançados v2.0.8 em [`docs/OPERACAO_TESTES_AVANCADOS_V2_0_8.md`](docs/OPERACAO_TESTES_AVANCADOS_V2_0_8.md)
+- manual operacional de runtime nativo v2.0.9 em [`docs/OPERACAO_RUNTIME_NATIVO_V2_0_9.md`](docs/OPERACAO_RUNTIME_NATIVO_V2_0_9.md)
+- manual operacional de CI/CD e release v2.1.0 em [`docs/OPERACAO_CI_CD_RELEASE_V2_1_0.md`](docs/OPERACAO_CI_CD_RELEASE_V2_1_0.md)
+- governança e contribuição v2.1.0 em [`docs/GOVERNANCA_CONTRIBUICAO_V2_1_0.md`](docs/GOVERNANCA_CONTRIBUICAO_V2_1_0.md)
+- migração para mudanças quebráveis em [`docs/MIGRACAO_BREAKING_CHANGES.md`](docs/MIGRACAO_BREAKING_CHANGES.md)
+- política de versionamento/changelog em [`docs/POLITICA_VERSIONAMENTO_CHANGELOG.md`](docs/POLITICA_VERSIONAMENTO_CHANGELOG.md)
+- changelog oficial em [`CHANGELOG.md`](CHANGELOG.md)
 - manual prático da v2.0 fase 2 em [`docs/MANUAL_V2_0_FASE2.md`](docs/MANUAL_V2_0_FASE2.md)
 - roadmap detalhado de implementações futuras v2.1 em [`docs/ROADMAP_IMPLEMENTACOES_FUTURAS_V2_1.md`](docs/ROADMAP_IMPLEMENTACOES_FUTURAS_V2_1.md)
 - guia de auto-hospedagem v1.0 em [`docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md`](docs/GUIA_AUTO_HOSPEDAGEM_V1_0.md)
@@ -108,6 +121,8 @@ Pipeline da linguagem:
 - exemplos v2.0 em [`exemplos/v20/`](exemplos/v20/)
 - exemplos v2.0.6 em [`exemplos/v206/`](exemplos/v206/)
 - exemplos v2.0.7 em [`exemplos/v207/`](exemplos/v207/)
+- exemplos v2.0.8 em [`exemplos/v208/`](exemplos/v208/)
+- exemplos v2.0.9 em [`exemplos/v209/`](exemplos/v209/)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
 - binário standalone gerável por [`scripts/build_standalone.sh`](scripts/build_standalone.sh)
@@ -320,6 +335,7 @@ trama migracao-trilha-listar --dsn <dsn> [--json]
 trama seed-aplicar-ambiente --dsn <dsn> --ambiente <dev|teste|prod> --nome <nome> --sql-arquivo <sql>
 trama operacao-diagnostico [--json]
 trama operacao-smoke-check --base-url <url> [--json]
+trama testes-avancados-v208 [--perfil rapido|completo] [--sem-postgres] [--sem-redis] [--saida-json] [--saida-md] [--json]
 trama repl
 ```
 
@@ -942,41 +958,104 @@ Entregas implementadas em v2.0.7:
   - `docs/LINGUAGEM_V2_0_7.md`, `docs/MANUAL_TRAMA_COMPLETO_V2_0_7.md`, `exemplos/v207/`.
 
 ### v2.0.8 - Testes avançados (integração/e2e/carga)
-- [ ] harness de integração com fixtures reais de banco.
-- [ ] suíte e2e para fluxos críticos de negócio.
-- [ ] testes de carga e concorrência com metas de SLO.
-- [ ] testes de regressão de contrato de API.
-- [ ] testes de caos/falha parcial (rede, DB, cache).
-- [ ] relatórios automáticos de estabilidade e performance.
+- [x] harness de integração com fixtures reais de banco.
+- [x] suíte e2e para fluxos críticos de negócio.
+- [x] testes de carga e concorrência com metas de SLO.
+- [x] testes de regressão de contrato de API.
+- [x] testes de caos/falha parcial (rede, DB, cache).
+- [x] relatórios automáticos de estabilidade e performance.
 
 DoD v2.0.8:
 - cobertura de cenários críticos de produção.
 - baseline de performance reproduzível.
 
+Entregas implementadas em v2.0.8:
+- runtime oficial de testes avançados (`testes_avancados_runtime`) com:
+  - harness de integração com fixture real SQLite (migração/seed por ambiente);
+  - validação opcional de PostgreSQL/Redis por variável de ambiente (`TRAMA_TEST_PG_DSN`, `TRAMA_TEST_REDIS_URL`);
+  - suíte e2e de fluxo crítico (auth JWT, DTO/validação, contrato versionado, persistência e realtime fallback);
+  - teste de carga e concorrência com SLO automatizado (`p50`, `p95`, erro %, throughput);
+  - regressão de contrato HTTP (legacy/inválido com erro estável);
+  - caos/falha parcial (rede, DB e cache) com fallback/degradação controlados.
+- CLI padronizada:
+  - `trama testes-avancados-v208` com perfis `rapido` e `completo`;
+  - saída consolidada em JSON e Markdown.
+- testes:
+  - `tests/test_testes_avancados_v208.py`
+  - `tests/test_cli_v208.py`
+- suíte local:
+  - `.local/tests/v2_0_8/run_local_v208.sh`
+- documentação:
+  - `docs/LINGUAGEM_V2_0_8.md`
+  - `docs/OPERACAO_TESTES_AVANCADOS_V2_0_8.md`
+  - `docs/MANUAL_TRAMA_COMPLETO_V2_0_8.md`
+  - exemplos em `exemplos/v208/`.
+
 ### v2.0.9 - Runtime 100% nativo (fechamento do ciclo)
-- [ ] remover ponte de compatibilidade em `executar` e `compilar`.
-- [ ] compilador oficial nativo de `.trm` para `.tbc`.
-- [ ] import nativo direto de módulos `.trm`.
-- [ ] async avançado com scheduler concorrente completo.
-- [ ] otimizações de memória/CPU da VM nativa.
-- [ ] release `.deb` e standalone com diagnóstico de backend 100% nativo.
+- [x] remover ponte de compatibilidade em `executar` e `compilar`.
+- [x] compilador oficial nativo de `.trm` para `.tbc`.
+- [x] import nativo direto de módulos `.trm`.
+- [x] async avançado com scheduler concorrente completo.
+- [x] otimizações de memória/CPU da VM nativa.
+- [x] release `.deb` e standalone com diagnóstico de backend 100% nativo.
 
 DoD v2.0.9:
 - uso da linguagem sem dependência de runtime externo no caminho crítico.
 - paridade funcional consolidada no backend nativo.
 
+Entregas implementadas em v2.0.9:
+- runtime nativo (`native/trama_native.c`) com:
+  - `executar` e `compilar` nativos sem ponte de compatibilidade;
+  - compilação nativa de `.trm` para `.tbc` com contrato de bytecode v1;
+  - import nativo de `.trm` com autocompilação determinística para `.tbc`;
+  - scheduler concorrente com `criar_tarefa`, `com_timeout`, `cancelar_tarefa`, `dormir`;
+  - aliases de compatibilidade (`create_task`, `with_timeout`, `cancel_task`, `sleep`) preservados.
+- build/release nativo:
+  - `scripts/build_native_stub.sh` atualizado para `pthread` + `libm`;
+  - `scripts/package_deb.sh` priorizando binário nativo;
+  - `scripts/build_release_nativo.sh` para pipeline de release standalone + `.deb`.
+- testes:
+  - `tests/test_native_runtime_v209.py` (compilar/executar nativos, import `.trm`, async concorrente, diagnóstico);
+  - regressão da VM nativa mantida em `tests/test_native_runtime_v20.py`.
+- documentação e operação:
+  - `docs/LINGUAGEM_V2_0_9.md`;
+  - `docs/OPERACAO_RUNTIME_NATIVO_V2_0_9.md`;
+  - `docs/MANUAL_TRAMA_COMPLETO_V2_0_9.md`;
+  - exemplos em `exemplos/v209/` e suíte local `.local/tests/v2_0_9/run_local_v209.sh`.
+
 ### v2.1.0 - Engenharia de produto (CI/CD e governança)
-- [ ] pipeline oficial de CI (build, testes, lint, cobertura e segurança) obrigatório para merge.
-- [ ] portões de qualidade com bloqueio de regressão crítica em PR.
-- [ ] esteira de release automatizada para `standalone`, `.deb` e artefatos versionados.
-- [ ] versionamento semântico e changelog por versão com política de compatibilidade.
-- [ ] guia formal de contribuição, manutenção e resposta a incidentes.
-- [ ] documentação de migração para mudanças potencialmente quebráveis.
+- [x] pipeline oficial de CI (build, testes, lint, cobertura e segurança) obrigatório para merge.
+- [x] portões de qualidade com bloqueio de regressão crítica em PR.
+- [x] esteira de release automatizada para `standalone`, `.deb` e artefatos versionados.
+- [x] versionamento semântico e changelog por versão com política de compatibilidade.
+- [x] guia formal de contribuição, manutenção e resposta a incidentes.
+- [x] documentação de migração para mudanças potencialmente quebráveis.
 
 DoD v2.1.0:
 - merges protegidos por qualidade mínima obrigatória.
 - releases reproduzíveis e auditáveis.
 - governança de evolução publicada e aplicada.
+
+Entregas implementadas em v2.1.0:
+- CI/CD oficial com gates de merge:
+  - workflow de CI em `.github/workflows/ci.yml` (build, lint, testes, cobertura e segurança);
+  - job `gate_v210_obrigatorio` bloqueando PR quando jobs críticos falham.
+- esteira de release automatizada:
+  - workflow em `.github/workflows/release.yml` para tags `v*.*.*`;
+  - build de `standalone` + `.deb` + checksums e metadados auditáveis.
+- versionamento semântico e changelog:
+  - versão do projeto alinhada para `2.1.0` em `pyproject.toml`;
+  - validação semver/changelog via `scripts/validar_versao_semver.py`;
+  - `CHANGELOG.md` e política em `docs/POLITICA_VERSIONAMENTO_CHANGELOG.md`.
+- governança e contribuição:
+  - guia formal em `docs/GOVERNANCA_CONTRIBUICAO_V2_1_0.md` e `CONTRIBUTING.md`;
+  - template de PR obrigatório em `.github/pull_request_template.md`.
+- migração de mudanças quebráveis:
+  - manual em `docs/MIGRACAO_BREAKING_CHANGES.md`.
+- documentação operacional:
+  - `docs/LINGUAGEM_V2_1_0.md`;
+  - `docs/MANUAL_TRAMA_COMPLETO_V2_1_0.md`;
+  - `docs/OPERACAO_CI_CD_RELEASE_V2_1_0.md`.
 
 ### v2.1.1 - Linguagem para codebase grande
 - [ ] implementação completa de `para/em` em parser, AST, compilador e VM (Python + nativa).

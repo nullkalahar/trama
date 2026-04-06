@@ -1,0 +1,4 @@
+função principal()
+    exibir("v2.0.9 nativo ativo")
+    exibir(1 + 2 + 3)
+fim

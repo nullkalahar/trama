@@ -1,0 +1,5 @@
+função principal()
+    exibir("fluxo e2e coberto: auth JWT + DTO + contrato versionado + persistencia + realtime fallback")
+    exibir("validacao negativa: 401/422")
+    exibir("validacao positiva: 201 com contrato legacy aplicado")
+fim

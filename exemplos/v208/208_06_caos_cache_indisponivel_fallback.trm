@@ -1,0 +1,4 @@
+função principal()
+    exibir("caos cache: backplane indisponivel com fallback degradado seguro")
+    exibir("metricas de fallback/falha registradas")
+fim

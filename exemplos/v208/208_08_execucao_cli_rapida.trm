@@ -1,0 +1,3 @@
+função principal()
+    exibir("trama testes-avancados-v208 --perfil rapido --sem-postgres --sem-redis --json")
+fim

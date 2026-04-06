@@ -1,0 +1,4 @@
+função principal()
+    exibir("caos DB: indisponibilidade parcial com erro controlado")
+    exibir("sem quebra do processo de execucao da suite")
+fim

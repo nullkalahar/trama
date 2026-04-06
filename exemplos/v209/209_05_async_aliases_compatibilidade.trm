@@ -1,0 +1,9 @@
+assíncrona função soma(a, b)
+    retorne a + b
+fim
+
+assíncrona função principal()
+    t = create_task(soma(40, 2))
+    v = aguarde with_timeout(t, 1.0)
+    exibir(v)
+fim

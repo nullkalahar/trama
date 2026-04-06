@@ -1,0 +1,5 @@
+função principal()
+    exibir("saidas do harness:")
+    exibir("- .local/test-results/v208_relatorio.json")
+    exibir("- .local/test-results/v208_relatorio.md")
+fim

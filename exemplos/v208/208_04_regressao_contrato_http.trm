@@ -1,0 +1,4 @@
+função principal()
+    exibir("regressao de contrato valida versao legacy e erro estavel de versao invalida")
+    exibir("codigo esperado: CONTRATO_VERSAO_INVALIDA")
+fim

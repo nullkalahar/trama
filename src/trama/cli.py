@@ -16,6 +16,7 @@ from . import db_runtime
 from .lexer import LexError
 from . import observability_runtime
 from .parser import ParseError
+from . import testes_avancados_runtime
 from . import tooling_runtime
 from trama_semente.semente import semente_compilar_arquivo
 from .vm import VMError, run_bytecode_file, run_source
@@ -158,6 +159,14 @@ def build_parser() -> argparse.ArgumentParser:
     op_smoke.add_argument("--base-url", required=True, help="URL base da aplicação")
     op_smoke.add_argument("--timeout", default=2.0, type=float, help="Timeout por requisição")
     op_smoke.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    v208 = sub.add_parser("testes-avancados-v208", help="Executa harness v2.0.8 (integracao/e2e/carga/contrato/caos)")
+    v208.add_argument("--perfil", default="completo", choices=["completo", "rapido"], help="Perfil de execucao")
+    v208.add_argument("--sem-postgres", action="store_true", help="Nao valida fixture PostgreSQL")
+    v208.add_argument("--sem-redis", action="store_true", help="Nao valida fixture Redis")
+    v208.add_argument("--saida-json", default=".local/test-results/v208_relatorio.json", help="Arquivo de relatorio JSON")
+    v208.add_argument("--saida-md", default=".local/test-results/v208_relatorio.md", help="Arquivo de relatorio Markdown")
+    v208.add_argument("--json", action="store_true", help="Exibe resumo final em JSON")
 
     sub.add_parser("repl", help="Abre REPL (planejado para fase futura)")
     return parser
@@ -423,6 +432,28 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(f"smoke_ok={payload['ok']} duracao_ms={round(float(payload['duracao_ms']), 2)}")
             return 0
+        if args.command == "testes-avancados-v208":
+            rel = testes_avancados_runtime.executar_suite_v208(
+                perfil=str(args.perfil),
+                validar_postgres=not bool(args.sem_postgres),
+                validar_redis=not bool(args.sem_redis),
+            )
+            out_json = testes_avancados_runtime.salvar_relatorio_json(rel, str(args.saida_json))
+            out_md = testes_avancados_runtime.salvar_relatorio_markdown(rel, str(args.saida_md))
+            payload = {
+                "ok": bool(rel.get("ok")),
+                "perfil": rel.get("perfil"),
+                "duracao_ms": rel.get("duracao_ms"),
+                "arquivo_json": out_json.get("arquivo"),
+                "arquivo_md": out_md.get("arquivo"),
+            }
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print(f"v208_ok={payload['ok']} duracao_ms={round(float(payload['duracao_ms']), 2)}")
+                print(f"relatorio_json={payload['arquivo_json']}")
+                print(f"relatorio_md={payload['arquivo_md']}")
+            return 0 if bool(rel.get("ok")) else 1
     except (LexError, ParseError, CompileError, VMError, OSError) as exc:
         print(f"Erro: {exc}", file=sys.stderr)
         return 1

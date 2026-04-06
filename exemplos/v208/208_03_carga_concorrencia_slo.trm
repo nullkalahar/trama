@@ -1,0 +1,4 @@
+função principal()
+    exibir("suite de carga mede: p50, p95, erro_pct, throughput_rps")
+    exibir("resultado comparado contra SLO definido no harness")
+fim

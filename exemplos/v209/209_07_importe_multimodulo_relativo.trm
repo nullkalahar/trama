@@ -1,0 +1,5 @@
+importe "209_modulo_auxiliar_relativo.trm" como aux
+
+função principal()
+    exibir(aux["resultado_relativo"]())
+fim

@@ -1,0 +1,7 @@
+função soma(a, b)
+    retorne a + b
+fim
+
+função principal()
+    exibir(soma(20, 22))
+fim

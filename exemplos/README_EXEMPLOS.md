@@ -1,6 +1,6 @@
 # Exemplos da Trama
 
-Este diretório traz exemplos cobrindo recursos da linguagem do v0.1 ao v2.0.7.
+Este diretório traz exemplos cobrindo recursos da linguagem do v0.1 ao v2.0.9.
 
 ## Como executar
 
@@ -90,6 +90,10 @@ trama executar exemplos/01_ola_mundo.trm
 - `v206/206_01_web_gerar_openapi_basico.trm` até `v206/206_10_sdk_consumo_api_exemplo.trm`: fluxos práticos de contrato/OpenAPI, geração de SDK e padronização operacional
 - `v207/README_V207_EXEMPLOS.md`: coleção v2.0.7 (observabilidade e SRE)
 - `v207/207_01_web_observabilidade_endpoints.trm` até `v207/207_10_operacao_sre_fluxo_completo.trm`: exportadores Prometheus/OTEL, correlação, alertas, dashboards/runbooks e smoke checks de produção
+- `v208/README_V208_EXEMPLOS.md`: coleção v2.0.8 (testes avançados: integração/e2e/carga/contrato/caos)
+- `v208/208_01_harness_integracao_sqlite.trm` até `v208/208_10_pipeline_v208_documentado.trm`: execução operacional da suíte avançada e leitura de baseline/reports
+- `v209/README_V209_EXEMPLOS.md`: coleção v2.0.9 (runtime 100% nativo: compilação, import nativo e async concorrente)
+- `v209/209_01_compilacao_nativa_basica.trm` até `v209/209_08_erros_deterministicos_importe.trm`: cenários reais de compilação/execução nativa, import determinístico e scheduler assíncrono
 - `sintaxe/01_expressoes_multilinha.trm`: lista/mapa/chamada multilinha
 - `sintaxe/02_encadeamento_multilinha.trm`: encadeamento com indexação multilinha
 - `anilist/README_ANILIST_EXEMPLOS.md`: coleção completa de integrações AniList (anime/mangá + DB em `.local/tests/anilist/`)

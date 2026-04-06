@@ -9,15 +9,20 @@ ARCH="${2:-amd64}"
 PKG_NAME="trama"
 PKG_DIR="build/${PKG_NAME}_${VERSION}_${ARCH}"
 
-if [[ ! -x "dist/trama" ]]; then
-  echo "Erro: binário dist/trama não encontrado. Rode scripts/build_standalone.sh antes."
+BIN_SRC=""
+if [[ -x "dist/native/trama-native" ]]; then
+  BIN_SRC="dist/native/trama-native"
+elif [[ -x "dist/trama" ]]; then
+  BIN_SRC="dist/trama"
+else
+  echo "Erro: binário não encontrado. Rode scripts/build_native_stub.sh (preferencial) ou scripts/build_standalone.sh."
   exit 1
 fi
 
 rm -rf "$PKG_DIR"
 mkdir -p "$PKG_DIR/DEBIAN" "$PKG_DIR/usr/bin" "$PKG_DIR/usr/share/doc/trama" "$PKG_DIR/usr/share/trama"
 
-install -m 0755 dist/trama "$PKG_DIR/usr/bin/trama"
+install -m 0755 "$BIN_SRC" "$PKG_DIR/usr/bin/trama"
 install -m 0644 README.md "$PKG_DIR/usr/share/doc/trama/README.md"
 cp -R selfhost "$PKG_DIR/usr/share/trama/selfhost"
 
@@ -28,8 +33,8 @@ Section: devel
 Priority: optional
 Architecture: $ARCH
 Maintainer: nullkalahar <nullkalahar@users.noreply.github.com>
-Description: Linguagem trama (pt-BR) com compilador para bytecode e VM
- Standalone binary package.
+Description: Linguagem trama (pt-BR) com compilador e VM nativos
+ Pacote binario priorizando backend 100% nativo.
 CONTROL
 
 dpkg-deb --build "$PKG_DIR"

@@ -1,0 +1,12 @@
+assíncrona função calcula(a, b)
+    retorne a + b
+fim
+
+assíncrona função principal()
+    t_ok = criar_tarefa(calcula(30, 12))
+    t_cancelada = criar_tarefa(calcula(1, 2))
+    cancelar_tarefa(t_cancelada)
+
+    resultado = aguarde com_timeout(t_ok, 1.0)
+    exibir(resultado)
+fim

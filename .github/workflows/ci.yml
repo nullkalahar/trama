@@ -1,0 +1,99 @@
+name: ci_trama_v210
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: ["main", "master", "develop"]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualidade:
+    name: qualidade_build_test_lint_cobertura
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup_python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: instalar_dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+          python -m pip install pytest-cov
+
+      - name: lint
+        run: ruff check src tests
+
+      - name: testes_com_cobertura
+        run: |
+          pytest \
+            --maxfail=1 \
+            --cov=src/trama \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=30
+
+      - name: build_nativo
+        run: bash scripts/build_native_stub.sh
+
+      - name: upload_cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura_xml
+          path: coverage.xml
+
+  seguranca:
+    name: seguranca_sast_dependencias_segredos
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup_python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: instalar_ferramentas_segurança
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+          python -m pip install bandit pip-audit detect-secrets
+
+      - name: sast_bandit
+        run: bandit -q -r src/trama -x tests -b .bandit-baseline.json
+
+      - name: consistencia_dependencias
+        run: python -m pip check
+
+      - name: auditoria_dependencias
+        continue-on-error: true
+        run: pip-audit --progress-spinner off
+
+      - name: scan_segredos_diff
+        run: |
+          detect-secrets-hook --baseline .secrets.baseline $(git ls-files)
+
+  gate_v210:
+    name: gate_v210_obrigatorio
+    needs: [qualidade, seguranca]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: validar_jobs_criticos
+        run: |
+          if [ "${{ needs.qualidade.result }}" != "success" ] || [ "${{ needs.seguranca.result }}" != "success" ]; then
+            echo "Gate de qualidade v2.1.0 falhou (merge bloqueado)."
+            exit 1
+          fi
+          echo "Gate v2.1.0 aprovado."

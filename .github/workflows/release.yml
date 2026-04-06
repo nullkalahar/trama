@@ -1,0 +1,63 @@
+name: release_trama_v210
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup_python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: instalar_dependencias_release
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[pack,dev]
+
+      - name: validar_semver_e_changelog
+        run: |
+          python scripts/validar_versao_semver.py --tag "${GITHUB_REF_NAME#v}" --changelog CHANGELOG.md --pyproject pyproject.toml
+
+      - name: build_standalone
+        run: bash scripts/build_standalone.sh
+
+      - name: build_release_nativo_deb
+        run: bash scripts/build_release_nativo.sh "${GITHUB_REF_NAME#v}" amd64
+
+      - name: checksums_e_metadados
+        run: |
+          mkdir -p build/release
+          cp dist/trama build/release/trama-standalone-amd64 || true
+          cp build/trama_"${GITHUB_REF_NAME#v}"_amd64.deb build/release/ || true
+          (cd build/release && sha256sum * > SHA256SUMS.txt)
+          python scripts/gerar_metadados_release.py \
+            --versao "${GITHUB_REF_NAME#v}" \
+            --saida build/release/metadados_release.json \
+            --artefato build/release/trama-standalone-amd64 \
+            --artefato build/release/trama_"${GITHUB_REF_NAME#v}"_amd64.deb \
+            --artefato build/release/SHA256SUMS.txt
+
+      - name: upload_artefatos
+        uses: actions/upload-artifact@v4
+        with:
+          name: release_trama_${{ github.ref_name }}
+          path: build/release/
+
+      - name: publicar_release_github
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/release/*
+          body_path: CHANGELOG.md

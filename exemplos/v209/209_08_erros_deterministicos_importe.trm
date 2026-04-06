@@ -1,0 +1,6 @@
+# Exemplo intencional de erro: modulo inexistente para validar previsibilidade do erro.
+importe "modulo_inexistente_v209.trm" como x
+
+função principal()
+    exibir("nao deve executar")
+fim

@@ -1,0 +1,7 @@
+função dobrar(n)
+    retorne n * 2
+fim
+
+função somar3(a, b, c)
+    retorne a + b + c
+fim
