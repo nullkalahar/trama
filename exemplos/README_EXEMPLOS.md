@@ -96,6 +96,8 @@ trama executar exemplos/01_ola_mundo.trm
 - `v209/209_01_compilacao_nativa_basica.trm` até `v209/209_08_erros_deterministicos_importe.trm`: cenários reais de compilação/execução nativa, import determinístico e scheduler assíncrono
 - `v211/README_V211.md`: coleção v2.1.1 (linguagem para codebase grande)
 - `v211/01_para_em_lista_soma.trm` até `v211/10_migracao_legado_para_tipado.trm`: `para/em`, contratos de módulo (`exporte`/`importe ... expondo ...`), tipagem gradual e troubleshooting de diagnósticos
+- `v212/README_V212_EXEMPLOS.md`: coleção v2.1.2 (prontidão backend complexo)
+- `v212/212_01_paridade_import_async.trm` até `v212/212_04_suite_critica_v212.trm`: paridade crítica, contrato HTTP previsível, caos/falha parcial e operação da suíte oficial
 - `sintaxe/01_expressoes_multilinha.trm`: lista/mapa/chamada multilinha
 - `sintaxe/02_encadeamento_multilinha.trm`: encadeamento com indexação multilinha
 - `anilist/README_ANILIST_EXEMPLOS.md`: coleção completa de integrações AniList (anime/mangá + DB em `.local/tests/anilist/`)

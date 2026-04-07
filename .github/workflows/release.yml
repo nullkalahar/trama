@@ -1,4 +1,4 @@
-name: release_trama_v210
+name: release_trama_v212
 
 on:
   push:
@@ -48,6 +48,26 @@ jobs:
             --artefato build/release/trama-standalone-amd64 \
             --artefato build/release/trama_"${GITHUB_REF_NAME#v}"_amd64.deb \
             --artefato build/release/SHA256SUMS.txt
+
+      - name: plano_rollback_release
+        run: |
+          cat > build/release/ROLLBACK.md <<'EOF'
+          # Rollback de Release Trama
+
+          ## 1) Confirmar artefatos
+          sha256sum -c SHA256SUMS.txt
+
+          ## 2) Rollback de pacote Debian
+          sudo apt remove -y trama || true
+          sudo dpkg -i trama_<VERSAO_ANTERIOR>_amd64.deb
+
+          ## 3) Rollback de standalone
+          cp trama-standalone-amd64 /opt/trama/bin/trama
+          chmod +x /opt/trama/bin/trama
+
+          ## 4) Verificacao pos-rollback
+          /opt/trama/bin/trama --diagnostico-runtime
+          EOF
 
       - name: upload_artefatos
         uses: actions/upload-artifact@v4

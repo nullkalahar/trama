@@ -168,6 +168,15 @@ def build_parser() -> argparse.ArgumentParser:
     v208.add_argument("--saida-md", default=".local/test-results/v208_relatorio.md", help="Arquivo de relatorio Markdown")
     v208.add_argument("--json", action="store_true", help="Exibe resumo final em JSON")
 
+    v212 = sub.add_parser(
+        "testes-avancados-v212",
+        help="Executa suite critica v2.1.2 (unitario/integracao/contrato/paridade/caos/seguranca)",
+    )
+    v212.add_argument("--perfil", default="completo", choices=["completo", "rapido"], help="Perfil de execucao")
+    v212.add_argument("--saida-json", default=".local/test-results/v212_relatorio.json", help="Arquivo de relatorio JSON")
+    v212.add_argument("--saida-md", default=".local/test-results/v212_relatorio.md", help="Arquivo de relatorio Markdown")
+    v212.add_argument("--json", action="store_true", help="Exibe resumo final em JSON")
+
     sub.add_parser("repl", help="Abre REPL (planejado para fase futura)")
     return parser
 
@@ -451,6 +460,27 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(payload, ensure_ascii=False, indent=2))
             else:
                 print(f"v208_ok={payload['ok']} duracao_ms={round(float(payload['duracao_ms']), 2)}")
+                print(f"relatorio_json={payload['arquivo_json']}")
+                print(f"relatorio_md={payload['arquivo_md']}")
+            return 0 if bool(rel.get("ok")) else 1
+        if args.command == "testes-avancados-v212":
+            rel = testes_avancados_runtime.executar_suite_v212(
+                perfil=str(args.perfil),
+            )
+            out_json = testes_avancados_runtime.salvar_relatorio_json(rel, str(args.saida_json))
+            out_md = testes_avancados_runtime.salvar_relatorio_markdown(rel, str(args.saida_md))
+            payload = {
+                "ok": bool(rel.get("ok")),
+                "perfil": rel.get("perfil"),
+                "duracao_ms": rel.get("duracao_ms"),
+                "arquivo_json": out_json.get("arquivo"),
+                "arquivo_md": out_md.get("arquivo"),
+                "baseline": rel.get("baseline", {}),
+            }
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print(f"v212_ok={payload['ok']} duracao_ms={round(float(payload['duracao_ms']), 2)}")
                 print(f"relatorio_json={payload['arquivo_json']}")
                 print(f"relatorio_md={payload['arquivo_md']}")
             return 0 if bool(rel.get("ok")) else 1

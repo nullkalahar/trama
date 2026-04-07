@@ -4,6 +4,41 @@ Todas as mudancas relevantes deste projeto serao documentadas neste arquivo.
 
 Formato baseado em Keep a Changelog e versionamento semantico (SemVer).
 
+## [2.1.2] - 2026-04-07
+
+### Adicionado
+- suite critica oficial da v2.1.2 em `src/trama/testes_avancados_runtime.py` com:
+  - paridade Python/nativo para fluxos criticos;
+  - contrato HTTP com erros estaveis;
+  - carga/concorrrencia multi-instancia;
+  - caos/falha parcial para DB/cache/backplane;
+  - validacao minima de seguranca de producao.
+- comando CLI canônico `trama testes-avancados-v212`.
+- novos testes:
+  - `tests/test_testes_avancados_v212.py`
+  - `tests/test_cli_v212.py`
+  - `tests/test_v212_ci_release.py`
+- workflow de CI atualizado para v2.1.2 com gate bloqueante:
+  - `suite_critica_v212`
+  - `gate_v212_obrigatorio`
+- workflow de release atualizado para v2.1.2 com `ROLLBACK.md` entre artefatos publicados.
+- documentação oficial da versão:
+  - `docs/LINGUAGEM_V2_1_2.md`
+  - `docs/MANUAL_TRAMA_COMPLETO_V2_1_2.md`
+  - `docs/OPERACAO_V2_1_2_BACKEND_COMPLEXO.md`
+  - `docs/BASELINE_V2_1_2.md`
+  - `docs/REFERENCIA_CAPACIDADES_V2_1_2.md`
+- script de geração de referência completa de capacidades:
+  - `scripts/gerar_referencia_capacidades.py`
+- teste de consistência da cobertura documental:
+  - `tests/test_documentacao_capacidades_v212.py`
+- exemplos oficiais em `exemplos/v212/`.
+
+### Alterado
+- versão do projeto para `2.1.2` em `pyproject.toml`.
+- versão de pacote em `src/trama/__init__.py`.
+- README com status concluido da v2.1.2 e evidencias.
+
 ## [2.1.0] - 2026-04-05
 
 ### Adicionado

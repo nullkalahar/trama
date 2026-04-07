@@ -94,14 +94,19 @@ Pipeline da linguagem:
 - manual da linguagem v2.0.9 (runtime 100% nativo) em [`docs/LINGUAGEM_V2_0_9.md`](docs/LINGUAGEM_V2_0_9.md)
 - manual da linguagem v2.1.0 (engenharia de produto, CI/CD e governança) em [`docs/LINGUAGEM_V2_1_0.md`](docs/LINGUAGEM_V2_1_0.md)
 - manual da linguagem v2.1.1 (linguagem para codebase grande) em [`docs/LINGUAGEM_V2_1_1.md`](docs/LINGUAGEM_V2_1_1.md)
+- manual da linguagem v2.1.2 (prontidão backend complexo) em [`docs/LINGUAGEM_V2_1_2.md`](docs/LINGUAGEM_V2_1_2.md)
+- referência completa de capacidades v2.1.2 em [`docs/REFERENCIA_CAPACIDADES_V2_1_2.md`](docs/REFERENCIA_CAPACIDADES_V2_1_2.md)
 - guia de codebase grande v2.1.1 em [`docs/GUIA_CODEBASE_GRANDE_V2_1_1.md`](docs/GUIA_CODEBASE_GRANDE_V2_1_1.md)
 - manual operacional de módulos/tipagem v2.1.1 em [`docs/OPERACAO_V2_1_1_MODULOS_TIPAGEM.md`](docs/OPERACAO_V2_1_1_MODULOS_TIPAGEM.md)
+- manual operacional da v2.1.2 em [`docs/OPERACAO_V2_1_2_BACKEND_COMPLEXO.md`](docs/OPERACAO_V2_1_2_BACKEND_COMPLEXO.md)
+- baseline reproduzível da v2.1.2 em [`docs/BASELINE_V2_1_2.md`](docs/BASELINE_V2_1_2.md)
 - manual completo consolidado até v2.0.2 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_2.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_2.md)
 - manual completo consolidado até v2.0.7 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_7.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_7.md)
 - manual completo consolidado até v2.0.8 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_8.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_8.md)
 - manual completo consolidado até v2.0.9 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_9.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_9.md)
 - manual completo consolidado até v2.1.0 em [`docs/MANUAL_TRAMA_COMPLETO_V2_1_0.md`](docs/MANUAL_TRAMA_COMPLETO_V2_1_0.md)
 - manual completo consolidado até v2.1.1 em [`docs/MANUAL_TRAMA_COMPLETO_V2_1_1.md`](docs/MANUAL_TRAMA_COMPLETO_V2_1_1.md)
+- manual completo consolidado até v2.1.2 em [`docs/MANUAL_TRAMA_COMPLETO_V2_1_2.md`](docs/MANUAL_TRAMA_COMPLETO_V2_1_2.md)
 - manual completo consolidado até v1.4 em [`docs/MANUAL_COMPLETO_ATE_V1_4.md`](docs/MANUAL_COMPLETO_ATE_V1_4.md)
 - manual completo consolidado até v1.8 em [`docs/MANUAL_COMPLETO_ATE_V1_8.md`](docs/MANUAL_COMPLETO_ATE_V1_8.md)
 - manual operacional comando a comando v2.0.6-v2.0.7 em [`docs/OPERACAO_COMANDOS_V2_0_6_V2_0_7.md`](docs/OPERACAO_COMANDOS_V2_0_6_V2_0_7.md)
@@ -128,6 +133,7 @@ Pipeline da linguagem:
 - exemplos v2.0.8 em [`exemplos/v208/`](exemplos/v208/)
 - exemplos v2.0.9 em [`exemplos/v209/`](exemplos/v209/)
 - exemplos v2.1.1 em [`exemplos/v211/`](exemplos/v211/)
+- exemplos v2.1.2 em [`exemplos/v212/`](exemplos/v212/)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
 - binário standalone gerável por [`scripts/build_standalone.sh`](scripts/build_standalone.sh)
@@ -341,6 +347,7 @@ trama seed-aplicar-ambiente --dsn <dsn> --ambiente <dev|teste|prod> --nome <nome
 trama operacao-diagnostico [--json]
 trama operacao-smoke-check --base-url <url> [--json]
 trama testes-avancados-v208 [--perfil rapido|completo] [--sem-postgres] [--sem-redis] [--saida-json] [--saida-md] [--json]
+trama testes-avancados-v212 [--perfil rapido|completo] [--saida-json] [--saida-md] [--json]
 trama repl
 ```
 
@@ -1093,6 +1100,32 @@ Entregas implementadas em v2.1.1:
   - manual da versão em `docs/LINGUAGEM_V2_1_1.md`;
   - manual consolidado em `docs/MANUAL_TRAMA_COMPLETO_V2_1_1.md`;
   - exemplos práticos em `exemplos/v211/`.
+
+### v2.1.2 - Prontidão backend complexo
+- [x] paridade prática Python/nativo para fluxos críticos + gates obrigatórios de regressão.
+- [x] carga/concorrência multi-instância + testes de falha parcial com degradação controlada.
+- [x] segurança de produção mínima forte + operação/release auditável.
+
+DoD v2.1.2:
+- suíte crítica (unitário + integração + contrato HTTP + paridade) estável e bloqueando merge.
+- baseline reproduzível de desempenho (`p50`, `p95`, throughput e taxa de erro) publicada.
+- fallback seguro validado para indisponibilidade de DB/cache/backplane sem corromper integridade.
+- segurança e observabilidade auditáveis para fluxo de produção controlada.
+- release reproduzível (`standalone` + `.deb` + checksum) com rollback documentado.
+
+Entregas implementadas em v2.1.2:
+- Fundação crítica:
+  - suíte oficial de paridade Python/nativo para módulos/import/export, async/tarefa/timeout/cancelamento e erro previsível;
+  - comando canônico `trama testes-avancados-v212` com relatório JSON/Markdown;
+  - gate de merge obrigatório na CI (`suite_critica_v212` + `gate_v212_obrigatorio`).
+- Escala e resiliência:
+  - suíte de carga/concorrência multi-instância com baseline de `p50`, `p95`, throughput e taxa de erro;
+  - validação de entrega realtime entre instâncias com backplane em memória;
+  - suíte de caos v2.1.2 para DB/cache/backplane com degradação controlada e fallback seguro.
+- Segurança, operação e release:
+  - validação mínima de produção para rotação/revogação de token, rate-limit distribuído e hardening/CORS;
+  - documentação operacional com troubleshooting, rollback e recuperação (`docs/OPERACAO_V2_1_2_BACKEND_COMPLEXO.md`);
+  - release auditável com `standalone`, `.deb`, `SHA256SUMS` e artefato `ROLLBACK.md` no workflow de release.
 
 ## v2.5 (frontend)
 - [ ] toolkit de UI, estado e renderização

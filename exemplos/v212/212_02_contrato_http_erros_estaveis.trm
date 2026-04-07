@@ -1,0 +1,15 @@
+função criar(req)
+    retorne {"status": 201, "json": {"ok": verdadeiro, "dados": {"nome": req["corpo"]["nome"]}, "erro": nulo, "meta": {"versao": "v2"}}}
+fim
+
+assíncrona função principal()
+    app = web_criar_app()
+    dto = {"corpo": {"tipo": "objeto", "permitir_campos_extras": falso, "campos": {"nome": {"tipo": "texto", "obrigatorio": verdadeiro, "tamanho_min": 3}}}}
+    web_rota_dto(app, "POST", "/api/v1/usuarios", criar, dto, {"jwt_segredo": "segredo_v212"})
+    srv = aguarde web_iniciar(app, "127.0.0.1", 0)
+    b = srv["base_url"]
+    sem_auth = aguarde http_post(b + "/api/v1/usuarios", {"nome": "trama"}, {"Content-Type": "application/json"})
+    exibir(sem_auth["status"])
+    exibir(sem_auth["json"]["erro"]["codigo"])
+    aguarde web_parar(srv)
+fim

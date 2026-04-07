@@ -1,0 +1,2426 @@
+{
+  "ambiente_execucao": {
+    "cwd": "/home/arara/trama",
+    "plataforma": "linux",
+    "python": "3.12.3"
+  },
+  "baseline": {
+    "duracao_s": 0.6375525589974131,
+    "erro_pct": 0.0,
+    "latencia_p50_ms": 12.57721200818196,
+    "latencia_p95_ms": 18.881747004343197,
+    "throughput_rps": 125.47985083112904
+  },
+  "duracao_ms": 2324.0377549955156,
+  "executado_em": "2026-04-07T14:27:20-03:00",
+  "metricas_observabilidade": {
+    "counters": [
+      {
+        "labels": {
+          "id_requisicao": "dc28dd14-ae9a-4c35-ab8e-7b1437621e1d",
+          "id_traco": "c79f4447-0504-4b54-9630-d4607e548fc3",
+          "metodo": "POST",
+          "rota": "/api/v1/critico",
+          "status": "401"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "fac4a43f-c52f-402b-b984-ca02c7c298c5",
+          "id_traco": "b978346a-6a97-44ed-9fa8-d0592f7d06f4",
+          "metodo": "POST",
+          "rota": "/api/v1/critico",
+          "status": "422"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "cdf095c3-74ca-4d71-8e33-9f8108325a42",
+          "id_traco": "9edcbdae-e9f5-4409-acec-2a7f354d17e7",
+          "metodo": "POST",
+          "rota": "/tempo-real/fallback/conectar",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "96261381-c3b9-4bb7-a527-a47c5ce10780",
+          "id_traco": "d7f6b4fe-f2d1-4415-a935-dc88bf1429ec",
+          "metodo": "GET",
+          "rota": "/tempo-real/fallback/receber",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "cad99632-7e5c-4d78-951f-6b04455770ba",
+          "id_traco": "891b3ed8-ddb5-42c8-b8e9-ebbd509c2b96",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "c789d256-5554-4894-bb8e-6435aa1b97c5",
+          "id_traco": "aea5b5f8-9338-47f6-901c-60454656c4f4",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "3701cc04-aa61-48f4-9f77-90c887483804",
+          "id_traco": "8325ffcc-a78e-4d02-845a-6dc091672682",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "2ac59f09-639c-4c38-ab79-c2cfd553b3df",
+          "id_traco": "5879d3b1-4877-47a1-8288-3b7cec1fa56e",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "8c415ded-6a5e-46d8-9f6b-d7556c659ace",
+          "id_traco": "7164dfa3-cded-4008-a28c-1760b2a82024",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "10f89d7b-5eea-4f62-90e6-dd652a27be4f",
+          "id_traco": "6a22c069-55f1-422c-b1c6-437d9264d14d",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "57e4a2cd-d0b3-4323-b5b0-036b78034e31",
+          "id_traco": "09925934-46ed-4278-994f-a0f69cc468ec",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "5c359b17-84f7-4e84-9298-f64f5f16c1a0",
+          "id_traco": "b50b2489-0cd5-4603-b2d3-dfac5e36bb36",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "e8077029-8a7d-4b6a-8525-e72c62ae54b1",
+          "id_traco": "d93b050f-8ef7-43ca-af7a-2ff253aef313",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "ccaf4d70-9239-49a4-add0-50215f8a65dd",
+          "id_traco": "a9c2b4cb-c9c6-485c-aa36-9cdb0a1bd533",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "41e6f262-6a5f-4f63-8310-400a6e5fdb7b",
+          "id_traco": "4d7b1c89-7c61-4b6b-98ce-2c46eeae7b31",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "8cbf790f-f60d-41d9-9428-3580bd3182d4",
+          "id_traco": "9145e161-304d-48ee-a736-a107cbe115c5",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "80b48e84-6530-416e-a453-48afa68dd7b0",
+          "id_traco": "aff8a65b-d4ee-4afa-995c-267aeec481ec",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "dcfcc2df-1ffa-471d-a6c7-c75f74533bd9",
+          "id_traco": "f18c22bb-4c1f-4670-ae89-a4aac7c1fd4a",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "0af56220-0ed0-4b30-a59b-780547c1ce87",
+          "id_traco": "a7ab45e1-d6f9-4caa-9392-57aa9fa552bf",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "5fdab864-7e99-4444-8e33-2ae56b4acbec",
+          "id_traco": "7adec6f8-ef0c-4173-b08e-467cf3c69100",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "947b6092-cb36-4c49-bad1-eea9013d37b5",
+          "id_traco": "bbf8a8b0-a5d0-43a2-8ed4-822140c42648",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "ca638f35-81bd-4e8c-84d6-7487ae7c0282",
+          "id_traco": "31885ce5-4015-413b-abb3-ce49f9856f93",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "277aa2e0-168a-4cbb-9c6e-a7d7abb85de8",
+          "id_traco": "41f8ecb0-1c3f-4ef2-9016-553e39ada4cf",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "590fb89b-ceca-4546-a350-6ca9318387cc",
+          "id_traco": "c648fdc3-da98-48cd-997c-9b9aa456dd26",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "4941880d-ee0a-45ba-b993-5a46bb68b4f3",
+          "id_traco": "6fe2502b-36c6-4d06-a51c-d516d56c46d4",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "ec339df5-2799-4ff6-b772-7769ef15944e",
+          "id_traco": "19affedd-ff5d-4462-8c9c-cec117d53af9",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "a0d7dd12-0d46-42e1-948c-9b26a45b88cb",
+          "id_traco": "62f78dcd-babd-450f-b6bb-d0ef3b8a86e4",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "622a5176-0a1f-49ef-ab8a-f6df18988c11",
+          "id_traco": "a146df97-5af4-4a6f-b4e9-651b1acf215d",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "10e2da51-b7e5-4ee5-8c88-3e80457da824",
+          "id_traco": "65629617-e5b8-4f19-9b86-53be61bf5bd5",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "ef86649f-54f9-4944-a964-ff6c45e8c203",
+          "id_traco": "6e4902c8-376a-45d7-a381-389842d9dbd8",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "15798c98-24ba-434c-94d7-a798be256e15",
+          "id_traco": "f91de2b5-37a1-4a31-a55c-f778c6726aa3",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "a3253652-1da7-4ab1-b248-d9633550b66b",
+          "id_traco": "1d690c8f-6698-4a1d-b709-f7cedf29317c",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "a53cc936-3ace-4c58-993c-c03f35ce5328",
+          "id_traco": "8f216ba5-5712-45f5-a359-aae26073a8a1",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "c428e970-cef0-4402-bdcc-c5c12520969d",
+          "id_traco": "a26e5138-7490-4c25-b085-d79e01ddec24",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "23bcda2d-7417-4c80-b1be-28553173a08c",
+          "id_traco": "73b980f2-c577-4c78-af56-83b3d6ccdae6",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "1fa93b40-20e2-4e92-86a7-5880c94cb7eb",
+          "id_traco": "9683eb50-2346-459a-9c08-f1aa71cbd501",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "b907e2db-d2ae-4f38-a2ad-9492fd9d019b",
+          "id_traco": "ed29c93b-1357-4fec-9ae6-c48599334d38",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "56cbd476-e7f7-4788-8a68-eabfc1009095",
+          "id_traco": "e5eda1b0-a701-4130-bc9c-5e56d2e72184",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "36890f43-11a2-46ed-8e3f-43b1039d4f70",
+          "id_traco": "4dffedb6-2fd2-4b55-a0a7-bcf44704bc2d",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "b81e131e-04af-4ac9-b507-bf8636d37a41",
+          "id_traco": "1af4ddbb-933b-4b12-baf5-1e500b52376d",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "2575bc32-bf21-4846-8b76-30d1ac67d88d",
+          "id_traco": "f17364ff-2231-4544-bc47-5eecc8a17229",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "f9b4e62d-7bb6-4cdc-b1ea-d0ebd28ef58d",
+          "id_traco": "1dd5cdce-3a96-4f23-8841-4ff01d3bdb62",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "74819bdc-14ff-4b0c-b0dd-77353dec7053",
+          "id_traco": "491b3a02-a3e5-493c-8617-d57383e094d5",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "133c1611-83d8-4fd2-b673-02b4d90eb80b",
+          "id_traco": "95a74892-386e-48a7-9755-b85b6444c865",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "4fa7fd4e-18de-4236-9ba0-7a22cc02a4f9",
+          "id_traco": "6705f381-d30e-428b-a067-ba6503418d22",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "d1a2203d-b06b-458d-9172-47ed740453b4",
+          "id_traco": "f5bc9b58-bbf4-41a2-9a02-5f62461cc55a",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "2ed76cb1-ae99-4e01-b5d4-142b8828da4b",
+          "id_traco": "c8292f7c-5942-45fd-951f-6764d1b7f018",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "3600dde6-bab1-432f-84df-cbfafc117026",
+          "id_traco": "f738e384-0b87-4b8f-bff3-f6de5db12498",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "8765146e-7e8c-4e2e-bb7f-0f65baa84324",
+          "id_traco": "69855fbc-3e90-47d7-8f3e-682a69fa5c00",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "2ec01e24-71e3-4331-89f5-1eb951521c56",
+          "id_traco": "bebbb326-fa4e-4763-ac02-d821752e40b4",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "ca863896-24c9-490b-9f66-1d5debfd060e",
+          "id_traco": "e334082c-35e4-4404-9a5e-a8945519a158",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "251b98f6-fc64-4786-9759-2b2b2082b8d1",
+          "id_traco": "35f0f984-f209-4c17-bf6b-bbecb06d07a0",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "db9d8209-c90e-4178-9c8c-2990e1fec933",
+          "id_traco": "daf0db42-e996-4f15-b4ef-33a68240a533",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "2e01f501-2fcb-460e-88af-df4a942b06b3",
+          "id_traco": "7b1df1bc-032e-45e4-a16b-f4213a65ac46",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "fe7c03fe-2b06-4732-bfb2-14c5df71f8b6",
+          "id_traco": "fa77d44a-2a9b-4beb-b671-a3543517e5ea",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "b4ae588d-b534-47fb-bf2e-35bb1025ab62",
+          "id_traco": "dc3f74ef-eaf2-4eb8-bf44-398d5630d626",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "59ea2725-7505-4c32-a1d1-43a9eb1c6d59",
+          "id_traco": "89a7f873-32fa-4bff-93b3-8824f1c3d925",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "4f58de93-833c-4498-95ac-0c8ddd96916b",
+          "id_traco": "88a4be0d-64a8-4818-a256-7ae832ff1197",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "c439cf53-664e-466b-a6da-a91fdd3619f7",
+          "id_traco": "caddde7e-0039-4b56-9f7e-5a32ae6def37",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "47f394a9-58b0-48b2-8d0c-0603be79020c",
+          "id_traco": "9ea88798-cd05-4f30-8821-0f27d13e8a8a",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "db267f51-f084-4fd2-a9e1-a21d25d093ce",
+          "id_traco": "65aeba24-5396-4c2b-be38-a4426415edc9",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "f4b0722b-2a1c-4aa9-bab0-e719612a2107",
+          "id_traco": "4d065aeb-c9e6-4be1-a90d-e0619ded3673",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "c6286165-53c9-48e6-9f40-385f87a58064",
+          "id_traco": "e5b98cc3-d308-4760-9830-58b07d76e9e0",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "19d6cc03-f780-47b7-8737-bee7ebdd7e87",
+          "id_traco": "482e1c07-a38a-436a-b6f7-dd7a29f1681b",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "13ad7e57-0af5-427a-bb35-65f30be22abe",
+          "id_traco": "729306dd-d3eb-4d72-97ab-832ff0313d58",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "4dcc0d94-e623-4203-84ee-f7a3f616411a",
+          "id_traco": "f8f89bf9-895d-47f1-800f-39e271660c67",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "7a4284a4-7f8f-402c-8934-d858f3c84ab3",
+          "id_traco": "f0880e6d-4e91-499a-abef-04e20316ecff",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "5ef0258b-35c7-42bc-a1c6-f0cb434f3c55",
+          "id_traco": "05cd1937-86ee-497a-afef-e5fb993d369b",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "d9989582-e987-43d9-acc4-f43544beaa67",
+          "id_traco": "0f7da1ec-e432-4645-8bd6-bfa4beb65070",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "8768f63e-59eb-4cf7-9a6d-4933de83de80",
+          "id_traco": "709eb09c-41c7-4b20-88b8-6b38877423ca",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "ca4a7b0e-9b51-4e7e-aedc-e92ae7bf5211",
+          "id_traco": "d22b70e0-2938-4079-b21e-0e2e6168d871",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "1e42088d-c8ca-4226-bfaf-0298f68cc7fc",
+          "id_traco": "bd95e7dc-7ab1-4890-94b3-e360393f8d0b",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "fd30e546-b1fb-4355-808f-53c70021a402",
+          "id_traco": "6a53b6d3-ef8a-4050-8537-38db85214d52",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "357a4642-51cf-4cd0-bbda-f5ec344a23ff",
+          "id_traco": "26a24ba2-29ea-45fc-b919-dff51f6cddc8",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "9c4dc803-c8f6-4143-929c-0b74d0e15d66",
+          "id_traco": "271b24ef-ce6e-411c-bd52-e20e59a2666b",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "178947e2-695e-4a13-978a-2fa5cf8ba574",
+          "id_traco": "9db70684-7ecd-467a-823c-d0a38b8cd78f",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "f5228107-1edd-4c9e-a150-2cb7f5cface9",
+          "id_traco": "e9f7e113-f76f-4bb7-baed-db1921a77bcd",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "d1a5a731-6a30-4a58-9a05-dfdaa7385e6f",
+          "id_traco": "a3b8877f-8ec6-4877-bb13-dc32244639f0",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "9c5a6e02-06b8-4309-858f-fbdd8f4adcb7",
+          "id_traco": "59115978-2f9a-4d81-9a80-1acb61b9b9b8",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "d075cf5b-1bb4-4753-b304-08a17aa6e369",
+          "id_traco": "5c87c4aa-e946-4849-8174-cb3b960b7533",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "ea29fea9-b44d-4938-87a5-57c16bca9718",
+          "id_traco": "266f08ee-7a62-45c6-870c-173a271ae63d",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "2e26e9cf-1bc0-43a1-a13c-3f7c5ef4c1c4",
+          "id_traco": "8dad0d80-41e4-4686-8c42-3c82a93a0b9f",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "23ab69f0-758f-419a-841f-2f08b29f178e",
+          "id_traco": "91c4d919-05cc-4d80-b8f7-f34252c11cd6",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "id_requisicao": "733bfeab-8ad1-43c4-bf26-cd2776a31fb7",
+          "id_traco": "bab35803-4288-468a-8068-5cfa66916a6c",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.requisicoes_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "acao": "POST /api/v1/critico",
+          "componente": "seguranca",
+          "evento": "auditoria_registro",
+          "resultado": "negado"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "auto_sync": "false",
+          "backplane": "memoria",
+          "componente": "tempo_real",
+          "evento": "distribuicao_configurada",
+          "grupo": "v212_multi",
+          "instancia": "a"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "auto_sync": "false",
+          "backplane": "memoria",
+          "componente": "tempo_real",
+          "evento": "distribuicao_configurada",
+          "grupo": "v212_multi",
+          "instancia": "b"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "canal": "/ws/v212",
+          "componente": "tempo_real",
+          "evento": "conexao_aberta",
+          "id_usuario": "anonimo",
+          "modo": "fallback"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "ack": "false",
+          "canal": "/ws/v212",
+          "componente": "tempo_real",
+          "evento": "evt_multi"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 0.0
+      },
+      {
+        "labels": {
+          "acao": "GET /api/v1/multi",
+          "componente": "seguranca",
+          "evento": "auditoria_registro",
+          "resultado": "sucesso"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 80.0
+      },
+      {
+        "labels": {
+          "componente": "cache_distribuido",
+          "disponivel": "false",
+          "evento": "backplane_configurar",
+          "grupo": "v212_cache_1775582840430"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "componente": "cache_distribuido",
+          "evento": "miss",
+          "grupo": "v212_cache_1775582840430",
+          "instancia": "v212",
+          "namespace": "v212"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "componente": "cache_distribuido",
+          "evento": "fallback",
+          "grupo": "v212_cache_1775582840430",
+          "instancia": "v212",
+          "motivo": "erro_carregador",
+          "namespace": "v212"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "componente": "cache_distribuido",
+          "disponivel": "true",
+          "evento": "backplane_configurar",
+          "grupo": "v212_cache_1775582840430"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "auto_sync": "false",
+          "backplane": "memoria",
+          "componente": "tempo_real",
+          "evento": "distribuicao_configurada",
+          "grupo": "v212_backplane",
+          "instancia": "n1"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "canal": "/ws/caos",
+          "componente": "tempo_real",
+          "evento": "conexao_aberta",
+          "id_usuario": "u1",
+          "modo": "fallback"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "componente": "tempo_real",
+          "erro": "Backplane tempo real indisponivel para grupo 'v212_backplane'.",
+          "evento": "backplane_falha",
+          "instancia": "n1"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "ack": "false",
+          "canal": "/ws/caos",
+          "componente": "tempo_real",
+          "evento": "evt"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "componente": "seguranca",
+          "evento": "sessao_criada"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "componente": "seguranca",
+          "evento": "refresh_emitido"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "componente": "seguranca",
+          "evento": "token_bloqueado",
+          "motivo": "refresh_rotacionado"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      },
+      {
+        "labels": {
+          "componente": "seguranca",
+          "evento": "refresh_rotacionado"
+        },
+        "nome": "runtime.eventos_total",
+        "valor": 1.0
+      }
+    ],
+    "observacoes": [
+      {
+        "at": 1775582838.149638,
+        "labels": {
+          "id_requisicao": "dc28dd14-ae9a-4c35-ab8e-7b1437621e1d",
+          "id_traco": "c79f4447-0504-4b54-9630-d4607e548fc3",
+          "metodo": "POST",
+          "rota": "/api/v1/critico",
+          "status": "401"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.3516550059430301
+      },
+      {
+        "at": 1775582838.1519763,
+        "labels": {
+          "id_requisicao": "fac4a43f-c52f-402b-b984-ca02c7c298c5",
+          "id_traco": "b978346a-6a97-44ed-9fa8-d0592f7d06f4",
+          "metodo": "POST",
+          "rota": "/api/v1/critico",
+          "status": "422"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.4034279991174117
+      },
+      {
+        "at": 1775582839.7915955,
+        "labels": {
+          "id_requisicao": "cdf095c3-74ca-4d71-8e33-9f8108325a42",
+          "id_traco": "9edcbdae-e9f5-4409-acec-2a7f354d17e7",
+          "metodo": "POST",
+          "rota": "/tempo-real/fallback/conectar",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.23698899894952774
+      },
+      {
+        "at": 1775582839.7925384,
+        "labels": {
+          "grupo": "v212_multi",
+          "instancia": "b"
+        },
+        "nome": "tempo_real.latencia_sincronizacao_ms",
+        "tipo": "histogram",
+        "valor": 0.06484199548140168
+      },
+      {
+        "at": 1775582839.7935424,
+        "labels": {
+          "id_requisicao": "96261381-c3b9-4bb7-a527-a47c5ce10780",
+          "id_traco": "d7f6b4fe-f2d1-4415-a935-dc88bf1429ec",
+          "metodo": "GET",
+          "rota": "/tempo-real/fallback/receber",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.22003099729772657
+      },
+      {
+        "at": 1775582839.7965567,
+        "labels": {
+          "id_requisicao": "cad99632-7e5c-4d78-951f-6b04455770ba",
+          "id_traco": "891b3ed8-ddb5-42c8-b8e9-ebbd509c2b96",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.3024359903065488
+      },
+      {
+        "at": 1775582839.7976606,
+        "labels": {
+          "id_requisicao": "c789d256-5554-4894-bb8e-6435aa1b97c5",
+          "id_traco": "aea5b5f8-9338-47f6-901c-60454656c4f4",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2666369982762262
+      },
+      {
+        "at": 1775582839.7994413,
+        "labels": {
+          "id_requisicao": "3701cc04-aa61-48f4-9f77-90c887483804",
+          "id_traco": "8325ffcc-a78e-4d02-845a-6dc091672682",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.44355899444781244
+      },
+      {
+        "at": 1775582839.8021314,
+        "labels": {
+          "id_requisicao": "2ac59f09-639c-4c38-ab79-c2cfd553b3df",
+          "id_traco": "5879d3b1-4877-47a1-8288-3b7cec1fa56e",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.24635400041006505
+      },
+      {
+        "at": 1775582839.8047078,
+        "labels": {
+          "id_requisicao": "8c415ded-6a5e-46d8-9f6b-d7556c659ace",
+          "id_traco": "7164dfa3-cded-4008-a28c-1760b2a82024",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.41106200660578907
+      },
+      {
+        "at": 1775582839.805953,
+        "labels": {
+          "id_requisicao": "10f89d7b-5eea-4f62-90e6-dd652a27be4f",
+          "id_traco": "6a22c069-55f1-422c-b1c6-437d9264d14d",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.24888900225050747
+      },
+      {
+        "at": 1775582839.806994,
+        "labels": {
+          "id_requisicao": "57e4a2cd-d0b3-4323-b5b0-036b78034e31",
+          "id_traco": "09925934-46ed-4278-994f-a0f69cc468ec",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.18761599494609982
+      },
+      {
+        "at": 1775582839.8076441,
+        "labels": {
+          "id_requisicao": "5c359b17-84f7-4e84-9298-f64f5f16c1a0",
+          "id_traco": "b50b2489-0cd5-4603-b2d3-dfac5e36bb36",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.17874401237349957
+      },
+      {
+        "at": 1775582839.8121712,
+        "labels": {
+          "id_requisicao": "e8077029-8a7d-4b6a-8525-e72c62ae54b1",
+          "id_traco": "d93b050f-8ef7-43ca-af7a-2ff253aef313",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.24721700174268335
+      },
+      {
+        "at": 1775582839.813473,
+        "labels": {
+          "id_requisicao": "ccaf4d70-9239-49a4-add0-50215f8a65dd",
+          "id_traco": "a9c2b4cb-c9c6-485c-aa36-9cdb0a1bd533",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2187329955631867
+      },
+      {
+        "at": 1775582839.814417,
+        "labels": {
+          "id_requisicao": "41e6f262-6a5f-4f63-8310-400a6e5fdb7b",
+          "id_traco": "4d7b1c89-7c61-4b6b-98ce-2c46eeae7b31",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.17813598969951272
+      },
+      {
+        "at": 1775582839.815419,
+        "labels": {
+          "id_requisicao": "8cbf790f-f60d-41d9-9428-3580bd3182d4",
+          "id_traco": "9145e161-304d-48ee-a736-a107cbe115c5",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.20617399422917515
+      },
+      {
+        "at": 1775582839.8196392,
+        "labels": {
+          "id_requisicao": "80b48e84-6530-416e-a453-48afa68dd7b0",
+          "id_traco": "aff8a65b-d4ee-4afa-995c-267aeec481ec",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.17952000780496746
+      },
+      {
+        "at": 1775582839.8203127,
+        "labels": {
+          "id_requisicao": "dcfcc2df-1ffa-471d-a6c7-c75f74533bd9",
+          "id_traco": "f18c22bb-4c1f-4670-ae89-a4aac7c1fd4a",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.34251999750267714
+      },
+      {
+        "at": 1775582839.821084,
+        "labels": {
+          "id_requisicao": "0af56220-0ed0-4b30-a59b-780547c1ce87",
+          "id_traco": "a7ab45e1-d6f9-4caa-9392-57aa9fa552bf",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.22861799516249448
+      },
+      {
+        "at": 1775582839.8234127,
+        "labels": {
+          "id_requisicao": "5fdab864-7e99-4444-8e33-2ae56b4acbec",
+          "id_traco": "7adec6f8-ef0c-4173-b08e-467cf3c69100",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.20530700567178428
+      },
+      {
+        "at": 1775582839.824504,
+        "labels": {
+          "id_requisicao": "947b6092-cb36-4c49-bad1-eea9013d37b5",
+          "id_traco": "bbf8a8b0-a5d0-43a2-8ed4-822140c42648",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2044749999186024
+      },
+      {
+        "at": 1775582839.8256612,
+        "labels": {
+          "id_requisicao": "ca638f35-81bd-4e8c-84d6-7487ae7c0282",
+          "id_traco": "31885ce5-4015-413b-abb3-ce49f9856f93",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2125979954143986
+      },
+      {
+        "at": 1775582839.8282788,
+        "labels": {
+          "id_requisicao": "277aa2e0-168a-4cbb-9c6e-a7d7abb85de8",
+          "id_traco": "41f8ecb0-1c3f-4ef2-9016-553e39ada4cf",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2558659907663241
+      },
+      {
+        "at": 1775582839.8289561,
+        "labels": {
+          "id_requisicao": "590fb89b-ceca-4546-a350-6ca9318387cc",
+          "id_traco": "c648fdc3-da98-48cd-997c-9b9aa456dd26",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2092280046781525
+      },
+      {
+        "at": 1775582839.8295977,
+        "labels": {
+          "id_requisicao": "4941880d-ee0a-45ba-b993-5a46bb68b4f3",
+          "id_traco": "6fe2502b-36c6-4d06-a51c-d516d56c46d4",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.20740399486385286
+      },
+      {
+        "at": 1775582839.8322375,
+        "labels": {
+          "id_requisicao": "ec339df5-2799-4ff6-b772-7769ef15944e",
+          "id_traco": "19affedd-ff5d-4462-8c9c-cec117d53af9",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2206390054197982
+      },
+      {
+        "at": 1775582839.8328903,
+        "labels": {
+          "id_requisicao": "a0d7dd12-0d46-42e1-948c-9b26a45b88cb",
+          "id_traco": "62f78dcd-babd-450f-b6bb-d0ef3b8a86e4",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.23162399884313345
+      },
+      {
+        "at": 1775582839.8355105,
+        "labels": {
+          "id_requisicao": "622a5176-0a1f-49ef-ab8a-f6df18988c11",
+          "id_traco": "a146df97-5af4-4a6f-b4e9-651b1acf215d",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.27461200079414994
+      },
+      {
+        "at": 1775582839.8366134,
+        "labels": {
+          "id_requisicao": "10e2da51-b7e5-4ee5-8c88-3e80457da824",
+          "id_traco": "65629617-e5b8-4f19-9b86-53be61bf5bd5",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.311740004690364
+      },
+      {
+        "at": 1775582839.838619,
+        "labels": {
+          "id_requisicao": "ef86649f-54f9-4944-a964-ff6c45e8c203",
+          "id_traco": "6e4902c8-376a-45d7-a381-389842d9dbd8",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.22151399753056467
+      },
+      {
+        "at": 1775582839.8406281,
+        "labels": {
+          "id_requisicao": "15798c98-24ba-434c-94d7-a798be256e15",
+          "id_traco": "f91de2b5-37a1-4a31-a55c-f778c6726aa3",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.29447500128299
+      },
+      {
+        "at": 1775582839.8418365,
+        "labels": {
+          "id_requisicao": "a3253652-1da7-4ab1-b248-d9633550b66b",
+          "id_traco": "1d690c8f-6698-4a1d-b709-f7cedf29317c",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2052729978458956
+      },
+      {
+        "at": 1775582839.8431919,
+        "labels": {
+          "id_requisicao": "a53cc936-3ace-4c58-993c-c03f35ce5328",
+          "id_traco": "8f216ba5-5712-45f5-a359-aae26073a8a1",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.36288300179876387
+      },
+      {
+        "at": 1775582839.8454874,
+        "labels": {
+          "id_requisicao": "c428e970-cef0-4402-bdcc-c5c12520969d",
+          "id_traco": "a26e5138-7490-4c25-b085-d79e01ddec24",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.20920899987686425
+      },
+      {
+        "at": 1775582839.8467278,
+        "labels": {
+          "id_requisicao": "23bcda2d-7417-4c80-b1be-28553173a08c",
+          "id_traco": "73b980f2-c577-4c78-af56-83b3d6ccdae6",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.22863599588163197
+      },
+      {
+        "at": 1775582839.8486478,
+        "labels": {
+          "id_requisicao": "1fa93b40-20e2-4e92-86a7-5880c94cb7eb",
+          "id_traco": "9683eb50-2346-459a-9c08-f1aa71cbd501",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.21407500025816262
+      },
+      {
+        "at": 1775582839.8502047,
+        "labels": {
+          "id_requisicao": "b907e2db-d2ae-4f38-a2ad-9492fd9d019b",
+          "id_traco": "ed29c93b-1357-4fec-9ae6-c48599334d38",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.25177000497933477
+      },
+      {
+        "at": 1775582839.8512442,
+        "labels": {
+          "id_requisicao": "56cbd476-e7f7-4788-8a68-eabfc1009095",
+          "id_traco": "e5eda1b0-a701-4130-bc9c-5e56d2e72184",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.5288169923005626
+      },
+      {
+        "at": 1775582839.8524904,
+        "labels": {
+          "id_requisicao": "36890f43-11a2-46ed-8e3f-43b1039d4f70",
+          "id_traco": "4dffedb6-2fd2-4b55-a0a7-bcf44704bc2d",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.21311100863385946
+      },
+      {
+        "at": 1775582839.8544807,
+        "labels": {
+          "id_requisicao": "b81e131e-04af-4ac9-b507-bf8636d37a41",
+          "id_traco": "1af4ddbb-933b-4b12-baf5-1e500b52376d",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.23073800548445433
+      },
+      {
+        "at": 1775582839.8553224,
+        "labels": {
+          "id_requisicao": "2575bc32-bf21-4846-8b76-30d1ac67d88d",
+          "id_traco": "f17364ff-2231-4544-bc47-5eecc8a17229",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2150979998987168
+      },
+      {
+        "at": 1775582839.857423,
+        "labels": {
+          "id_requisicao": "f9b4e62d-7bb6-4cdc-b1ea-d0ebd28ef58d",
+          "id_traco": "1dd5cdce-3a96-4f23-8841-4ff01d3bdb62",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.22091998835094273
+      },
+      {
+        "at": 1775582839.8592975,
+        "labels": {
+          "id_requisicao": "74819bdc-14ff-4b0c-b0dd-77353dec7053",
+          "id_traco": "491b3a02-a3e5-493c-8617-d57383e094d5",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.21024400484748185
+      },
+      {
+        "at": 1775582839.8605878,
+        "labels": {
+          "id_requisicao": "133c1611-83d8-4fd2-b673-02b4d90eb80b",
+          "id_traco": "95a74892-386e-48a7-9755-b85b6444c865",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.20659499568864703
+      },
+      {
+        "at": 1775582839.8634617,
+        "labels": {
+          "id_requisicao": "4fa7fd4e-18de-4236-9ba0-7a22cc02a4f9",
+          "id_traco": "6705f381-d30e-428b-a067-ba6503418d22",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2007910079555586
+      },
+      {
+        "at": 1775582839.8656504,
+        "labels": {
+          "id_requisicao": "d1a2203d-b06b-458d-9172-47ed740453b4",
+          "id_traco": "f5bc9b58-bbf4-41a2-9a02-5f62461cc55a",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.21135900169610977
+      },
+      {
+        "at": 1775582839.8663402,
+        "labels": {
+          "id_requisicao": "2ed76cb1-ae99-4e01-b5d4-142b8828da4b",
+          "id_traco": "c8292f7c-5942-45fd-951f-6764d1b7f018",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.21601800108328462
+      },
+      {
+        "at": 1775582839.8670259,
+        "labels": {
+          "id_requisicao": "3600dde6-bab1-432f-84df-cbfafc117026",
+          "id_traco": "f738e384-0b87-4b8f-bff3-f6de5db12498",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2300400083186105
+      },
+      {
+        "at": 1775582839.8683314,
+        "labels": {
+          "id_requisicao": "8765146e-7e8c-4e2e-bb7f-0f65baa84324",
+          "id_traco": "69855fbc-3e90-47d7-8f3e-682a69fa5c00",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.3503240004647523
+      },
+      {
+        "at": 1775582839.8704326,
+        "labels": {
+          "id_requisicao": "2ec01e24-71e3-4331-89f5-1eb951521c56",
+          "id_traco": "bebbb326-fa4e-4763-ac02-d821752e40b4",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.21219399059191346
+      },
+      {
+        "at": 1775582839.8725772,
+        "labels": {
+          "id_requisicao": "ca863896-24c9-490b-9f66-1d5debfd060e",
+          "id_traco": "e334082c-35e4-4404-9a5e-a8945519a158",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2094329975079745
+      },
+      {
+        "at": 1775582839.8748717,
+        "labels": {
+          "id_requisicao": "251b98f6-fc64-4786-9759-2b2b2082b8d1",
+          "id_traco": "35f0f984-f209-4c17-bf6b-bbecb06d07a0",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.20341899653431028
+      },
+      {
+        "at": 1775582839.8766217,
+        "labels": {
+          "id_requisicao": "db9d8209-c90e-4178-9c8c-2990e1fec933",
+          "id_traco": "daf0db42-e996-4f15-b4ef-33a68240a533",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.22953099687583745
+      },
+      {
+        "at": 1775582839.877723,
+        "labels": {
+          "id_requisicao": "2e01f501-2fcb-460e-88af-df4a942b06b3",
+          "id_traco": "7b1df1bc-032e-45e4-a16b-f4213a65ac46",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.20260400197003037
+      },
+      {
+        "at": 1775582839.8789504,
+        "labels": {
+          "id_requisicao": "fe7c03fe-2b06-4732-bfb2-14c5df71f8b6",
+          "id_traco": "fa77d44a-2a9b-4beb-b671-a3543517e5ea",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.33178500598296523
+      },
+      {
+        "at": 1775582839.8803022,
+        "labels": {
+          "id_requisicao": "b4ae588d-b534-47fb-bf2e-35bb1025ab62",
+          "id_traco": "dc3f74ef-eaf2-4eb8-bf44-398d5630d626",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2315980091225356
+      },
+      {
+        "at": 1775582839.8842947,
+        "labels": {
+          "id_requisicao": "59ea2725-7505-4c32-a1d1-43a9eb1c6d59",
+          "id_traco": "89a7f873-32fa-4bff-93b3-8824f1c3d925",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.3974389983341098
+      },
+      {
+        "at": 1775582839.8858857,
+        "labels": {
+          "id_requisicao": "4f58de93-833c-4498-95ac-0c8ddd96916b",
+          "id_traco": "88a4be0d-64a8-4818-a256-7ae832ff1197",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2083529980154708
+      },
+      {
+        "at": 1775582839.8865697,
+        "labels": {
+          "id_requisicao": "c439cf53-664e-466b-a6da-a91fdd3619f7",
+          "id_traco": "caddde7e-0039-4b56-9f7e-5a32ae6def37",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.19341599545441568
+      },
+      {
+        "at": 1775582839.889167,
+        "labels": {
+          "id_requisicao": "47f394a9-58b0-48b2-8d0c-0603be79020c",
+          "id_traco": "9ea88798-cd05-4f30-8821-0f27d13e8a8a",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2687539963517338
+      },
+      {
+        "at": 1775582839.89023,
+        "labels": {
+          "id_requisicao": "db267f51-f084-4fd2-a9e1-a21d25d093ce",
+          "id_traco": "65aeba24-5396-4c2b-be38-a4426415edc9",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.27344399131834507
+      },
+      {
+        "at": 1775582839.8925314,
+        "labels": {
+          "id_requisicao": "f4b0722b-2a1c-4aa9-bab0-e719612a2107",
+          "id_traco": "4d065aeb-c9e6-4be1-a90d-e0619ded3673",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.38722899626009166
+      },
+      {
+        "at": 1775582839.8942575,
+        "labels": {
+          "id_requisicao": "c6286165-53c9-48e6-9f40-385f87a58064",
+          "id_traco": "e5b98cc3-d308-4760-9830-58b07d76e9e0",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2179059956688434
+      },
+      {
+        "at": 1775582839.8962884,
+        "labels": {
+          "id_requisicao": "19d6cc03-f780-47b7-8737-bee7ebdd7e87",
+          "id_traco": "482e1c07-a38a-436a-b6f7-dd7a29f1681b",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.36392601032275707
+      },
+      {
+        "at": 1775582839.8977735,
+        "labels": {
+          "id_requisicao": "13ad7e57-0af5-427a-bb35-65f30be22abe",
+          "id_traco": "729306dd-d3eb-4d72-97ab-832ff0313d58",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.21680099598597735
+      },
+      {
+        "at": 1775582839.8986115,
+        "labels": {
+          "id_requisicao": "4dcc0d94-e623-4203-84ee-f7a3f616411a",
+          "id_traco": "f8f89bf9-895d-47f1-800f-39e271660c67",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.22275499941315502
+      },
+      {
+        "at": 1775582839.900868,
+        "labels": {
+          "id_requisicao": "7a4284a4-7f8f-402c-8934-d858f3c84ab3",
+          "id_traco": "f0880e6d-4e91-499a-abef-04e20316ecff",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.1981559908017516
+      },
+      {
+        "at": 1775582839.9016225,
+        "labels": {
+          "id_requisicao": "5ef0258b-35c7-42bc-a1c6-f0cb434f3c55",
+          "id_traco": "05cd1937-86ee-497a-afef-e5fb993d369b",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2297890023328364
+      },
+      {
+        "at": 1775582839.902649,
+        "labels": {
+          "id_requisicao": "d9989582-e987-43d9-acc4-f43544beaa67",
+          "id_traco": "0f7da1ec-e432-4645-8bd6-bfa4beb65070",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.239867003983818
+      },
+      {
+        "at": 1775582839.9039507,
+        "labels": {
+          "id_requisicao": "8768f63e-59eb-4cf7-9a6d-4933de83de80",
+          "id_traco": "709eb09c-41c7-4b20-88b8-6b38877423ca",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.26393801090307534
+      },
+      {
+        "at": 1775582839.90571,
+        "labels": {
+          "id_requisicao": "ca4a7b0e-9b51-4e7e-aedc-e92ae7bf5211",
+          "id_traco": "d22b70e0-2938-4079-b21e-0e2e6168d871",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.7545129919890314
+      },
+      {
+        "at": 1775582839.9065375,
+        "labels": {
+          "id_requisicao": "1e42088d-c8ca-4226-bfaf-0298f68cc7fc",
+          "id_traco": "bd95e7dc-7ab1-4890-94b3-e360393f8d0b",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2243870112579316
+      },
+      {
+        "at": 1775582839.9120135,
+        "labels": {
+          "id_requisicao": "fd30e546-b1fb-4355-808f-53c70021a402",
+          "id_traco": "6a53b6d3-ef8a-4050-8537-38db85214d52",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.20445900736376643
+      },
+      {
+        "at": 1775582839.9133213,
+        "labels": {
+          "id_requisicao": "357a4642-51cf-4cd0-bbda-f5ec344a23ff",
+          "id_traco": "26a24ba2-29ea-45fc-b919-dff51f6cddc8",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.24329399457201362
+      },
+      {
+        "at": 1775582839.9143305,
+        "labels": {
+          "id_requisicao": "9c4dc803-c8f6-4143-929c-0b74d0e15d66",
+          "id_traco": "271b24ef-ce6e-411c-bd52-e20e59a2666b",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2199890004703775
+      },
+      {
+        "at": 1775582839.9148207,
+        "labels": {
+          "id_requisicao": "178947e2-695e-4a13-978a-2fa5cf8ba574",
+          "id_traco": "9db70684-7ecd-467a-823c-d0a38b8cd78f",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2126949984813109
+      },
+      {
+        "at": 1775582839.9153728,
+        "labels": {
+          "id_requisicao": "f5228107-1edd-4c9e-a150-2cb7f5cface9",
+          "id_traco": "e9f7e113-f76f-4bb7-baed-db1921a77bcd",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.20265000057406723
+      },
+      {
+        "at": 1775582839.9166021,
+        "labels": {
+          "id_requisicao": "d1a5a731-6a30-4a58-9a05-dfdaa7385e6f",
+          "id_traco": "a3b8877f-8ec6-4877-bb13-dc32244639f0",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.208985002245754
+      },
+      {
+        "at": 1775582839.9199502,
+        "labels": {
+          "id_requisicao": "9c5a6e02-06b8-4309-858f-fbdd8f4adcb7",
+          "id_traco": "59115978-2f9a-4d81-9a80-1acb61b9b9b8",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2584309986559674
+      },
+      {
+        "at": 1775582839.921361,
+        "labels": {
+          "id_requisicao": "d075cf5b-1bb4-4753-b304-08a17aa6e369",
+          "id_traco": "5c87c4aa-e946-4849-8174-cb3b960b7533",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.17962198762688786
+      },
+      {
+        "at": 1775582839.9227376,
+        "labels": {
+          "id_requisicao": "ea29fea9-b44d-4938-87a5-57c16bca9718",
+          "id_traco": "266f08ee-7a62-45c6-870c-173a271ae63d",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.22138500935398042
+      },
+      {
+        "at": 1775582839.9236777,
+        "labels": {
+          "id_requisicao": "2e26e9cf-1bc0-43a1-a13c-3f7c5ef4c1c4",
+          "id_traco": "8dad0d80-41e4-4686-8c42-3c82a93a0b9f",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.21785899298265576
+      },
+      {
+        "at": 1775582839.92632,
+        "labels": {
+          "id_requisicao": "23ab69f0-758f-419a-841f-2f08b29f178e",
+          "id_traco": "91c4d919-05cc-4d80-b8f7-f34252c11cd6",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.20580699492711574
+      },
+      {
+        "at": 1775582839.9275038,
+        "labels": {
+          "id_requisicao": "733bfeab-8ad1-43c4-bf26-cd2776a31fb7",
+          "id_traco": "bab35803-4288-468a-8068-5cfa66916a6c",
+          "metodo": "GET",
+          "rota": "/api/v1/multi",
+          "status": "200"
+        },
+        "nome": "http.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.2080510021187365
+      },
+      {
+        "at": 1775582840.4305065,
+        "labels": {
+          "grupo": "v212_cache_1775582840430",
+          "instancia": "v212",
+          "namespace": "v212",
+          "operacao": "obter"
+        },
+        "nome": "cache_distribuido.latencia_ms",
+        "tipo": "histogram",
+        "valor": 0.04392700793687254
+      }
+    ]
+  },
+  "ok": true,
+  "parametros_versionados": {
+    "arquivo_origem": "src/trama/testes_avancados_runtime.py",
+    "concorrencia": 8,
+    "perfil": "rapido",
+    "total_requisicoes": 80
+  },
+  "perfil": "rapido",
+  "suites": {
+    "caos_falha_parcial": {
+      "checks": [
+        {
+          "erro": "[Errno 13] Permission denied: '/v212_dir_inexistente__'",
+          "nome": "db_indisponivel_erro_controlado",
+          "ok": true
+        },
+        {
+          "nome": "cache_indisponivel_fallback_seguro",
+          "ok": true,
+          "stats": {
+            "coalescencia_espera": 0,
+            "coalescencia_lider": 1,
+            "definicoes": 0,
+            "expirados": 0,
+            "falhas_backend": 1,
+            "fallback_usado": 1,
+            "grupo": "v212_cache_1775582840430",
+            "hit_ratio": 0.0,
+            "hits": 0,
+            "instancia": "v212",
+            "invalidacoes_locais": 0,
+            "invalidacoes_remotas": 0,
+            "itens": 0,
+            "latencias": {
+              "obter": {
+                "amostras": 1.0,
+                "media_ms": 0.04392700793687254,
+                "total_ms": 0.04392700793687254
+              }
+            },
+            "misses": 1,
+            "namespace": "v212",
+            "remocoes": 0,
+            "seq_sincronizado": 0
+          }
+        },
+        {
+          "nome": "backplane_indisponivel_degradado_sem_perda_local",
+          "ok": true
+        }
+      ],
+      "ok": true,
+      "suite": "caos_falha_parcial_v212"
+    },
+    "contrato_http": {
+      "checks": [
+        {
+          "nome": "erro_auth_envelope_estavel",
+          "ok": true
+        },
+        {
+          "nome": "erro_validacao_envelope_estavel",
+          "ok": true
+        }
+      ],
+      "ok": true,
+      "suite": "contrato_http_critico"
+    },
+    "integracao": {
+      "checks": [
+        {
+          "nome": "realtime_multi_instancia_entrega",
+          "ok": true
+        },
+        {
+          "nome": "slo_multi_instancia",
+          "ok": true
+        }
+      ],
+      "metricas": {
+        "duracao_s": 0.6375525589974131,
+        "erro_pct": 0.0,
+        "latencia_p50_ms": 12.57721200818196,
+        "latencia_p95_ms": 18.881747004343197,
+        "throughput_rps": 125.47985083112904
+      },
+      "ok": true,
+      "parametros": {
+        "concorrencia": 8,
+        "slo_erro_pct_max": 2.0,
+        "slo_p95_ms_max": 1200.0,
+        "slo_throughput_min_rps": 8.0,
+        "total_requisicoes": 80
+      },
+      "suite": "carga_multi_instancia"
+    },
+    "paridade_python_nativo": {
+      "checks": [
+        {
+          "erro_nativo": "",
+          "erro_python": "",
+          "nativo_ok": true,
+          "nome": "modulos_import_export",
+          "ok": true,
+          "python_ok": true,
+          "saida_nativo": [
+            "42"
+          ],
+          "saida_python": [
+            "42"
+          ]
+        },
+        {
+          "erro_nativo": "",
+          "erro_python": "",
+          "nativo_ok": true,
+          "nome": "async_tarefa_timeout_cancelamento",
+          "ok": true,
+          "python_ok": true,
+          "saida_nativo": [
+            "42"
+          ],
+          "saida_python": [
+            "42"
+          ]
+        },
+        {
+          "erro_nativo": "",
+          "erro_python": "",
+          "nativo_ok": true,
+          "nome": "controle_fluxo_deterministico",
+          "ok": true,
+          "python_ok": true,
+          "saida_nativo": [
+            "7"
+          ],
+          "saida_python": [
+            "7"
+          ]
+        }
+      ],
+      "ok": true,
+      "suite": "paridade_python_nativo"
+    },
+    "seguranca": {
+      "checks": [
+        {
+          "nome": "rotacao_refresh",
+          "ok": true
+        },
+        {
+          "nome": "hardening_cors_producao",
+          "ok": true
+        },
+        {
+          "nome": "rate_limit_distribuido_ativo",
+          "ok": true
+        }
+      ],
+      "ok": true,
+      "suite": "seguranca_minima_v212"
+    },
+    "unitario": {
+      "checks": [
+        {
+          "nome": "cache_runtime_importado",
+          "ok": true
+        },
+        {
+          "nome": "web_runtime_importado",
+          "ok": true
+        },
+        {
+          "nome": "security_runtime_importado",
+          "ok": true
+        }
+      ],
+      "ok": true,
+      "suite": "unitario_critico"
+    }
+  },
+  "versao": "2.1.2"
+}

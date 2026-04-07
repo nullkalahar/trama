@@ -1,4 +1,4 @@
-name: ci_trama_v210
+name: ci_trama_v212
 
 on:
   pull_request:
@@ -84,16 +84,48 @@ jobs:
         run: |
           detect-secrets-hook --baseline .secrets.baseline $(git ls-files)
 
-  gate_v210:
-    name: gate_v210_obrigatorio
-    needs: [qualidade, seguranca]
+  suite_critica_v212:
+    name: suite_critica_v212
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup_python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: instalar_dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+
+      - name: executar_suite_critica_v212
+        run: |
+          python -m trama.cli testes-avancados-v212 \
+            --perfil rapido \
+            --saida-json .local/test-results/v212_relatorio_ci.json \
+            --saida-md .local/test-results/v212_relatorio_ci.md \
+            --json
+
+      - name: upload_relatorios_v212
+        uses: actions/upload-artifact@v4
+        with:
+          name: suite_critica_v212_relatorios
+          path: .local/test-results/v212_relatorio_ci.*
+
+  gate_v212:
+    name: gate_v212_obrigatorio
+    needs: [qualidade, seguranca, suite_critica_v212]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: validar_jobs_criticos
         run: |
-          if [ "${{ needs.qualidade.result }}" != "success" ] || [ "${{ needs.seguranca.result }}" != "success" ]; then
-            echo "Gate de qualidade v2.1.0 falhou (merge bloqueado)."
+          if [ "${{ needs.qualidade.result }}" != "success" ] || [ "${{ needs.seguranca.result }}" != "success" ] || [ "${{ needs.suite_critica_v212.result }}" != "success" ]; then
+            echo "Gate de qualidade v2.1.2 falhou (merge bloqueado)."
             exit 1
           fi
-          echo "Gate v2.1.0 aprovado."
+          echo "Gate v2.1.2 aprovado."

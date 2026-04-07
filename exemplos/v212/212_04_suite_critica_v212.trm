@@ -1,0 +1,6 @@
+função principal()
+    exibir("Executar suite critica v2.1.2:")
+    exibir("trama testes-avancados-v212 --perfil rapido --json")
+    exibir("Ou com relatorios:")
+    exibir("trama testes-avancados-v212 --perfil completo --saida-json .local/test-results/v212_relatorio.json --saida-md .local/test-results/v212_relatorio.md")
+fim

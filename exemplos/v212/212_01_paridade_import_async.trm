@@ -1,0 +1,10 @@
+exporte somar
+
+função somar(a, b)
+    retorne a + b
+fim
+
+assíncrona função principal()
+    t = criar_tarefa(somar(20, 22))
+    exibir(aguarde com_timeout(t, 1.0))
+fim

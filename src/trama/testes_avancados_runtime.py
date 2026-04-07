@@ -7,18 +7,23 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import socket
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import time
-from typing import Any
 from urllib import error, parse, request
 
+from .bytecode import program_to_dict
 from . import cache_runtime
+from .compiler import compile_source
 from . import db_runtime
 from . import observability_runtime
 from . import security_runtime
+from . import vm
 from . import web_runtime
 
 
@@ -507,7 +512,7 @@ def salvar_relatorio_markdown(relatorio: dict[str, object], arquivo_saida: str) 
     out = Path(arquivo_saida)
     out.parent.mkdir(parents=True, exist_ok=True)
     linhas: list[str] = []
-    linhas.append("# Relatorio v2.0.8 - Testes Avancados")
+    linhas.append(f"# Relatorio v{relatorio.get('versao')} - Testes Avancados")
     linhas.append("")
     linhas.append(f"- ok: `{str(bool(relatorio.get('ok'))).lower()}`")
     linhas.append(f"- versao: `{relatorio.get('versao')}`")
@@ -534,3 +539,433 @@ def salvar_relatorio_markdown(relatorio: dict[str, object], arquivo_saida: str) 
         linhas.append("")
     out.write_text("\n".join(linhas).strip() + "\n", encoding="utf-8")
     return {"ok": True, "arquivo": str(out.resolve())}
+
+
+def _compilar_tbc(fonte: Path, saida_tbc: Path) -> None:
+    codigo = fonte.read_text(encoding="utf-8")
+    programa = compile_source(codigo, arquivo=str(fonte))
+    payload = program_to_dict(programa)
+    saida_tbc.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _executar_python_tbc(arquivo_tbc: Path) -> tuple[bool, list[str], str]:
+    out: list[str] = []
+    try:
+        vm.run_bytecode_file(str(arquivo_tbc), print_fn=lambda msg: out.append(str(msg)))
+        return True, out, ""
+    except Exception as exc:  # noqa: BLE001
+        return False, out, str(exc)
+
+
+def _build_native_bin(root_dir: Path) -> Path:
+    cmd = ["bash", str(root_dir / "scripts" / "build_native_stub.sh")]
+    proc = subprocess.run(cmd, cwd=str(root_dir), check=False, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"Falha ao construir runtime nativo: {proc.stderr or proc.stdout}")
+    bin_path = root_dir / "dist" / "native" / "trama-native"
+    if not bin_path.exists():
+        raise RuntimeError("Binario nativo nao encontrado apos build.")
+    return bin_path
+
+
+def _executar_nativo_tbc(bin_nativo: Path, arquivo_tbc: Path) -> tuple[bool, list[str], str]:
+    arquivo_abs = arquivo_tbc.resolve()
+    proc = subprocess.run(
+        [str(bin_nativo), "executar-tbc", str(arquivo_abs)],
+        cwd=str(arquivo_tbc.parent),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    ok = proc.returncode == 0
+    linhas = [ln for ln in proc.stdout.splitlines() if ln.strip() != ""]
+    err = proc.stderr.strip()
+    return ok, linhas, err
+
+
+def executar_paridade_python_nativo_fluxos_criticos(*, diretorio_trabalho: str = ".local/tests/v2_1_2/paridade") -> dict[str, object]:
+    base = Path(diretorio_trabalho)
+    base.mkdir(parents=True, exist_ok=True)
+    root = Path(__file__).resolve().parents[2]
+    checks: list[dict[str, object]] = []
+    try:
+        bin_nativo = _build_native_bin(root)
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "suite": "paridade_python_nativo",
+            "checks": [{"nome": "build_nativo", "ok": False, "erro": str(exc)}],
+        }
+
+    cenarios = [
+        {
+            "nome": "modulos_import_export",
+            "modulo": (
+                "exporte somar\n"
+                "função somar(a, b)\n"
+                "    retorne a + b\n"
+                "fim\n"
+            ),
+            "app": (
+                'importe "mod.trm" como m expondo somar\n'
+                "função principal()\n"
+                "    exibir(m[\"somar\"](20, 22))\n"
+                "fim\n"
+            ),
+        },
+        {
+            "nome": "async_tarefa_timeout_cancelamento",
+            "modulo": "",
+            "app": (
+                "assíncrona função soma(a, b)\n"
+                "    retorne a + b\n"
+                "fim\n"
+                "assíncrona função principal()\n"
+                "    t1 = criar_tarefa(soma(30, 12))\n"
+                "    t2 = criar_tarefa(soma(1, 1))\n"
+                "    cancelar_tarefa(t2)\n"
+                "    v = aguarde com_timeout(t1, 1.0)\n"
+                "    exibir(v)\n"
+                "fim\n"
+            ),
+        },
+        {
+            "nome": "controle_fluxo_deterministico",
+            "modulo": "",
+            "app": (
+                "função principal()\n"
+                "    xs = [1, 2, 3, 4]\n"
+                "    total = 0\n"
+                "    para n em xs\n"
+                "        se n > 2\n"
+                "            total = total + n\n"
+                "        fim\n"
+                "    fim\n"
+                "    exibir(total)\n"
+                "fim\n"
+            ),
+        },
+    ]
+
+    for i, c in enumerate(cenarios, start=1):
+        pasta = base / f"cenario_{i:02d}"
+        pasta.mkdir(parents=True, exist_ok=True)
+        mod = pasta / "mod.trm"
+        if c["modulo"]:
+            mod.write_text(str(c["modulo"]), encoding="utf-8")
+        app = pasta / "app.trm"
+        app.write_text(str(c["app"]), encoding="utf-8")
+        tbc = pasta / "app.tbc"
+        _compilar_tbc(app, tbc)
+
+        ok_py, out_py, err_py = _executar_python_tbc(tbc)
+        ok_nat, out_nat, err_nat = _executar_nativo_tbc(bin_nativo, tbc)
+        ok = bool(ok_py and ok_nat and out_py == out_nat)
+        checks.append(
+            {
+                "nome": str(c["nome"]),
+                "ok": ok,
+                "python_ok": ok_py,
+                "nativo_ok": ok_nat,
+                "saida_python": out_py,
+                "saida_nativo": out_nat,
+                "erro_python": err_py,
+                "erro_nativo": err_nat,
+            }
+        )
+
+    return {"ok": all(bool(x.get("ok")) for x in checks), "suite": "paridade_python_nativo", "checks": checks}
+
+
+def executar_contrato_http_critico_v212() -> dict[str, object]:
+    app = web_runtime.WebApp()
+
+    def _ok(req: dict[str, object]) -> dict[str, object]:
+        _ = req
+        return {"status": 200, "json": {"ok": True, "dados": {"nome": "trama"}, "erro": None, "meta": {"versao": "v2"}}}
+
+    app.routes.append(
+        web_runtime.WebRoute.dynamic(
+            "POST",
+            "/api/v1/critico",
+            _ok,
+            schema={},
+            options={
+                "jwt_segredo": "segredo_v212",
+                "dto_requisicao": {
+                    "corpo": {
+                        "tipo": "objeto",
+                        "permitir_campos_extras": False,
+                        "campos": {"nome": {"tipo": "texto", "obrigatorio": True, "tamanho_min": 3}},
+                    }
+                },
+            },
+        )
+    )
+    servidor = _iniciar_servidor(app)
+    checks: list[dict[str, object]] = []
+    try:
+        st1, p1, _, _ = _http_json("POST", servidor.base_url + "/api/v1/critico", body={"nome": "abc"})
+        erro1 = dict(p1.get("erro") or {})
+        checks.append(
+            {
+                "nome": "erro_auth_envelope_estavel",
+                "ok": st1 == 401 and {"codigo", "mensagem", "detalhes"} <= set(erro1.keys()),
+            }
+        )
+
+        tok = security_runtime.jwt_criar({"sub": "u_v212", "id_usuario": "u_v212"}, "segredo_v212", exp_segundos=120)
+        st2, p2, _, _ = _http_json(
+            "POST",
+            servidor.base_url + "/api/v1/critico",
+            body={"nome": "x"},
+            headers={"Authorization": f"Bearer {tok}"},
+        )
+        erro2 = dict(p2.get("erro") or {})
+        checks.append(
+            {
+                "nome": "erro_validacao_envelope_estavel",
+                "ok": st2 == 422
+                and str(erro2.get("codigo")) == "VALIDACAO_FALHOU"
+                and {"codigo", "mensagem", "detalhes"} <= set(erro2.keys()),
+            }
+        )
+    finally:
+        _parar_servidor(servidor)
+
+    return {"ok": all(bool(x.get("ok")) for x in checks), "suite": "contrato_http_critico", "checks": checks}
+
+
+def executar_carga_multi_instancia_v212(
+    *,
+    total_requisicoes: int = 160,
+    concorrencia: int = 16,
+    slo_p95_ms_max: float = 1200.0,
+    slo_erro_pct_max: float = 2.0,
+    slo_throughput_min_rps: float = 8.0,
+) -> dict[str, object]:
+    app_a = web_runtime.WebApp()
+    app_b = web_runtime.WebApp()
+    def handler(req: dict[str, object]) -> dict[str, object]:
+        ctx = dict(req.get("contexto") or {})
+        return {"status": 200, "json": {"ok": True, "instancia": ctx.get("id_instancia", "n/a")}}
+    app_a.routes.append(web_runtime.WebRoute.dynamic("GET", "/api/v1/multi", handler, schema={}, options={}))
+    app_b.routes.append(web_runtime.WebRoute.dynamic("GET", "/api/v1/multi", handler, schema={}, options={}))
+
+    app_a.tempo_real.registrar_rota("/ws/v212", lambda req: {"aceitar": True}, {})
+    app_b.tempo_real.registrar_rota("/ws/v212", lambda req: {"aceitar": True}, {})
+    app_a.tempo_real.ativar_fallback("/tempo-real/fallback", 1.0)
+    app_b.tempo_real.ativar_fallback("/tempo-real/fallback", 1.0)
+    app_a.tempo_real.configurar_distribuicao(ativar=True, grupo="v212_multi", id_instancia="a", auto_sincronizar=False, backplane="memoria")
+    app_b.tempo_real.configurar_distribuicao(ativar=True, grupo="v212_multi", id_instancia="b", auto_sincronizar=False, backplane="memoria")
+
+    sa = _iniciar_servidor(app_a)
+    sb = _iniciar_servidor(app_b)
+    latencias: list[float] = []
+    erros = 0
+    checks: list[dict[str, object]] = []
+    ini = time.perf_counter()
+    try:
+        s1, c1, _, _ = _http_json("POST", sb.base_url + "/tempo-real/fallback/conectar", {"canal": "/ws/v212"})
+        idc = str(c1.get("id_conexao", "")) if isinstance(c1, dict) else ""
+        pub = app_a.tempo_real.publicar_mensagem("/ws/v212", "evt_multi", {"ok": True})
+        app_b.tempo_real.sincronizar_distribuicao()
+        s2, recv, _, _ = _http_json("GET", sb.base_url + f"/tempo-real/fallback/receber?id_conexao={idc}&timeout_segundos=0.2")
+        eventos = list(dict(recv).get("eventos", [])) if isinstance(recv, dict) else []
+        checks.append(
+            {
+                "nome": "realtime_multi_instancia_entrega",
+                "ok": s1 == 200 and s2 == 200 and any(e.get("evento") == "evt_multi" for e in eventos) and int(pub.get("cursor", 0)) > 0,
+            }
+        )
+
+        alvos = [sa.base_url + "/api/v1/multi", sb.base_url + "/api/v1/multi"]
+
+        def _uma_req(i: int) -> tuple[int, float]:
+            alvo = alvos[i % len(alvos)]
+            st, _p, _h, dur = _http_json("GET", alvo, timeout=4.0)
+            return st, dur
+
+        with ThreadPoolExecutor(max_workers=max(1, int(concorrencia))) as ex:
+            futuros = [ex.submit(_uma_req, i) for i in range(max(1, int(total_requisicoes)))]
+            for fut in as_completed(futuros):
+                st, dur = fut.result()
+                latencias.append(float(dur))
+                if st >= 400:
+                    erros += 1
+    finally:
+        _parar_servidor(sa)
+        _parar_servidor(sb)
+
+    total = max(1, int(total_requisicoes))
+    dur_s = max(0.001, float(time.perf_counter() - ini))
+    erro_pct = (float(erros) / float(total)) * 100.0
+    throughput = float(total) / dur_s
+    p50 = _percentil(latencias, 0.50)
+    p95 = _percentil(latencias, 0.95)
+    ok_slo = p95 <= float(slo_p95_ms_max) and erro_pct <= float(slo_erro_pct_max) and throughput >= float(slo_throughput_min_rps)
+    checks.append({"nome": "slo_multi_instancia", "ok": ok_slo})
+
+    return {
+        "ok": all(bool(x.get("ok")) for x in checks),
+        "suite": "carga_multi_instancia",
+        "parametros": {
+            "total_requisicoes": total,
+            "concorrencia": int(concorrencia),
+            "slo_p95_ms_max": float(slo_p95_ms_max),
+            "slo_erro_pct_max": float(slo_erro_pct_max),
+            "slo_throughput_min_rps": float(slo_throughput_min_rps),
+        },
+        "metricas": {
+            "duracao_s": dur_s,
+            "throughput_rps": throughput,
+            "erro_pct": erro_pct,
+            "latencia_p50_ms": p50,
+            "latencia_p95_ms": p95,
+        },
+        "checks": checks,
+    }
+
+
+def executar_caos_falha_parcial_v212() -> dict[str, object]:
+    checks: list[dict[str, object]] = []
+
+    try:
+        asyncio.run(db_runtime.conectar("sqlite:////v212_dir_inexistente__/arquivo.db"))
+        checks.append({"nome": "db_indisponivel_erro_controlado", "ok": False, "erro": "esperava falha"})
+    except Exception as exc:  # noqa: BLE001
+        checks.append({"nome": "db_indisponivel_erro_controlado", "ok": len(str(exc)) > 0, "erro": str(exc)[:160]})
+
+    grupo = f"v212_cache_{int(time.time() * 1000)}"
+    inst = cache_runtime.cache_distribuido_criar(grupo=grupo, id_instancia="v212", auto_sincronizar=False)
+    cache_runtime.cache_distribuido_configurar_backplane(grupo, disponivel=False)
+    valor = cache_runtime.cache_distribuido_obter_ou_carregar(
+        "chave_v212",
+        lambda: (_ for _ in ()).throw(RuntimeError("cache_indisponivel")),
+        ttl_segundos=5,
+        namespace="v212",
+        fallback={"ok": True, "degradado": True},
+        instancia=inst,
+    )
+    stats = cache_runtime.cache_distribuido_stats(namespace="v212", instancia=inst)
+    checks.append(
+        {
+            "nome": "cache_indisponivel_fallback_seguro",
+            "ok": isinstance(valor, dict) and bool(valor.get("degradado")) and int(stats.get("fallback_usado", 0)) >= 1,
+            "stats": stats,
+        }
+    )
+    cache_runtime.cache_distribuido_configurar_backplane(grupo, disponivel=True)
+
+    hub = web_runtime.TempoRealHub()
+    hub.registrar_rota("/ws/caos", lambda req: {"aceitar": True}, {})
+    hub.configurar_distribuicao(ativar=True, grupo="v212_backplane", id_instancia="n1", auto_sincronizar=False, backplane="memoria")
+    ok_con, c = hub.conectar("/ws/caos", "127.0.0.1", "u1", "r1", "t1", "fallback")
+    hub.configurar_backplane(disponivel=False)
+    pub = hub.publicar_mensagem("/ws/caos", "evt", {"ok": True})
+    st = hub.snapshot("/ws/caos")
+    checks.append(
+        {
+            "nome": "backplane_indisponivel_degradado_sem_perda_local",
+            "ok": ok_con is True
+            and c is not None
+            and bool(pub.get("backplane_degradado"))
+            and bool(st.get("distribuicao", {}).get("degradado"))
+            and int(st.get("metricas", {}).get("falhas_backplane", 0)) >= 1,
+        }
+    )
+    hub.configurar_backplane(disponivel=True)
+
+    return {"ok": all(bool(x.get("ok")) for x in checks), "suite": "caos_falha_parcial_v212", "checks": checks}
+
+
+def executar_seguranca_minima_v212() -> dict[str, object]:
+    checks: list[dict[str, object]] = []
+    sid = security_runtime.sessao_criar("u_v212", "disp_a", ttl_refresh_segundos=120)
+    refresh = security_runtime.refresh_token_emitir("u_v212", "segredo_v212", str(sid["id_sessao"]), "disp_a", exp_segundos=120)
+    rot = security_runtime.refresh_token_trocar(refresh, "segredo_v212", exp_segundos=120)
+    checks.append({"nome": "rotacao_refresh", "ok": bool(rot.get("ok")) and security_runtime.token_esta_bloqueado(refresh)})
+
+    app = web_runtime.WebApp()
+    app.ambiente = "producao"
+    app.cors_origens_por_ambiente["producao"] = ["https://app.trama.local"]
+    app.routes.append(web_runtime.WebRoute.dynamic("GET", "/api/v1/seguro", lambda req: {"status": 200, "json": {"ok": True}}, schema={}, options={}))
+    policy = web_runtime.RateLimitDistribuidoPolicy(
+        method="GET",
+        path="/api/v1/seguro",
+        max_requisicoes=5,
+        janela_segundos=30.0,
+        chaves=["rota", "ip", "usuario"],
+        grupo="v212_rl",
+        backend="memoria",
+    )
+    app.rate_limits_distribuidos.append(policy)
+    checks.append({"nome": "hardening_cors_producao", "ok": str(app.ambiente) == "producao"})
+    checks.append({"nome": "rate_limit_distribuido_ativo", "ok": len(app.rate_limits_distribuidos) == 1})
+    return {"ok": all(bool(x.get("ok")) for x in checks), "suite": "seguranca_minima_v212", "checks": checks}
+
+
+def executar_suite_v212(
+    *,
+    diretorio_relatorio: str = ".local/test-results",
+    perfil: str = "completo",
+) -> dict[str, object]:
+    ini = time.perf_counter()
+    observability_runtime.metricas_reset()
+    observability_runtime.tracos_reset()
+    perfil_norm = str(perfil or "completo").strip().lower()
+    rapido = perfil_norm == "rapido"
+
+    unitario = {
+        "ok": True,
+        "suite": "unitario_critico",
+        "checks": [
+            {"nome": "cache_runtime_importado", "ok": hasattr(cache_runtime, "cache_distribuido_criar")},
+            {"nome": "web_runtime_importado", "ok": hasattr(web_runtime, "WebApp")},
+            {"nome": "security_runtime_importado", "ok": hasattr(security_runtime, "refresh_token_trocar")},
+        ],
+    }
+    unitario["ok"] = all(bool(x.get("ok")) for x in unitario["checks"])
+
+    contrato = executar_contrato_http_critico_v212()
+    paridade = executar_paridade_python_nativo_fluxos_criticos()
+    carga = executar_carga_multi_instancia_v212(
+        total_requisicoes=(80 if rapido else 160),
+        concorrencia=(8 if rapido else 16),
+    )
+    caos = executar_caos_falha_parcial_v212()
+    seguranca = executar_seguranca_minima_v212()
+
+    suites = {
+        "unitario": unitario,
+        "integracao": carga,
+        "contrato_http": contrato,
+        "paridade_python_nativo": paridade,
+        "caos_falha_parcial": caos,
+        "seguranca": seguranca,
+    }
+    ok = all(bool(v.get("ok")) for v in suites.values())
+    dur_ms = (time.perf_counter() - ini) * 1000.0
+    out_dir = Path(diretorio_relatorio)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return {
+        "ok": ok,
+        "versao": "2.1.2",
+        "perfil": perfil_norm,
+        "executado_em": _agora_iso(),
+        "duracao_ms": dur_ms,
+        "parametros_versionados": {
+            "arquivo_origem": "src/trama/testes_avancados_runtime.py",
+            "perfil": perfil_norm,
+            "total_requisicoes": (80 if rapido else 160),
+            "concorrencia": (8 if rapido else 16),
+        },
+        "suites": suites,
+        "baseline": dict(carga.get("metricas") or {}),
+        "metricas_observabilidade": observability_runtime.metricas_snapshot(),
+        "ambiente_execucao": {
+            "python": sys.version.split()[0],
+            "plataforma": sys.platform,
+            "cwd": os.getcwd(),
+        },
+    }

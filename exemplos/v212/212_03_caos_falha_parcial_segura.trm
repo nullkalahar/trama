@@ -1,0 +1,21 @@
+função carregador_falho()
+    lance "backend_cache_indisponivel"
+fim
+
+assíncrona função principal()
+    no = cache_distribuido_criar("v212_exemplo", "api_a", falso)
+    cache_distribuido_configurar_backplane("v212_exemplo", falso)
+    valor = aguarde cache_distribuido_obter_ou_carregar(
+        "chave_a",
+        carregador_falho,
+        5,
+        "principal",
+        0.1,
+        {"ok": verdadeiro, "degradado": verdadeiro},
+        no
+    )
+    st = cache_distribuido_stats("principal", no)
+    exibir(valor["degradado"])
+    exibir(st["fallback_usado"] >= 1)
+    cache_distribuido_configurar_backplane("v212_exemplo", verdadeiro)
+fim
