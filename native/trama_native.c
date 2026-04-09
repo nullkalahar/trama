@@ -10,6 +10,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#ifndef TRAMA_VERSION
+#define TRAMA_VERSION "desenvolvimento"
+#endif
+
 /*
  * JSMN (JSON parser) - single-header style embed.
  * Source: https://github.com/zserge/jsmn (MIT)
@@ -2242,7 +2246,7 @@ static int run_tbc(const char *path) {
 }
 
 static void usage(void) {
-    puts("trama-nativo (v2.0.9)");
+    printf("trama-nativo (v%s)\n", TRAMA_VERSION);
     puts("uso:");
     puts("  trama-nativo --diagnostico-runtime");
     puts("  trama-nativo executar-tbc arquivo.tbc");
