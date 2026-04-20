@@ -155,6 +155,15 @@ def test_cli_template_servico_modulo_openapi_sdk_admin_ops(tmp_path: Path) -> No
         assert payload["ok"] is True
         assert payload["nome_modulo"] == "modulo_agil"
 
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["template-frontend-pwa", str(tmp_path / "frontend"), "--json"])
+        assert code == 0
+        payload = json.loads(out.getvalue())
+        assert payload["ok"] is True
+        assert (tmp_path / "frontend" / "src" / "index.html").exists()
+        assert (tmp_path / "frontend" / "public" / "manifest.webmanifest").exists()
+
         contrato = tmp_path / "contrato.json"
         contrato.write_text(
             json.dumps(

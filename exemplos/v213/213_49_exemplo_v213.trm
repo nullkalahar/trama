@@ -1,0 +1,13 @@
+função migracao_v213_49()
+    plano = {
+        "versao": "213.49",
+        "nome": "migracao_exemplo_49",
+        "up_sql": "CREATE TABLE IF NOT EXISTS tabela_49 (id INTEGER PRIMARY KEY, nome TEXT NOT NULL)",
+        "down_sql": "DROP TABLE IF EXISTS tabela_49"
+    }
+    retorne plano
+fim
+
+função principal()
+    exibir(migracao_v213_49())
+fim

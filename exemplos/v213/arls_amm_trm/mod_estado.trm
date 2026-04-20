@@ -1,0 +1,17 @@
+exporte novo_estado
+
+função novo_estado()
+    retorne {
+        "usuarios": [],
+        "sessoes": [],
+        "obreiros": [],
+        "familiares": [],
+        "lojas": [],
+        "visitantes": [],
+        "reunioes": [],
+        "reuniao_presencas": [],
+        "reuniao_atividades": [],
+        "reuniao_visitantes": [],
+        "reuniao_observacoes": []
+    }
+fim

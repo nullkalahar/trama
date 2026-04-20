@@ -1,0 +1,88 @@
+exporte usuario_cadastrar, auth_login, auth_refresh, auth_logout
+
+função _erro(codigo, mensagem)
+    retorne {
+        "ok": falso,
+        "dados": nulo,
+        "erro": {"codigo": codigo, "mensagem": mensagem, "detalhes": {}},
+        "meta": {"versao": "v2.1.3"}
+    }
+fim
+
+função _ok(dados)
+    retorne {
+        "ok": verdadeiro,
+        "dados": dados,
+        "erro": nulo,
+        "meta": {"versao": "v2.1.3"}
+    }
+fim
+
+função usuario_cadastrar(estado, id, nome, email, senha)
+    usuario = {
+        "id": id,
+        "nome": nome,
+        "email": email,
+        "senha": senha,
+        "ativo": verdadeiro
+    }
+    lista_adicionar(estado["usuarios"], usuario)
+    retorne _ok(usuario)
+fim
+
+função auth_login(estado, email, senha)
+    para u em estado["usuarios"]
+        se u["email"] == email
+            se u["senha"] != senha
+                retorne _erro("CREDENCIAIS_INVALIDAS", "email ou senha invalidos")
+            fim
+            sessao = {
+                "id_sessao": "sessao_" + u["id"],
+                "usuario_id": u["id"],
+                "refresh_token": "refresh_" + u["id"],
+                "revogada": falso
+            }
+            lista_adicionar(estado["sessoes"], sessao)
+            retorne _ok({
+                "access_token": "access_" + u["id"],
+                "refresh_token": sessao["refresh_token"],
+                "usuario": {"id": u["id"], "nome": u["nome"], "email": u["email"]}
+            })
+        fim
+    fim
+    retorne _erro("CREDENCIAIS_INVALIDAS", "email ou senha invalidos")
+fim
+
+função auth_refresh(estado, refresh_token)
+    para s em estado["sessoes"]
+        se s["refresh_token"] == refresh_token
+            se s["revogada"]
+                retorne _erro("REFRESH_INVALIDO", "token revogado")
+            fim
+            mapa_definir(s, "revogada", verdadeiro)
+            novo_refresh = s["refresh_token"] + "_novo"
+            nova = {
+                "id_sessao": s["id_sessao"] + "_nova",
+                "usuario_id": s["usuario_id"],
+                "refresh_token": novo_refresh,
+                "revogada": falso
+            }
+            lista_adicionar(estado["sessoes"], nova)
+            retorne _ok({
+                "access_token": "access_" + s["usuario_id"] + "_novo",
+                "refresh_token": novo_refresh
+            })
+        fim
+    fim
+    retorne _erro("REFRESH_INVALIDO", "token invalido")
+fim
+
+função auth_logout(estado, refresh_token)
+    para s em estado["sessoes"]
+        se s["refresh_token"] == refresh_token
+            mapa_definir(s, "revogada", verdadeiro)
+            retorne _ok({"logout": verdadeiro})
+        fim
+    fim
+    retorne _ok({"logout": verdadeiro})
+fim

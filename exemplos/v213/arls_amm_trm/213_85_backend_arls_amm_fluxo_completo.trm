@@ -1,0 +1,73 @@
+importe "mod_estado.trm" como estado_mod
+importe "mod_auth.trm" como auth
+importe "mod_obreiros.trm" como obreiros
+importe "mod_visitantes.trm" como visitantes
+importe "mod_reunioes.trm" como reunioes
+importe "mod_dashboard.trm" como dashboard
+
+função principal()
+    estado = estado_mod["novo_estado"]()
+    usuario_chanceler = {"id": "usr_1", "cargo": "chanceler"}
+
+    auth["usuario_cadastrar"](estado, "usr_1", "Administrador", "admin@arls.local", "senha-forte")
+    login = auth["auth_login"](estado, "admin@arls.local", "senha-forte")
+    refresh = auth["auth_refresh"](estado, login["dados"]["refresh_token"])
+    auth["auth_logout"](estado, refresh["dados"]["refresh_token"])
+
+    obreiros["obreiro_criar"](estado, {
+        "id": "obr_1",
+        "nome_civil": "Joao da Silva",
+        "grau": "mestre",
+        "situacao": "ativo",
+        "ativo": verdadeiro
+    })
+    obreiros["familiar_criar"](estado, "obr_1", {"id": "fam_1", "nome": "Maria", "parentesco": "esposa"})
+
+    visitantes["loja_criar"](estado, {"id": "loja_1", "nome": "Loja Aurora", "oriente_padrao": "Fortaleza"})
+    visitantes["visitante_criar"](estado, {"id": "vis_1", "nome": "Visitante 1", "loja_id": "loja_1", "oriente": "Fortaleza"})
+
+    reunioes["reuniao_criar"](estado, {
+        "id": "reu_1",
+        "data_hora": "2026-04-20T20:00:00-03:00",
+        "tipo": "ordinaria",
+        "grau": "mestre",
+        "titulo": "Sessao Ordinaria Abril",
+        "status": "agendada"
+    })
+    reunioes["reuniao_atualizar"](estado, "reu_1", {"status": "realizada"})
+    reunioes["presenca_definir_por_chanceler"](
+        estado,
+        usuario_chanceler,
+        "reu_1",
+        "obr_1",
+        "presente",
+        "Chanceler"
+    )
+    reunioes["atividade_definir"](estado, "reu_1", "obr_1", {
+        "visitou_outra_loja": verdadeiro,
+        "quantidade_cartoes_visita": 3,
+        "apresentou_trabalho": verdadeiro
+    })
+    reunioes["observacoes_salvar"](estado, "reu_1", {
+        "assuntos_agendados": "Proxima iniciacao",
+        "votacoes": "Aprovado",
+        "mencoes_importantes": "Visita da loja irma",
+        "anotacoes_livres": "Sem ocorrencias"
+    })
+    reunioes["reuniao_visitantes_salvar"](estado, "reu_1", [{"visitante_id": "vis_1", "nome": "Visitante 1"}])
+
+    detalhe = reunioes["reuniao_detalhar"](estado, "reu_1")
+    resumo = dashboard["dashboard_resumo"](estado)
+    cargos = reunioes["cargos_oficiais_listar"]()
+    passou = reunioes["reuniao_ja_passou"](detalhe["dados"]["reuniao"])
+
+    retorne {
+        "login": login,
+        "refresh": refresh,
+        "obreiros": obreiros["obreiro_listar"](estado),
+        "reuniao": detalhe,
+        "dashboard": resumo,
+        "cargos": cargos,
+        "reuniao_passou": passou
+    }
+fim

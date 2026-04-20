@@ -1,0 +1,45 @@
+exporte loja_criar, visitante_criar, visitante_atualizar, visitante_listar, loja_listar
+
+função _ok(dados)
+    retorne {
+        "ok": verdadeiro,
+        "dados": dados,
+        "erro": nulo,
+        "meta": {"versao": "v2.1.3"}
+    }
+fim
+
+função loja_criar(estado, payload)
+    lista_adicionar(estado["lojas"], payload)
+    retorne _ok(payload)
+fim
+
+função loja_listar(estado)
+    retorne _ok({"itens": estado["lojas"]})
+fim
+
+função visitante_criar(estado, payload)
+    lista_adicionar(estado["visitantes"], payload)
+    retorne _ok(payload)
+fim
+
+função visitante_atualizar(estado, visitante_id, patch)
+    para v em estado["visitantes"]
+        se v["id"] == visitante_id
+            para k em mapa_chaves(patch)
+                mapa_definir(v, k, patch[k])
+            fim
+            retorne _ok(v)
+        fim
+    fim
+    retorne {
+        "ok": falso,
+        "dados": nulo,
+        "erro": {"codigo": "VISITANTE_NAO_ENCONTRADO", "mensagem": "visitante nao encontrado", "detalhes": {}},
+        "meta": {"versao": "v2.1.3"}
+    }
+fim
+
+função visitante_listar(estado)
+    retorne _ok({"itens": estado["visitantes"]})
+fim

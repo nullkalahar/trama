@@ -1,0 +1,59 @@
+importe "mod_contratos.trm" como contratos expondo validar_usuario, validar_reuniao
+importe "mod_relatorios.trm" como relatorios expondo resumo_presencas, resumo_visitas
+
+função montar_resposta(ok, dados, codigo, mensagem)
+    se ok == verdadeiro
+        retorne {
+            "ok": verdadeiro,
+            "dados": dados,
+            "erro": nulo,
+            "meta": {"versao": "v2.1.3"}
+        }
+    fim
+    retorne {
+        "ok": falso,
+        "dados": nulo,
+        "erro": {"codigo": codigo, "mensagem": mensagem, "detalhes": nulo},
+        "meta": {"versao": "v2.1.3"}
+    }
+fim
+
+função processar_contexto(usuario, reuniao, lancamentos)
+    chk_u = validar_usuario(usuario)
+    se chk_u["ok"] == falso
+        retorne montar_resposta(falso, nulo, "USUARIO_INVALIDO", chk_u["erro"])
+    fim
+
+    chk_r = validar_reuniao(reuniao)
+    se chk_r["ok"] == falso
+        retorne montar_resposta(falso, nulo, "REUNIAO_INVALIDA", chk_r["erro"])
+    fim
+
+    p = resumo_presencas(lancamentos)
+    v = resumo_visitas(lancamentos)
+
+    retorne montar_resposta(verdadeiro, {
+        "usuario": usuario,
+        "reuniao": reuniao,
+        "indicadores": {
+            "presencas": p,
+            "visitas": v
+        }
+    }, "", "")
+fim
+
+função principal()
+    usuario = {"id": "u1", "email": "admin@loja.local"}
+    reuniao = {
+        "id": "r1",
+        "data_hora": "2026-04-20T20:00:00-03:00",
+        "grau": "mestre",
+        "titulo": "sessao ordinaria"
+    }
+    lancamentos = [
+        {"obreiro_id": "o1", "presenca": verdadeiro, "quantidade_cartoes_visita": 2},
+        {"obreiro_id": "o2", "presenca": falso, "quantidade_cartoes_visita": 0},
+        {"obreiro_id": "o3", "presenca": verdadeiro, "quantidade_cartoes_visita": 1}
+    ]
+    exibir(processar_contexto(usuario, reuniao, lancamentos))
+fim

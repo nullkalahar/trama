@@ -1,0 +1,13 @@
+assíncrona função suite_80()
+    t = criar_tarefa(esperar(0.001))
+    aguarde com_timeout(t, 1.0)
+    retorne {
+        "suite": "v213_80",
+        "ok": verdadeiro,
+        "categoria": "operacao_release"
+    }
+fim
+
+assíncrona função principal()
+    exibir(aguarde suite_80())
+fim

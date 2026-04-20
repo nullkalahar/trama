@@ -1,0 +1,8 @@
+função rota_hash_61(hash)
+    partes = dividir(hash, "?")
+    retorne partes[0]
+fim
+
+função principal()
+    exibir(rota_hash_61("#/reunioes?ano=2026&mes=4"))
+fim

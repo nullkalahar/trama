@@ -98,6 +98,9 @@ trama executar exemplos/01_ola_mundo.trm
 - `v211/01_para_em_lista_soma.trm` até `v211/10_migracao_legado_para_tipado.trm`: `para/em`, contratos de módulo (`exporte`/`importe ... expondo ...`), tipagem gradual e troubleshooting de diagnósticos
 - `v212/README_V212_EXEMPLOS.md`: coleção v2.1.2 (prontidão backend complexo)
 - `v212/212_01_paridade_import_async.trm` até `v212/212_04_suite_critica_v212.trm`: paridade crítica, contrato HTTP previsível, caos/falha parcial e operação da suíte oficial
+- `v213/README_EXEMPLOS_V213.md`: coleção v2.1.3 (substituição total JS/TS por Trama nativa)
+- `v213/213_01_exemplo_v213.trm` até `v213/213_88_dados_nativos_migracao_seed_diag.trm`: pacote massivo de backend, contrato HTTP, dados nativos, frontend/PWA, operação/release e fluxo ARLS completo
+- `v213/arls_amm_trm/`: módulos de domínio ARLS em `.trm` (auth, obreiros, visitantes, reuniões e dashboard)
 - `sintaxe/01_expressoes_multilinha.trm`: lista/mapa/chamada multilinha
 - `sintaxe/02_encadeamento_multilinha.trm`: encadeamento com indexação multilinha
 - `anilist/README_ANILIST_EXEMPLOS.md`: coleção completa de integrações AniList (anime/mangá + DB em `.local/tests/anilist/`)

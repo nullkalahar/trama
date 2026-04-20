@@ -1,0 +1,21 @@
+exporte validar_usuario, validar_reuniao
+
+função validar_usuario(usuario)
+    se mapa_obter(usuario, "id", nulo) == nulo
+        retorne {"ok": falso, "erro": "usuario_sem_id"}
+    fim
+    se mapa_obter(usuario, "email", nulo) == nulo
+        retorne {"ok": falso, "erro": "usuario_sem_email"}
+    fim
+    retorne {"ok": verdadeiro}
+fim
+
+função validar_reuniao(reuniao)
+    obrigatorios = ["id", "data_hora", "grau", "titulo"]
+    para chave em obrigatorios
+        se mapa_obter(reuniao, chave, nulo) == nulo
+            retorne {"ok": falso, "erro": "reuniao_sem_" + chave}
+        fim
+    fim
+    retorne {"ok": verdadeiro}
+fim

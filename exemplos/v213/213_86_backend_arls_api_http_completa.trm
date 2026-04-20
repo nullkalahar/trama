@@ -1,0 +1,43 @@
+importe "arls_amm_trm/mod_estado.trm" como estado_mod
+importe "arls_amm_trm/mod_auth.trm" como auth
+importe "arls_amm_trm/mod_obreiros.trm" como obreiros
+importe "arls_amm_trm/mod_visitantes.trm" como visitantes
+importe "arls_amm_trm/mod_reunioes.trm" como reunioes
+importe "arls_amm_trm/mod_dashboard.trm" como dashboard
+
+função _ok(dados)
+    retorne {"ok": verdadeiro, "dados": dados, "erro": nulo, "meta": {"versao": "v2.1.3", "timestamp": agora_iso()}}
+fim
+
+função _erro(codigo, mensagem, detalhes)
+    retorne {
+        "ok": falso,
+        "dados": nulo,
+        "erro": {"codigo": codigo, "mensagem": mensagem, "detalhes": detalhes},
+        "meta": {"versao": "v2.1.3", "timestamp": agora_iso()}
+    }
+fim
+
+função principal()
+    estado = estado_mod["novo_estado"]()
+
+    auth["usuario_cadastrar"](estado, "usr_1", "Administrador", "admin@arls.local", "senha-forte")
+
+    app = web_criar_app()
+    web_health_check(app, "/saude")
+    web_versionamento(app, "/api/v1")
+
+    login = auth["auth_login"](estado, "admin@arls.local", "senha-forte")
+    obreiros["obreiro_criar"](estado, {"id": "obr_1", "nome_civil": "I. Augusto", "grau": "mestre", "ativo": verdadeiro})
+    reunioes["reuniao_criar"](estado, {"id": "r1", "data_hora": "2026-04-20T20:00:00-03:00", "grau": "mestre", "titulo": "Sessao"})
+    reunioes["presenca_definir_por_chanceler"](estado, {"id": "usr_1", "cargo": "chanceler"}, "r1", "obr_1", "presente", "Chanceler")
+    resumo = dashboard["dashboard_resumo"](estado)
+
+    web_adicionar_rota_json(app, "GET", "/api/v1/ping", _ok({"ping": "pong", "usuario": login["dados"]["usuario"]}), 200)
+    web_adicionar_rota_json(app, "GET", "/api/v1/dashboard/resumo", resumo, 200)
+    web_adicionar_rota_json(app, "GET", "/api/v1/reunioes/cargos", _ok({"itens": reunioes["cargos_oficiais_listar"]()}), 200)
+    web_adicionar_rota_echo_json(app, "POST", "/api/v1/reunioes/presenca")
+
+    exibir("api arls pronta em :8080")
+    web_iniciar(app, "0.0.0.0", 8080)
+fim

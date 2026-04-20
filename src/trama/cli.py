@@ -12,6 +12,7 @@ from .bytecode import format_program, program_to_dict
 from .compiler import CompileError, compile_source
 from .devtools import coverage_trm, format_trm, gerar_template_backend, lint_trm, run_test_runner
 from .devtools import gerar_template_modulo, gerar_template_servico
+from .devtools import gerar_template_frontend_pwa
 from . import db_runtime
 from .lexer import LexError
 from . import observability_runtime
@@ -101,6 +102,11 @@ def build_parser() -> argparse.ArgumentParser:
     template_modulo.add_argument("--forcar", action="store_true", help="Permite sobrescrever diretório não vazio")
     template_modulo.add_argument("--json", action="store_true", help="Saída em JSON")
 
+    template_frontend = sub.add_parser("template-frontend-pwa", help="Gera template canônico de frontend SPA/PWA")
+    template_frontend.add_argument("destino", help="Diretório de destino")
+    template_frontend.add_argument("--forcar", action="store_true", help="Permite sobrescrever diretório não vazio")
+    template_frontend.add_argument("--json", action="store_true", help="Saída em JSON")
+
     openapi = sub.add_parser("openapi-gerar", help="Gera OpenAPI a partir de contrato em JSON")
     openapi.add_argument("--contrato", required=True, help="Arquivo JSON com contrato (paths/openapi ou rota simplificada)")
     openapi.add_argument("--saida", required=True, help="Arquivo OpenAPI de saída (.json)")
@@ -176,6 +182,15 @@ def build_parser() -> argparse.ArgumentParser:
     v212.add_argument("--saida-json", default=".local/test-results/v212_relatorio.json", help="Arquivo de relatorio JSON")
     v212.add_argument("--saida-md", default=".local/test-results/v212_relatorio.md", help="Arquivo de relatorio Markdown")
     v212.add_argument("--json", action="store_true", help="Exibe resumo final em JSON")
+
+    v213 = sub.add_parser(
+        "testes-avancados-v213",
+        help="Executa suite critica v2.1.3 (contrato/backend/dados/frontend/operacao/performance/caos)",
+    )
+    v213.add_argument("--perfil", default="completo", choices=["completo", "rapido"], help="Perfil de execucao")
+    v213.add_argument("--saida-json", default=".local/test-results/v213_relatorio.json", help="Arquivo de relatorio JSON")
+    v213.add_argument("--saida-md", default=".local/test-results/v213_relatorio.md", help="Arquivo de relatorio Markdown")
+    v213.add_argument("--json", action="store_true", help="Exibe resumo final em JSON")
 
     sub.add_parser("repl", help="Abre REPL (planejado para fase futura)")
     return parser
@@ -310,6 +325,13 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(report, ensure_ascii=False, indent=2))
             else:
                 print(f"Template de módulo criado em: {report['destino']}")
+            return 0
+        if args.command == "template-frontend-pwa":
+            report = gerar_template_frontend_pwa(args.destino, forcar=bool(args.forcar))
+            if args.json:
+                print(json.dumps(report, ensure_ascii=False, indent=2))
+            else:
+                print(f"Template frontend/PWA criado em: {report['destino']}")
             return 0
         if args.command == "openapi-gerar":
             contrato = json.loads(Path(args.contrato).read_text(encoding="utf-8"))
@@ -481,6 +503,27 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(payload, ensure_ascii=False, indent=2))
             else:
                 print(f"v212_ok={payload['ok']} duracao_ms={round(float(payload['duracao_ms']), 2)}")
+                print(f"relatorio_json={payload['arquivo_json']}")
+                print(f"relatorio_md={payload['arquivo_md']}")
+            return 0 if bool(rel.get("ok")) else 1
+        if args.command == "testes-avancados-v213":
+            rel = testes_avancados_runtime.executar_suite_v213(
+                perfil=str(args.perfil),
+            )
+            out_json = testes_avancados_runtime.salvar_relatorio_json(rel, str(args.saida_json))
+            out_md = testes_avancados_runtime.salvar_relatorio_markdown(rel, str(args.saida_md))
+            payload = {
+                "ok": bool(rel.get("ok")),
+                "perfil": rel.get("perfil"),
+                "duracao_ms": rel.get("duracao_ms"),
+                "arquivo_json": out_json.get("arquivo"),
+                "arquivo_md": out_md.get("arquivo"),
+                "baseline": rel.get("baseline", {}),
+            }
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print(f"v213_ok={payload['ok']} duracao_ms={round(float(payload['duracao_ms']), 2)}")
                 print(f"relatorio_json={payload['arquivo_json']}")
                 print(f"relatorio_md={payload['arquivo_md']}")
             return 0 if bool(rel.get("ok")) else 1

@@ -1,0 +1,219 @@
+exporte reuniao_criar, reuniao_atualizar, reuniao_remover, reuniao_listar, reuniao_detalhar, reuniao_ja_passou, presenca_definir, presenca_definir_por_chanceler, atividade_definir, observacoes_salvar, reuniao_visitantes_salvar, cargos_oficiais_listar
+
+função _ok(dados)
+    retorne {
+        "ok": verdadeiro,
+        "dados": dados,
+        "erro": nulo,
+        "meta": {"versao": "v2.1.3"}
+    }
+fim
+
+função _erro(codigo, mensagem)
+    retorne {
+        "ok": falso,
+        "dados": nulo,
+        "erro": {"codigo": codigo, "mensagem": mensagem, "detalhes": nulo},
+        "meta": {"versao": "v2.1.3"}
+    }
+fim
+
+função cargos_oficiais_listar()
+    retorne [
+        "Veneravel Mestre",
+        "1o Vigilante",
+        "2o Vigilante",
+        "Orador",
+        "Secretario",
+        "1o Diacono",
+        "2o Diacono",
+        "Mestre de Harmonia",
+        "Mestre de Cerimonias",
+        "Hospitaleiro",
+        "Chanceler",
+        "Cobridor Interno",
+        "Cobridor Externo",
+        "Experto"
+    ]
+fim
+
+função reuniao_criar(estado, payload)
+    lista_adicionar(estado["reunioes"], payload)
+    retorne _ok(payload)
+fim
+
+função reuniao_atualizar(estado, reuniao_id, patch)
+    para r em estado["reunioes"]
+        se r["id"] == reuniao_id
+            para k em mapa_chaves(patch)
+                mapa_definir(r, k, patch[k])
+            fim
+            retorne _ok(r)
+        fim
+    fim
+    retorne _erro("REUNIAO_NAO_ENCONTRADA", "reuniao nao encontrada")
+fim
+
+função reuniao_remover(estado, reuniao_id)
+    para r em estado["reunioes"]
+        se r["id"] == reuniao_id
+            mapa_definir(r, "status", "cancelada")
+            mapa_definir(r, "removida", verdadeiro)
+            retorne _ok({"reuniao_id": reuniao_id, "removida": verdadeiro})
+        fim
+    fim
+    retorne _erro("REUNIAO_NAO_ENCONTRADA", "reuniao nao encontrada")
+fim
+
+função reuniao_listar(estado)
+    retorne _ok({"itens": estado["reunioes"]})
+fim
+
+função reuniao_ja_passou(reuniao)
+    agora = agora_iso()
+    retorne reuniao["data_hora"] < agora
+fim
+
+função presenca_definir(estado, reuniao_id, obreiro_id, situacao, cargo_ocupado)
+    para p em estado["reuniao_presencas"]
+        se p["reuniao_id"] == reuniao_id
+            se p["obreiro_id"] == obreiro_id
+                mapa_definir(p, "situacao", situacao)
+                mapa_definir(p, "cargo_ocupado", cargo_ocupado)
+                retorne _ok(p)
+            fim
+        fim
+    fim
+    novo = {
+        "reuniao_id": reuniao_id,
+        "obreiro_id": obreiro_id,
+        "situacao": situacao,
+        "cargo_ocupado": cargo_ocupado
+    }
+    lista_adicionar(estado["reuniao_presencas"], novo)
+    retorne _ok(novo)
+fim
+
+função presenca_definir_por_chanceler(estado, usuario_conectado, reuniao_id, obreiro_id, situacao, cargo_ocupado)
+    se usuario_conectado["cargo"] != "chanceler"
+        retorne _erro("PERMISSAO_NEGADA", "somente chanceler pode gerir presencas")
+    fim
+
+    se situacao != "presente"
+        cargo_ocupado = ""
+    fim
+
+    se situacao == "presente"
+        cargo_valido = falso
+        para c em cargos_oficiais_listar()
+            se c == cargo_ocupado
+                cargo_valido = verdadeiro
+            fim
+        fim
+        se cargo_valido == falso
+            retorne _erro("CARGO_INVALIDO", "cargo ocupado nao pertence aos cargos oficiais")
+        fim
+    fim
+    retorne presenca_definir(estado, reuniao_id, obreiro_id, situacao, cargo_ocupado)
+fim
+
+função atividade_definir(estado, reuniao_id, obreiro_id, payload)
+    para a em estado["reuniao_atividades"]
+        se a["reuniao_id"] == reuniao_id
+            se a["obreiro_id"] == obreiro_id
+                para k em mapa_chaves(payload)
+                    mapa_definir(a, k, payload[k])
+                fim
+                retorne _ok(a)
+            fim
+        fim
+    fim
+    mapa_definir(payload, "reuniao_id", reuniao_id)
+    mapa_definir(payload, "obreiro_id", obreiro_id)
+    lista_adicionar(estado["reuniao_atividades"], payload)
+    retorne _ok(payload)
+fim
+
+função observacoes_salvar(estado, reuniao_id, payload)
+    para o em estado["reuniao_observacoes"]
+        se o["reuniao_id"] == reuniao_id
+            para k em mapa_chaves(payload)
+                mapa_definir(o, k, payload[k])
+            fim
+            retorne _ok(o)
+        fim
+    fim
+    mapa_definir(payload, "reuniao_id", reuniao_id)
+    lista_adicionar(estado["reuniao_observacoes"], payload)
+    retorne _ok(payload)
+fim
+
+função reuniao_visitantes_salvar(estado, reuniao_id, itens)
+    para item em itens
+        lista_adicionar(estado["reuniao_visitantes"], {"reuniao_id": reuniao_id, "visitante_id": item["visitante_id"], "nome": item["nome"]})
+    fim
+    retorne _ok({"itens": itens})
+fim
+
+função reuniao_detalhar(estado, reuniao_id)
+    reuniao = nulo
+    para r em estado["reunioes"]
+        se r["id"] == reuniao_id
+            reuniao = r
+        fim
+    fim
+    se reuniao == nulo
+        retorne _erro("REUNIAO_NAO_ENCONTRADA", "reuniao nao encontrada")
+    fim
+
+    presencas = []
+    atividades = []
+    visitantes = []
+    observacoes = nulo
+
+    para p em estado["reuniao_presencas"]
+        se p["reuniao_id"] == reuniao_id
+            lista_adicionar(presencas, p)
+        fim
+    fim
+    para a em estado["reuniao_atividades"]
+        se a["reuniao_id"] == reuniao_id
+            lista_adicionar(atividades, a)
+        fim
+    fim
+    para v em estado["reuniao_visitantes"]
+        se v["reuniao_id"] == reuniao_id
+            lista_adicionar(visitantes, v)
+        fim
+    fim
+    para o em estado["reuniao_observacoes"]
+        se o["reuniao_id"] == reuniao_id
+            observacoes = o
+        fim
+    fim
+
+    presentes = 0
+    para p em presencas
+        se p["situacao"] == "presente"
+            presentes = presentes + 1
+        fim
+    fim
+
+    cartoes = 0
+    trabalhos = 0
+    para a em atividades
+        cartoes = cartoes + a["quantidade_cartoes_visita"]
+        se a["apresentou_trabalho"]
+            trabalhos = trabalhos + 1
+        fim
+    fim
+
+    retorne _ok({
+        "reuniao": reuniao,
+        "presencas": presencas,
+        "presencas_resumo": {"presente": presentes, "total": tamanho(presencas)},
+        "atividades_resumo": {"cartoes_visita": cartoes, "trabalhos": trabalhos},
+        "visitantes": visitantes,
+        "observacoes": observacoes
+    })
+fim

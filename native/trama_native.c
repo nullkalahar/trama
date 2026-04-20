@@ -2260,6 +2260,10 @@ static void usage(void) {
 }
 
 int main(int argc, char **argv) {
+    if (argc >= 2 && strcmp(argv[1], "--version") == 0) {
+        printf("trama-nativo (v%s)\n", TRAMA_VERSION);
+        return 0;
+    }
     if (argc >= 2 && strcmp(argv[1], "--diagnostico-runtime") == 0) {
         puts("backend_runtime=nativo_c_vm");
         puts("backend_compilador=nativo_c_compilador");

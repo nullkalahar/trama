@@ -1,0 +1,13 @@
+assíncrona função suite_71()
+    t = criar_tarefa(esperar(0.001))
+    aguarde com_timeout(t, 1.0)
+    retorne {
+        "suite": "v213_71",
+        "ok": verdadeiro,
+        "categoria": "operacao_release"
+    }
+fim
+
+assíncrona função principal()
+    exibir(aguarde suite_71())
+fim

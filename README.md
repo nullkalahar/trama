@@ -95,10 +95,12 @@ Pipeline da linguagem:
 - manual da linguagem v2.1.0 (engenharia de produto, CI/CD e governança) em [`docs/LINGUAGEM_V2_1_0.md`](docs/LINGUAGEM_V2_1_0.md)
 - manual da linguagem v2.1.1 (linguagem para codebase grande) em [`docs/LINGUAGEM_V2_1_1.md`](docs/LINGUAGEM_V2_1_1.md)
 - manual da linguagem v2.1.2 (prontidão backend complexo) em [`docs/LINGUAGEM_V2_1_2.md`](docs/LINGUAGEM_V2_1_2.md)
+- manual da linguagem v2.1.3 (substituição total JS/TS) em [`docs/LINGUAGEM_V2_1_3.md`](docs/LINGUAGEM_V2_1_3.md)
 - referência completa de capacidades v2.1.2 em [`docs/REFERENCIA_CAPACIDADES_V2_1_2.md`](docs/REFERENCIA_CAPACIDADES_V2_1_2.md)
 - guia de codebase grande v2.1.1 em [`docs/GUIA_CODEBASE_GRANDE_V2_1_1.md`](docs/GUIA_CODEBASE_GRANDE_V2_1_1.md)
 - manual operacional de módulos/tipagem v2.1.1 em [`docs/OPERACAO_V2_1_1_MODULOS_TIPAGEM.md`](docs/OPERACAO_V2_1_1_MODULOS_TIPAGEM.md)
 - manual operacional da v2.1.2 em [`docs/OPERACAO_V2_1_2_BACKEND_COMPLEXO.md`](docs/OPERACAO_V2_1_2_BACKEND_COMPLEXO.md)
+- manual operacional da v2.1.3 em [`docs/OPERACAO_V2_1_3_SUBSTITUICAO_TOTAL.md`](docs/OPERACAO_V2_1_3_SUBSTITUICAO_TOTAL.md)
 - baseline reproduzível da v2.1.2 em [`docs/BASELINE_V2_1_2.md`](docs/BASELINE_V2_1_2.md)
 - manual completo consolidado até v2.0.2 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_2.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_2.md)
 - manual completo consolidado até v2.0.7 em [`docs/MANUAL_TRAMA_COMPLETO_V2_0_7.md`](docs/MANUAL_TRAMA_COMPLETO_V2_0_7.md)
@@ -107,6 +109,7 @@ Pipeline da linguagem:
 - manual completo consolidado até v2.1.0 em [`docs/MANUAL_TRAMA_COMPLETO_V2_1_0.md`](docs/MANUAL_TRAMA_COMPLETO_V2_1_0.md)
 - manual completo consolidado até v2.1.1 em [`docs/MANUAL_TRAMA_COMPLETO_V2_1_1.md`](docs/MANUAL_TRAMA_COMPLETO_V2_1_1.md)
 - manual completo consolidado até v2.1.2 em [`docs/MANUAL_TRAMA_COMPLETO_V2_1_2.md`](docs/MANUAL_TRAMA_COMPLETO_V2_1_2.md)
+- manual completo consolidado até v2.1.3 em [`docs/MANUAL_TRAMA_COMPLETO_V2_1_3.md`](docs/MANUAL_TRAMA_COMPLETO_V2_1_3.md)
 - manual completo consolidado até v1.4 em [`docs/MANUAL_COMPLETO_ATE_V1_4.md`](docs/MANUAL_COMPLETO_ATE_V1_4.md)
 - manual completo consolidado até v1.8 em [`docs/MANUAL_COMPLETO_ATE_V1_8.md`](docs/MANUAL_COMPLETO_ATE_V1_8.md)
 - manual operacional comando a comando v2.0.6-v2.0.7 em [`docs/OPERACAO_COMANDOS_V2_0_6_V2_0_7.md`](docs/OPERACAO_COMANDOS_V2_0_6_V2_0_7.md)
@@ -134,6 +137,7 @@ Pipeline da linguagem:
 - exemplos v2.0.9 em [`exemplos/v209/`](exemplos/v209/)
 - exemplos v2.1.1 em [`exemplos/v211/`](exemplos/v211/)
 - exemplos v2.1.2 em [`exemplos/v212/`](exemplos/v212/)
+- exemplos v2.1.3 em [`exemplos/v213/`](exemplos/v213/)
 - pipeline de linguagem funcional (lexer -> parser -> semântica -> compilador -> bytecode -> VM)
 - CLI funcional em [`src/trama/cli.py`](src/trama/cli.py)
 - binário standalone gerável por [`scripts/build_standalone.sh`](scripts/build_standalone.sh)
@@ -1126,6 +1130,121 @@ Entregas implementadas em v2.1.2:
   - validação mínima de produção para rotação/revogação de token, rate-limit distribuído e hardening/CORS;
   - documentação operacional com troubleshooting, rollback e recuperação (`docs/OPERACAO_V2_1_2_BACKEND_COMPLEXO.md`);
   - release auditável com `standalone`, `.deb`, `SHA256SUMS` e artefato `ROLLBACK.md` no workflow de release.
+
+### v2.1.3 - Substituição total JS/TS por Trama nativa
+- [x] superfície oficial integralmente canônica em pt-BR (`snake_case`, sem acento em identificadores), incluindo lexer, parser, AST, semântica, compilador, VM, builtins, runtimes, CLI, documentação e exemplos.
+- [x] paridade funcional completa do backend ARLS_AMM em `.trm` (auth, obreiros, familiares, visitantes, reuniões e dashboard).
+- [x] frontend SPA/PWA nativo da Trama para substituir React/Vite/TypeScript.
+- [x] cadeia de dados nativa (migração/seed/diagnóstico) para substituir Prisma/Node.
+- [x] execução e compilação 100% nativas no caminho crítico, sem dependência de Python.
+- [x] regressão obrigatória de contrato HTTP e e2e ponta a ponta.
+
+DoD v2.1.3:
+- projeto equivalente ao ARLS_AMM pode ser entregue e operado sem JS/TS no backend e sem ponte Python no runtime crítico.
+- paridade funcional validada por suíte automatizada (integração/contrato/e2e/carga/caos).
+- linguagem e toolchain oficiais mantidos canonicamente em pt-BR (incluindo lexer e parser), com aliases em inglês apenas para compatibilidade retroativa.
+- release auditável (`standalone` + `.deb` + checksum + rollback) e documentação operacional publicada.
+- to-do executável da versão em [`docs/TODO_V2_1_3_IMPLEMENTACAO_TOTAL.md`](docs/TODO_V2_1_3_IMPLEMENTACAO_TOTAL.md).
+
+Versionamento de implementação (ordem oficial):
+
+- `v2.1.3-alpha.1` - base de contrato e regressão:
+  - congelamento de contrato HTTP atual (snapshots por rota);
+  - harness de regressão para envelopes de sucesso/erro;
+  - baseline inicial de performance/estabilidade.
+  - saída obrigatória: suíte `contrato_http_v213` bloqueando merge.
+
+- `v2.1.3-alpha.2` - núcleo backend de domínio:
+  - port de `auth/obreiros/familiares/visitantes/reunioes/dashboard` para `.trm`;
+  - compatibilidade canônica pt-BR e envelopes estáveis;
+  - paridade funcional por integração.
+  - saída obrigatória: suíte `integracao_backend_v213` verde com fixtures reais.
+
+- `v2.1.3-alpha.3` - dados nativos:
+  - migração, seed e diagnóstico DB nativos;
+  - port de schema e constraints críticas;
+  - boot limpo sem Prisma/Node.
+  - saída obrigatória: suíte `dados_nativos_v213` + comando de subida limpa documentado.
+
+- `v2.1.3-beta.1` - frontend nativo Trama:
+  - runtime UI canônico pt-BR (estado, componentes, roteamento);
+  - fluxos críticos equivalentes ao web atual;
+  - build/preview PWA nativos.
+  - saída obrigatória: suíte `e2e_frontend_v213`.
+
+- `v2.1.3-beta.2` - operação e SRE:
+  - métricas/logs/traces + health checks;
+  - scripts operacionais equivalentes (backup/restore/smoke);
+  - hardening e observabilidade auditável.
+  - saída obrigatória: suíte `operacao_sre_v213` e runbooks publicados.
+
+- `v2.1.3-rc.1` - performance, caos e robustez:
+  - carga/concorrência com metas `p50`, `p95`, throughput e taxa de erro;
+  - falha parcial DB/cache/backplane com fallback seguro;
+  - validação de não regressão de integridade.
+  - saída obrigatória: relatórios `baseline_v213` e `caos_v213`.
+
+- `v2.1.3` - GA (produção):
+  - release `standalone` + `.deb` + checksum + rollback;
+  - diagnóstico oficial de runtime 100% nativo;
+  - documentação final consolidada.
+  - saída obrigatória: artefatos publicados + checklist DoD completo.
+
+Gates de avanço:
+- `alpha -> beta`:
+  - paridade backend comprovada;
+  - contrato HTTP estável;
+  - dados nativos funcionais sem toolchain JS.
+- `beta -> rc`:
+  - frontend nativo completo;
+  - operação/SRE auditável;
+  - sem regressão crítica em auth/reunioes.
+- `rc -> ga`:
+  - baseline de performance reproduzível;
+  - caos/falha parcial validados;
+  - release + rollback testados.
+
+Entregas implementadas na base da v2.1.3:
+- suíte oficial `testes-avancados-v213` no CLI e runtime:
+  - `contrato_http_v213`;
+  - `integracao_backend_v213`;
+  - `dados_nativos_v213`;
+  - `e2e_frontend_v213`;
+  - `operacao_sre_v213`;
+  - `baseline_v213`;
+  - `caos_v213`.
+- validação prática de versão instalada no sistema:
+  - `dpkg -s trama` reportando `2.1.3`;
+  - `trama --version` reportando `trama-nativo (v2.1.3)`;
+  - `trama --diagnostico-runtime` reportando backend nativo (`nativo_c_vm`) sem Python host.
+- release local com artefatos gerados:
+  - `build/trama_2.1.3_amd64.deb`;
+  - `dist/trama` (standalone);
+  - `build/release/SHA256SUMS_v213.txt`.
+- CI com job `suite_critica_v213` e gate `gate_v213_obrigatorio`.
+- documentação da versão:
+  - `docs/LINGUAGEM_V2_1_3.md`;
+  - `docs/OPERACAO_V2_1_3_SUBSTITUICAO_TOTAL.md`;
+  - `docs/MANUAL_TRAMA_COMPLETO_V2_1_3.md`;
+  - `docs/TODO_V2_1_3_IMPLEMENTACAO_TOTAL.md`.
+- coleção massiva de exemplos:
+  - `exemplos/v213/README_EXEMPLOS_V213.md`;
+  - `exemplos/v213/213_01_exemplo_v213.trm` até `exemplos/v213/213_88_dados_nativos_migracao_seed_diag.trm`;
+  - backend de domínio em `.trm` em `exemplos/v213/arls_amm_trm/`;
+  - arquitetura grande em `exemplos/v213/sistema_grande_v213/`.
+  - lint completo dos exemplos v2.1.3 verde (`97` arquivos, `0` erros).
+- domínio ARLS ampliado em `.trm` com regras de reunião para produção:
+  - `reuniao_criar`, `reuniao_atualizar`, `reuniao_remover`, `reuniao_ja_passou`;
+  - gestão de presença por perfil `chanceler` com validação de cargos oficiais;
+  - registro de `cargo_ocupado` por presença.
+- integração v2.1.3 fortalecida com validação explícita do fluxo ARLS na suíte oficial:
+  - `src/trama/testes_avancados_runtime.py` (`_executar_fluxo_arls_backend_v213`);
+  - `tests/test_testes_avancados_v213.py`;
+  - `tests/test_v213_arls_backend_trm.py`;
+  - `tests/test_v213_arls_reunioes_permissoes.py`.
+- template canônico de frontend/PWA:
+  - comando `trama template-frontend-pwa`;
+  - teste de CLI cobrindo geração do template em `tests/test_cli.py`.
 
 ## v2.5 (frontend)
 - [ ] toolkit de UI, estado e renderização

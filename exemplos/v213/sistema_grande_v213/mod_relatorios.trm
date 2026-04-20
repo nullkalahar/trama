@@ -1,0 +1,24 @@
+exporte resumo_presencas, resumo_visitas
+
+função resumo_presencas(lancamentos)
+    total = tamanho(lancamentos)
+    presentes = 0
+    para item em lancamentos
+        se item["presenca"]
+            presentes = presentes + 1
+        fim
+    fim
+    divisor = 1
+    se total > 0
+        divisor = total
+    fim
+    retorne {"total": total, "presentes": presentes, "taxa": presentes / divisor}
+fim
+
+função resumo_visitas(lancamentos)
+    total_cartoes = 0
+    para item em lancamentos
+        total_cartoes = total_cartoes + item["quantidade_cartoes_visita"]
+    fim
+    retorne {"total_cartoes": total_cartoes}
+fim

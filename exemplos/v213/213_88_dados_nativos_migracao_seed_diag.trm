@@ -1,0 +1,31 @@
+assíncrona função principal()
+    dsn = "sqlite:///.local/tests/v213_exemplo.sqlite3"
+    conn = aguarde banco_conectar(dsn)
+
+    aguarde migracao_aplicar_versionada_v2(
+        conn,
+        "213.001",
+        "criar_tabelas_arls",
+        "CREATE TABLE IF NOT EXISTS obreiros (id TEXT PRIMARY KEY, nome_civil TEXT NOT NULL, grau TEXT NOT NULL, ativo INTEGER NOT NULL DEFAULT 1);",
+        "DROP TABLE IF EXISTS obreiros;",
+        "dev",
+        falso
+    )
+
+    aguarde seed_aplicar_ambiente(
+        conn,
+        "dev",
+        "seed_obreiros_001",
+        "INSERT INTO obreiros (id, nome_civil, grau, ativo) VALUES ('obr_1', 'I. Augusto', 'mestre', 1);"
+    )
+
+    linhas = aguarde banco_consultar(conn, "SELECT id, nome_civil, grau, ativo FROM obreiros ORDER BY nome_civil")
+    exibir("total")
+    exibir(tamanho(linhas))
+
+    trilha = aguarde migracao_trilha(conn, 10)
+    exibir("trilha_migracoes")
+    exibir(trilha)
+
+    aguarde banco_fechar(conn)
+fim

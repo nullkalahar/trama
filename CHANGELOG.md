@@ -4,6 +4,54 @@ Todas as mudancas relevantes deste projeto serao documentadas neste arquivo.
 
 Formato baseado em Keep a Changelog e versionamento semantico (SemVer).
 
+## [2.1.3] - 2026-04-20
+
+### Adicionado
+- suíte crítica oficial da v2.1.3 em `src/trama/testes_avancados_runtime.py` com:
+  - `contrato_http_v213`;
+  - `integracao_backend_v213`;
+  - `dados_nativos_v213`;
+  - `e2e_frontend_v213`;
+  - `operacao_sre_v213`;
+  - `baseline_v213`;
+  - `caos_v213`.
+- comando CLI canônico `trama testes-avancados-v213`.
+- novos testes:
+  - `tests/test_testes_avancados_v213.py`
+  - `tests/test_v213_ci_release.py`
+- CI expandida com:
+  - `suite_critica_v213`
+  - `gate_v213_obrigatorio`
+- documentação oficial da versão:
+  - `docs/LINGUAGEM_V2_1_3.md`
+  - `docs/MANUAL_TRAMA_COMPLETO_V2_1_3.md`
+  - `docs/OPERACAO_V2_1_3_SUBSTITUICAO_TOTAL.md`
+  - `docs/TODO_V2_1_3_IMPLEMENTACAO_TOTAL.md`
+- pacote massivo de exemplos v2.1.3:
+  - `exemplos/v213/213_01_exemplo_v213.trm` até `exemplos/v213/213_84_exemplo_v213.trm`
+  - `exemplos/v213/sistema_grande_v213/`.
+- backend de domínio ARLS em `.trm`:
+  - `exemplos/v213/arls_amm_trm/mod_estado.trm`
+  - `exemplos/v213/arls_amm_trm/mod_auth.trm`
+  - `exemplos/v213/arls_amm_trm/mod_obreiros.trm`
+  - `exemplos/v213/arls_amm_trm/mod_visitantes.trm`
+  - `exemplos/v213/arls_amm_trm/mod_reunioes.trm`
+  - `exemplos/v213/arls_amm_trm/mod_dashboard.trm`
+  - `exemplos/v213/arls_amm_trm/213_85_backend_arls_amm_fluxo_completo.trm`
+- template canônico de frontend/PWA na CLI:
+  - comando `trama template-frontend-pwa`.
+- teste de integração do fluxo ARLS em `.trm`:
+  - `tests/test_v213_arls_backend_trm.py`.
+
+### Alterado
+- versão do projeto para `2.1.3` em:
+  - `pyproject.toml`
+  - `src/trama/__init__.py`
+- build/release nativo:
+  - `scripts/build_release_nativo.sh` com versão padrão `2.1.3`;
+  - suporte explícito a `--version` no runtime nativo (`native/trama_native.c`).
+- README e índice de exemplos/documentação atualizados para v2.1.3.
+
 ## [2.1.2] - 2026-04-07
 
 ### Adicionado

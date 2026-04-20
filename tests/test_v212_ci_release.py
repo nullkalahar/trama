@@ -15,6 +15,6 @@ def test_ci_v212_tem_suite_critica_e_gate() -> None:
 def test_release_v212_publica_checksum_e_rollback() -> None:
     root = Path(__file__).resolve().parents[1]
     conteudo = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
-    assert "name: release_trama_v212" in conteudo
+    assert "name: release_trama_v212" in conteudo or "name: release_trama_v213" in conteudo
     assert "SHA256SUMS.txt" in conteudo
     assert "ROLLBACK.md" in conteudo

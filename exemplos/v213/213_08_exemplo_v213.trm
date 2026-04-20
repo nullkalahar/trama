@@ -1,0 +1,8 @@
+função calcular_item_08(valor_base, taxa)
+    retorne valor_base + (valor_base * taxa)
+fim
+
+função principal()
+    total = calcular_item_08(100, 0.1)
+    exibir(total)
+fim

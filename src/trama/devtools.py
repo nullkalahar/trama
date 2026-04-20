@@ -282,3 +282,100 @@ def gerar_template_modulo(destino: str, nome_modulo: str = "modulo_exemplo", for
         encoding="utf-8",
     )
     return {"ok": True, "destino": str(root.resolve()), "nome_modulo": nome, "arquivo_modulo": arquivo_mod}
+
+
+def gerar_template_frontend_pwa(destino: str, forcar: bool = False) -> dict[str, Any]:
+    root = Path(destino)
+    if root.exists() and any(root.iterdir()) and not forcar:
+        raise RuntimeError("Diretório de template não está vazio. Use --forcar para sobrescrever.")
+
+    (root / "public").mkdir(parents=True, exist_ok=True)
+    (root / "src").mkdir(parents=True, exist_ok=True)
+    (root / "docs").mkdir(parents=True, exist_ok=True)
+
+    (root / "README.md").write_text(
+        "# Template Frontend/PWA Trama\n\n"
+        "Template canônico pt-BR para SPA/PWA sem dependência de JS/TS no fluxo principal.\n\n"
+        "## Estrutura\n\n"
+        "- `public/manifest.webmanifest`\n"
+        "- `public/sw.js`\n"
+        "- `src/index.html`\n"
+        "- `src/app.css`\n"
+        "- `src/app.js`\n",
+        encoding="utf-8",
+    )
+    (root / "public" / "manifest.webmanifest").write_text(
+        "{\n"
+        "  \"name\": \"Trama Frontend\",\n"
+        "  \"short_name\": \"Trama\",\n"
+        "  \"start_url\": \"/\",\n"
+        "  \"display\": \"standalone\",\n"
+        "  \"background_color\": \"#ffffff\",\n"
+        "  \"theme_color\": \"#173a37\",\n"
+        "  \"lang\": \"pt-BR\",\n"
+        "  \"icons\": []\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (root / "public" / "sw.js").write_text(
+        "self.addEventListener('install', (evento) => {\n"
+        "  self.skipWaiting();\n"
+        "});\n"
+        "self.addEventListener('activate', (evento) => {\n"
+        "  evento.waitUntil(self.clients.claim());\n"
+        "});\n"
+        "self.addEventListener('fetch', () => {});\n",
+        encoding="utf-8",
+    )
+    (root / "src" / "index.html").write_text(
+        "<!doctype html>\n"
+        "<html lang=\"pt-BR\">\n"
+        "  <head>\n"
+        "    <meta charset=\"UTF-8\" />\n"
+        "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n"
+        "    <link rel=\"manifest\" href=\"../public/manifest.webmanifest\" />\n"
+        "    <title>Frontend Trama</title>\n"
+        "    <link rel=\"stylesheet\" href=\"app.css\" />\n"
+        "  </head>\n"
+        "  <body>\n"
+        "    <main>\n"
+        "      <h1>Frontend/PWA Trama</h1>\n"
+        "      <p>Template canônico para SPA.</p>\n"
+        "      <button id=\"btn-saude\">Testar API</button>\n"
+        "      <pre id=\"saida\"></pre>\n"
+        "    </main>\n"
+        "    <script src=\"app.js\"></script>\n"
+        "  </body>\n"
+        "</html>\n",
+        encoding="utf-8",
+    )
+    (root / "src" / "app.css").write_text(
+        "body { font-family: sans-serif; margin: 2rem; }\n"
+        "button { padding: 0.6rem 1rem; }\n"
+        "pre { background: #f4f4f4; padding: 1rem; }\n",
+        encoding="utf-8",
+    )
+    (root / "src" / "app.js").write_text(
+        "const saida = document.getElementById('saida');\n"
+        "document.getElementById('btn-saude')?.addEventListener('click', async () => {\n"
+        "  try {\n"
+        "    const resposta = await fetch('/saude');\n"
+        "    const texto = await resposta.text();\n"
+        "    saida.textContent = texto;\n"
+        "  } catch (erro) {\n"
+        "    saida.textContent = String(erro);\n"
+        "  }\n"
+        "});\n"
+        "if ('serviceWorker' in navigator) {\n"
+        "  navigator.serviceWorker.register('../public/sw.js').catch(() => {});\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (root / "docs" / "OPERACAO.md").write_text(
+        "# Operação Frontend/PWA\n\n"
+        "1. Sirva `src/index.html` em servidor HTTP.\n"
+        "2. Garanta acesso ao `manifest.webmanifest` e `sw.js`.\n"
+        "3. Valide instalação PWA em navegador compatível.\n",
+        encoding="utf-8",
+    )
+    return {"ok": True, "destino": str(root.resolve())}

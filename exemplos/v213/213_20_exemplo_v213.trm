@@ -1,0 +1,25 @@
+função envelope_ok_20(dados)
+    retorne {
+        "ok": verdadeiro,
+        "dados": dados,
+        "erro": nulo,
+        "meta": {"versao": "v2.1.3"}
+    }
+fim
+
+função envelope_erro_20(codigo, mensagem)
+    retorne {
+        "ok": falso,
+        "dados": nulo,
+        "erro": {"codigo": codigo, "mensagem": mensagem, "detalhes": {}},
+        "meta": {"versao": "v2.1.3"}
+    }
+fim
+
+função principal()
+    se 20 > 20
+        exibir(envelope_ok_20({"rota": "/api/v1/exemplo"}))
+    senão
+        exibir(envelope_erro_20("VALIDACAO_FALHOU", "payload invalido"))
+    fim
+fim

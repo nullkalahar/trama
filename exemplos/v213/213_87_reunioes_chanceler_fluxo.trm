@@ -1,0 +1,43 @@
+importe "arls_amm_trm/mod_estado.trm" como estado_mod
+importe "arls_amm_trm/mod_obreiros.trm" como obreiros
+importe "arls_amm_trm/mod_reunioes.trm" como reunioes
+
+função principal()
+    estado = estado_mod["novo_estado"]()
+
+    obreiros["obreiro_criar"](estado, {"id": "obr_1", "nome_civil": "I. Augusto", "grau": "mestre", "ativo": verdadeiro})
+
+    reunioes["reuniao_criar"](estado, {
+        "id": "reu_2026_04_20",
+        "data_hora": "2026-04-20T20:00:00-03:00",
+        "grau": "mestre",
+        "titulo": "Sessao Ordinaria",
+        "status": "agendada"
+    })
+
+    usuario_chanceler = {"id": "usr_ch", "cargo": "chanceler"}
+
+    r1 = reunioes["presenca_definir_por_chanceler"](
+        estado,
+        usuario_chanceler,
+        "reu_2026_04_20",
+        "obr_1",
+        "presente",
+        "Chanceler"
+    )
+
+    reunioes["atividade_definir"](estado, "reu_2026_04_20", "obr_1", {
+        "visitou_outra_loja": verdadeiro,
+        "quantidade_cartoes_visita": 2,
+        "apresentou_trabalho": verdadeiro
+    })
+
+    detalhado = reunioes["reuniao_detalhar"](estado, "reu_2026_04_20")
+
+    exibir("presenca ok")
+    exibir(r1["ok"])
+    exibir("reuniao ja passou?")
+    exibir(reunioes["reuniao_ja_passou"](detalhado["dados"]["reuniao"]))
+    exibir("cargos oficiais")
+    exibir(reunioes["cargos_oficiais_listar"]())
+fim

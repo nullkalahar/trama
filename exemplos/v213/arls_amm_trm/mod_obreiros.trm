@@ -1,0 +1,65 @@
+exporte obreiro_criar, obreiro_atualizar, obreiro_listar, familiar_criar, familiar_listar
+
+função _erro(codigo, mensagem)
+    retorne {
+        "ok": falso,
+        "dados": nulo,
+        "erro": {"codigo": codigo, "mensagem": mensagem, "detalhes": {}},
+        "meta": {"versao": "v2.1.3"}
+    }
+fim
+
+função _ok(dados)
+    retorne {
+        "ok": verdadeiro,
+        "dados": dados,
+        "erro": nulo,
+        "meta": {"versao": "v2.1.3"}
+    }
+fim
+
+função obreiro_criar(estado, payload)
+    lista_adicionar(estado["obreiros"], payload)
+    retorne _ok(payload)
+fim
+
+função obreiro_atualizar(estado, obreiro_id, patch)
+    para o em estado["obreiros"]
+        se o["id"] == obreiro_id
+            para k em mapa_chaves(patch)
+                mapa_definir(o, k, patch[k])
+            fim
+            retorne _ok(o)
+        fim
+    fim
+    retorne _erro("OBREIRO_NAO_ENCONTRADO", "obreiro nao encontrado")
+fim
+
+função obreiro_listar(estado)
+    retorne _ok({"itens": estado["obreiros"]})
+fim
+
+função familiar_criar(estado, obreiro_id, payload)
+    achou = falso
+    para o em estado["obreiros"]
+        se o["id"] == obreiro_id
+            achou = verdadeiro
+        fim
+    fim
+    se achou == falso
+        retorne _erro("OBREIRO_NAO_ENCONTRADO", "obreiro nao encontrado")
+    fim
+    mapa_definir(payload, "obreiro_id", obreiro_id)
+    lista_adicionar(estado["familiares"], payload)
+    retorne _ok(payload)
+fim
+
+função familiar_listar(estado, obreiro_id)
+    itens = []
+    para f em estado["familiares"]
+        se f["obreiro_id"] == obreiro_id
+            lista_adicionar(itens, f)
+        fim
+    fim
+    retorne _ok({"itens": itens})
+fim

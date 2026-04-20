@@ -969,3 +969,194 @@ def executar_suite_v212(
             "cwd": os.getcwd(),
         },
     }
+
+
+def _suite_com_nome(payload: dict[str, object], nome_suite: str) -> dict[str, object]:
+    out = dict(payload)
+    out["suite"] = nome_suite
+    return out
+
+
+def executar_contrato_http_v213() -> dict[str, object]:
+    return _suite_com_nome(executar_contrato_http_critico_v212(), "contrato_http_v213")
+
+
+def _executar_fluxo_arls_backend_v213() -> dict[str, object]:
+    raiz = Path(__file__).resolve().parents[2]
+    script = raiz / "exemplos" / "v213" / "arls_amm_trm" / "213_85_backend_arls_amm_fluxo_completo.trm"
+    if not script.exists():
+        return {
+            "ok": False,
+            "nome": "fluxo_arls_backend_trm",
+            "erro": f"arquivo nao encontrado: {script}",
+        }
+    try:
+        resultado = vm.run_source(script.read_text(encoding="utf-8"), source_path=str(script))
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "nome": "fluxo_arls_backend_trm",
+            "erro": str(exc),
+        }
+
+    if not isinstance(resultado, dict):
+        return {
+            "ok": False,
+            "nome": "fluxo_arls_backend_trm",
+            "erro": "resultado inesperado",
+        }
+
+    login = dict(resultado.get("login") or {})
+    refresh = dict(resultado.get("refresh") or {})
+    obreiros = dict(resultado.get("obreiros") or {})
+    reuniao = dict(resultado.get("reuniao") or {})
+    dashboard = dict(resultado.get("dashboard") or {})
+    dados_reuniao = dict(reuniao.get("dados") or {})
+    pres = dict(dados_reuniao.get("presencas_resumo") or {})
+    ativ = dict(dados_reuniao.get("atividades_resumo") or {})
+    dados_dash = dict(dashboard.get("dados") or {})
+
+    ok = (
+        bool(login.get("ok"))
+        and bool(refresh.get("ok"))
+        and bool(obreiros.get("ok"))
+        and bool(reuniao.get("ok"))
+        and bool(dashboard.get("ok"))
+        and int(pres.get("presente", 0)) >= 1
+        and int(ativ.get("cartoes_visita", 0)) >= 1
+        and int(dados_dash.get("obreiros_ativos", 0)) >= 1
+    )
+    return {
+        "ok": ok,
+        "nome": "fluxo_arls_backend_trm",
+        "metricas": {
+            "presentes": int(pres.get("presente", 0)),
+            "cartoes_visita": int(ativ.get("cartoes_visita", 0)),
+            "obreiros_ativos": int(dados_dash.get("obreiros_ativos", 0)),
+        },
+    }
+
+
+def executar_integracao_backend_v213(*, perfil_rapido: bool = False) -> dict[str, object]:
+    base = executar_carga_multi_instancia_v212(
+        total_requisicoes=(80 if perfil_rapido else 160),
+        concorrencia=(8 if perfil_rapido else 16),
+    )
+    paridade = executar_paridade_python_nativo_fluxos_criticos()
+    arls = _executar_fluxo_arls_backend_v213()
+    checks = list(base.get("checks", []))
+    checks.append({"nome": "paridade_python_nativo_fluxos_criticos", "ok": bool(paridade.get("ok"))})
+    checks.append({"nome": "fluxo_arls_backend_trm", "ok": bool(arls.get("ok"))})
+    return {
+        "ok": bool(base.get("ok")) and bool(paridade.get("ok")) and bool(arls.get("ok")),
+        "suite": "integracao_backend_v213",
+        "metricas": dict(base.get("metricas") or {}),
+        "checks": checks,
+        "paridade": paridade,
+        "arls_backend": arls,
+    }
+
+
+def executar_dados_nativos_v213() -> dict[str, object]:
+    base = executar_harness_integracao(
+        diretorio_base=".local/tests/v2_1_3/fixtures",
+        validar_postgres=False,
+        validar_redis=False,
+    )
+    ok = bool(base.get("ok")) and bool(dict(base.get("sqlite") or {}).get("ok"))
+    return {
+        "ok": ok,
+        "suite": "dados_nativos_v213",
+        "checks": [
+            {"nome": "migracao_seed_sqlite", "ok": bool(dict(base.get("sqlite") or {}).get("ok"))},
+            {"nome": "diagnostico_dados_nativos", "ok": bool(base.get("ok"))},
+        ],
+        "detalhes": base,
+    }
+
+
+def executar_e2e_frontend_v213() -> dict[str, object]:
+    return _suite_com_nome(executar_suite_e2e_fluxos_criticos(), "e2e_frontend_v213")
+
+
+def executar_operacao_sre_v213() -> dict[str, object]:
+    tracos = observability_runtime.tracos_snapshot()
+    diag = {
+        "ok": True,
+        "suite": "operacao_sre_v213",
+        "checks": [
+            {"nome": "metricas_snapshot", "ok": isinstance(observability_runtime.metricas_snapshot(), dict)},
+            {"nome": "tracos_snapshot", "ok": isinstance(tracos, (list, dict))},
+            {"nome": "diagnostico_operacao", "ok": True},
+        ],
+    }
+    diag["ok"] = all(bool(c.get("ok")) for c in diag["checks"])
+    return diag
+
+
+def executar_baseline_v213(*, perfil_rapido: bool = False) -> dict[str, object]:
+    return _suite_com_nome(
+        executar_teste_carga_concorrencia(
+            total_requisicoes=(60 if perfil_rapido else 120),
+            concorrencia=(6 if perfil_rapido else 12),
+        ),
+        "baseline_v213",
+    )
+
+
+def executar_caos_v213() -> dict[str, object]:
+    return _suite_com_nome(executar_caos_falha_parcial_v212(), "caos_v213")
+
+
+def executar_suite_v213(
+    *,
+    diretorio_relatorio: str = ".local/test-results",
+    perfil: str = "completo",
+) -> dict[str, object]:
+    ini = time.perf_counter()
+    observability_runtime.metricas_reset()
+    observability_runtime.tracos_reset()
+    perfil_norm = str(perfil or "completo").strip().lower()
+    rapido = perfil_norm == "rapido"
+
+    contrato = executar_contrato_http_v213()
+    integracao_backend = executar_integracao_backend_v213(perfil_rapido=rapido)
+    dados_nativos = executar_dados_nativos_v213()
+    e2e_frontend = executar_e2e_frontend_v213()
+    operacao_sre = executar_operacao_sre_v213()
+    baseline = executar_baseline_v213(perfil_rapido=rapido)
+    caos = executar_caos_v213()
+
+    suites = {
+        "contrato_http_v213": contrato,
+        "integracao_backend_v213": integracao_backend,
+        "dados_nativos_v213": dados_nativos,
+        "e2e_frontend_v213": e2e_frontend,
+        "operacao_sre_v213": operacao_sre,
+        "baseline_v213": baseline,
+        "caos_v213": caos,
+    }
+    ok = all(bool(v.get("ok")) for v in suites.values())
+    dur_ms = (time.perf_counter() - ini) * 1000.0
+    out_dir = Path(diretorio_relatorio)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return {
+        "ok": ok,
+        "versao": "2.1.3",
+        "perfil": perfil_norm,
+        "executado_em": _agora_iso(),
+        "duracao_ms": dur_ms,
+        "parametros_versionados": {
+            "arquivo_origem": "src/trama/testes_avancados_runtime.py",
+            "perfil": perfil_norm,
+            "suite": "v213",
+        },
+        "suites": suites,
+        "baseline": dict(baseline.get("metricas") or {}),
+        "metricas_observabilidade": observability_runtime.metricas_snapshot(),
+        "ambiente_execucao": {
+            "python": sys.version.split()[0],
+            "plataforma": sys.platform,
+            "cwd": os.getcwd(),
+        },
+    }

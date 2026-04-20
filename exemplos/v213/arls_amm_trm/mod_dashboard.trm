@@ -1,0 +1,49 @@
+exporte dashboard_resumo
+
+função _ok(dados)
+    retorne {
+        "ok": verdadeiro,
+        "dados": dados,
+        "erro": nulo,
+        "meta": {"versao": "v2.1.3"}
+    }
+fim
+
+função dashboard_resumo(estado)
+    obreiros_ativos = 0
+    para o em estado["obreiros"]
+        se o["ativo"]
+            obreiros_ativos = obreiros_ativos + 1
+        fim
+    fim
+
+    total_presencas = tamanho(estado["reuniao_presencas"])
+    total_presentes = 0
+    para p em estado["reuniao_presencas"]
+        se p["situacao"] == "presente"
+            total_presentes = total_presentes + 1
+        fim
+    fim
+
+    visitas = 0
+    trabalhos = 0
+    para a em estado["reuniao_atividades"]
+        visitas = visitas + a["quantidade_cartoes_visita"]
+        se a["apresentou_trabalho"]
+            trabalhos = trabalhos + 1
+        fim
+    fim
+
+    media = 0
+    se total_presencas > 0
+        media = total_presentes / total_presencas
+    fim
+
+    retorne _ok({
+        "obreiros_ativos": obreiros_ativos,
+        "reunioes_mes": tamanho(estado["reunioes"]),
+        "presenca_media_percentual": media * 100,
+        "visitas_mes": visitas,
+        "trabalhos_mes": trabalhos
+    })
+fim
