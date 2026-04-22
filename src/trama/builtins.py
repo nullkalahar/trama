@@ -1010,6 +1010,36 @@ def make_builtins(
             "auditoria_admin_ativa": bool(web_app.auditoria_admin_ativa),
         }
 
+    def web_configurar_engine_http(
+        app: object,
+        engine: str = "legada",
+        fallback_automatico: bool = True,
+        shutdown_gracioso_segundos: float = 5.0,
+        limites: dict[str, dict[str, object]] | None = None,
+    ) -> dict[str, object]:
+        web_app = _as_app(app)
+        engine_norm = str(engine or "legada").strip().lower()
+        if engine_norm not in {"legada", "asgi", "asgi_real"}:
+            raise RuntimeError("engine HTTP inválida: use 'legada' ou 'asgi'.")
+        web_app.engine_http_preferida = "asgi" if engine_norm in {"asgi", "asgi_real"} else "legada"
+        web_app.engine_http_fallback_automatico = bool(fallback_automatico)
+        web_app.shutdown_gracioso_segundos = float(max(shutdown_gracioso_segundos, 0.1))
+        if isinstance(limites, dict):
+            merged = dict(web_app.limites_operacionais_por_engine)
+            for nome, cfg in limites.items():
+                if not isinstance(cfg, dict):
+                    continue
+                atual = dict(merged.get(str(nome), {}))
+                atual.update({str(k): v for k, v in cfg.items()})
+                merged[str(nome)] = atual
+            web_app.limites_operacionais_por_engine = merged
+        return {
+            "engine_http_preferida": web_app.engine_http_preferida,
+            "fallback_automatico": web_app.engine_http_fallback_automatico,
+            "shutdown_gracioso_segundos": web_app.shutdown_gracioso_segundos,
+            "limites_operacionais_por_engine": dict(web_app.limites_operacionais_por_engine),
+        }
+
     def web_ativar_healthcheck(app: object, caminho: str = "/saude") -> None:
         web_app = _as_app(app)
         web_app.health_enabled = True
@@ -1808,6 +1838,11 @@ def make_builtins(
             raise TypeError("conexão inválida")
         return await db_runtime.schema_inspecionar(conn)
 
+    def db_capacidades(conn: object) -> dict[str, object]:
+        if not isinstance(conn, db_runtime.DbConnection):
+            raise TypeError("conexão inválida")
+        return db_runtime.conexao_capacidades(conn)
+
     def schema_diff(schema_atual: dict[str, object], schema_esperado: dict[str, object]) -> dict[str, object]:
         return db_runtime.schema_diff(schema_atual, schema_esperado)
 
@@ -2165,6 +2200,7 @@ def make_builtins(
     web_openapi_gerar = web_gerar_openapi
     web_openapi_exportar = web_exportar_openapi
     web_sdk_gerar = web_gerar_sdk
+    web_engine_configurar = web_configurar_engine_http
     web_configurar_hardening = web_configurar_seguranca_http
     web_security_configure = web_configurar_seguranca_http
     web_socket_rota = web_tempo_real_rota
@@ -2315,6 +2351,8 @@ def make_builtins(
         "web_adicionar_rota_echo_json": web_adicionar_rota_echo_json,
         "web_usar_middleware": web_usar_middleware,
         "web_configurar_cors": web_configurar_cors,
+        "web_configurar_engine_http": web_configurar_engine_http,
+        "web_engine_configurar": web_engine_configurar,
         "web_configurar_seguranca_http": web_configurar_seguranca_http,
         "web_configurar_hardening": web_configurar_hardening,
         "web_security_configure": web_security_configure,
@@ -2443,6 +2481,7 @@ def make_builtins(
         "schema_constraint_check": schema_constraint_check,
         "schema_definir_tabela": schema_definir_tabela,
         "schema_definir": schema_definir,
+        "db_capacidades": db_capacidades,
         "schema_inspecionar": schema_inspecionar,
         "schema_diff": schema_diff,
         "schema_preview_plano": schema_preview_plano,

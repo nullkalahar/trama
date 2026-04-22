@@ -1,0 +1,13 @@
+assíncrona função principal()
+    # Requer PostgreSQL local disponível.
+    conn = aguarde banco_conectar("postgresql://trama:trama@127.0.0.1:5432/trama_ci")
+    caps = db_capacidades(conn)
+
+    exibir(caps["backend"])
+    exibir(caps["dialeto_sql"])
+    exibir(caps["json_nativo"])
+    exibir(caps["schema_drop_column"])
+
+    aguarde banco_fechar(conn)
+fim
+

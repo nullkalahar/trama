@@ -130,10 +130,17 @@ scripts/build_release_nativo.sh 2.1.3 amd64
 - `docs/LINGUAGEM_V2_1_1.md`
 - `docs/LINGUAGEM_V2_1_2.md`
 - `docs/LINGUAGEM_V2_1_3.md`
+- `docs/LINGUAGEM_V2_1_11.md`
+- `docs/LINGUAGEM_V2_1_17.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_17.md`
+- `docs/OPERACAO_V2_1_17_ENGINE_ASGI_DB_CAPACIDADES.md`
+- `docs/REFERENCIA_CAPACIDADES_DB_V2_1_17.md`
 
 ### Manuais consolidados e operação
 - `docs/MANUAL_TRAMA_COMPLETO_V2_1_3.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_11.md`
 - `docs/OPERACAO_V2_1_3_SUBSTITUICAO_TOTAL.md`
+- `docs/OPERACAO_V2_1_11_REALTIME_MODULAR.md`
 - `docs/OPERACAO_V2_1_2_BACKEND_COMPLEXO.md`
 - `docs/OPERACAO_CI_CD_RELEASE_V2_1_0.md`
 - `docs/GOVERNANCA_CONTRIBUICAO_V2_1_0.md`
@@ -164,6 +171,8 @@ scripts/build_release_nativo.sh 2.1.3 amd64
 - `exemplos/v211/`
 - `exemplos/v212/`
 - `exemplos/v213/`
+- `exemplos/v214/`
+- `exemplos/v217/`
 
 ## Roadmap Versionado (Checklist)
 
@@ -298,6 +307,43 @@ Evidências principais da v2.1.3:
 - `docs/TODO_V2_1_3_IMPLEMENTACAO_TOTAL.md`
 - `docs/LINGUAGEM_V2_1_3.md`
 - `exemplos/v213/` (pacote amplo + ARLS)
+
+### v2.1.4+ - Evolução incremental da base ao topo
+- [x] `v2.1.4` separar `web_runtime.py` em núcleo HTTP, modelo de rotas/DTO/contrato e engine legada baseada em `http.server`
+- [x] `v2.1.5` introduzir interface de engine HTTP pluggável mantendo compatibilidade total da superfície atual
+- [x] `v2.1.6` criar suíte de paridade entre engine legada e nova abstração HTTP com os testes `v202`
+- [x] `v2.1.7` extrair `TempoRealHub` e o core de presença/salas/cursor/ack para módulo dedicado desacoplado do servidor HTTP
+- [x] `v2.1.8` extrair transporte fallback HTTP de tempo real para módulo próprio, preservando replay/reconexão por cursor
+- [x] `v2.1.9` extrair transporte WebSocket para módulo próprio com handshake, frames e fechamento isolados
+- [x] `v2.1.10` formalizar interface de backplane de realtime com backend de memória como implementação de referência
+- [x] `v2.1.11` endurecer o backend Redis de realtime com testes reais de integração multi-instância e sincronização
+- [x] `v2.1.12` introduzir engine ASGI como backend HTTP de produção mantendo a engine legada como fallback compatível
+- [x] `v2.1.13` adicionar shutdown gracioso, readiness/liveness e limites operacionais consistentes nas engines HTTP
+- [x] `v2.1.14` separar dialeto SQL, conexão e ORM para que SQLite e PostgreSQL virem backends de primeira classe
+- [x] `v2.1.15` ampliar a suíte de integração PostgreSQL real para cobrir transação, paginação, constraints, migração e seed
+- [x] `v2.1.16` consolidar introspecção e diff de schema por dialeto com paridade real entre SQLite/PostgreSQL
+- [x] `v2.1.17` formalizar camada de capability/capacidades por backend de banco para evitar comportamento implícito de SQLite
+- [ ] `v2.1.18` dividir segurança em módulos de JWT, sessão, RBAC e políticas, preservando a API canônica existente
+- [ ] `v2.1.19` adicionar suporte a JWT assimétrico (`RS256`) com chaves locais e `kid`
+- [ ] `v2.1.20` adicionar suporte a JWK/JWKS com cache, rotação e validação de `iss`/`aud`
+- [ ] `v2.1.21` introduzir base de autenticação federada/OIDC para consumo de provedores externos
+- [ ] `v2.1.22` evoluir autorização de RBAC puro para políticas contextuais baseadas em ator/ação/recurso/contexto
+- [ ] `v2.1.23` transformar jobs em fachada com backend pluggável, preservando o backend em memória atual para desenvolvimento
+- [ ] `v2.1.24` adicionar backend persistente de jobs via SQL com retry, leasing, DLQ e reprocessamento
+- [ ] `v2.1.25` criar worker standalone e comandos operacionais para filas, DLQ e reprocessamento
+- [ ] `v2.1.26` adicionar backend Redis para jobs e concorrência distribuída controlada
+- [ ] `v2.1.27` formalizar modelo de contrato/IR para HTTP, DTOs, erros, auth, exemplos e versionamento
+- [ ] `v2.1.28` fazer OpenAPI consumir o IR formal em vez de depender diretamente das estruturas ad hoc do runtime
+- [ ] `v2.1.29` fazer geração de SDK Python/TypeScript consumir o mesmo IR formal de contrato
+- [ ] `v2.1.30` adicionar verificação automatizada de breaking changes em contrato entre versões
+- [ ] `v2.1.31` evoluir storage para pipeline de upload com validação de MIME, tamanho, hash e promoção temporário->definitivo
+- [ ] `v2.1.32` endurecer multipart/streaming para upload grande sem depender de payload inteiro em memória
+- [ ] `v2.1.33` adicionar pipeline de mídia com transformação, variantes e metadados conectada ao storage
+- [ ] `v2.1.34` formalizar políticas de lifecycle, URL assinada, retenção e visibilidade por backend de storage
+- [ ] `v2.1.35` ampliar observabilidade com propagação W3C (`traceparent`), métricas por engine e tracing mais formal
+- [ ] `v2.1.36` integrar circuit breaker, timeouts globais, pools configuráveis e diagnóstico operacional por ambiente
+- [ ] `v2.1.37` fechar a plataforma backend de produção com benchmark, suíte de carga multi-processo e critérios SLO oficiais
+- [ ] `v2.1.38` consolidar documentação final da arquitetura modular de produção e a matriz oficial de capacidades por camada
 
 ### v2.5 (frontend futuro)
 - [ ] toolkit de UI, estado e renderização

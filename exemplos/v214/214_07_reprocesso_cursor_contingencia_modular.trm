@@ -1,0 +1,28 @@
+função h(req)
+    retorne {"aceitar": verdadeiro}
+fim
+
+assíncrona função principal()
+    app = web_criar_app()
+    web_tempo_real_rota(app, "/ws/replay", h)
+    web_tempo_real_ativar_fallback(app, "/tempo-real/fallback", 1.0)
+    srv = aguarde web_iniciar(app, "127.0.0.1", 0)
+    base = srv["base_url"]
+
+    c1 = aguarde http_post(base + "/tempo-real/fallback/conectar", {"canal": "/ws/replay"}, {"Content-Type": "application/json"})
+    id1 = c1["json"]["id_conexao"]
+    web_tempo_real_publicar(app, "/ws/replay", "e1", {"n": 1})
+    r1 = aguarde http_get(base + "/tempo-real/fallback/receber?id_conexao=" + id1 + "&timeout_segundos=0.2")
+    cursor = r1["json"]["cursor_ate"]
+    exibir(cursor > 0)
+
+    aguarde http_post(base + "/tempo-real/fallback/desconectar", {"id_conexao": id1}, {"Content-Type": "application/json"})
+    c2 = aguarde http_post(base + "/tempo-real/fallback/conectar", {"canal": "/ws/replay", "cursor_ultimo": cursor}, {"Content-Type": "application/json"})
+    id2 = c2["json"]["id_conexao"]
+    web_tempo_real_publicar(app, "/ws/replay", "e2", {"n": 2})
+    r2 = aguarde http_get(base + "/tempo-real/fallback/receber?id_conexao=" + id2 + "&timeout_segundos=0.2")
+    exibir(r2["json"]["cursor_ate"] >= cursor)
+    exibir(tamanho(r2["json"]["eventos"]) >= 1)
+
+    aguarde web_parar(srv)
+fim

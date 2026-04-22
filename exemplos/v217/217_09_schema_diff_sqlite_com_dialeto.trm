@@ -1,0 +1,26 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_v217_diff_sqlite.db")
+    atual = aguarde schema_inspecionar(conn)
+
+    esperado = {
+        "dialeto_sql": "sqlite",
+        "tabelas": [
+            schema_definir_tabela(
+                "usuarios",
+                [
+                    {"nome": "id", "tipo": "INTEGER", "pk": verdadeiro},
+                    {"nome": "nome", "tipo": "TEXT", "nulo": falso}
+                ]
+            )
+        ]
+    }
+
+    diff = schema_diff(atual, esperado)
+    previa = schema_preview_plano(diff)
+    aplicar = aguarde schema_aplicar_diff(conn, diff, verdadeiro)
+
+    exibir(diff["dialeto_esperado"])
+    exibir(previa["total"] >= 1)
+    exibir(aplicar["dry_run"])
+    aguarde banco_fechar(conn)
+fim

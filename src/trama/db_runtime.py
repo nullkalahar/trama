@@ -65,6 +65,38 @@ def _detect_backend(dsn: str) -> str:
     raise DbError(f"DSN não suportada: {dsn}")
 
 
+def backend_capacidades(backend: str) -> dict[str, object]:
+    b = str(backend).strip().lower()
+    if b not in {"sqlite", "postgres"}:
+        raise DbError(f"Backend não suportado para capabilities: {backend}")
+    caps = {
+        "backend": b,
+        "dialeto_sql": "sqlite" if b == "sqlite" else "postgresql",
+        "transacao": True,
+        "migracao_versionada": True,
+        "seed_ambiente": True,
+        "schema_inspecao": True,
+        "schema_diff_aplicar": True,
+        "json_nativo": b == "postgres",
+        "retorno_insert_id": True,
+    }
+    if b == "sqlite":
+        caps["concorrencia_escrita"] = "serializada"
+        caps["schema_drop_column"] = False
+    else:
+        caps["concorrencia_escrita"] = "multiconexao"
+        caps["schema_drop_column"] = True
+    return caps
+
+
+def conexao_capacidades(conn: DbConnection) -> dict[str, object]:
+    return backend_capacidades(conn.backend)
+
+
+def _dialeto_backend(conn: DbConnection) -> str:
+    return str(backend_capacidades(conn.backend).get("dialeto_sql", conn.backend))
+
+
 def _resolve_sqlite_path(dsn: str) -> Path:
     return Path(dsn[len("sqlite:///") :]).resolve()
 
@@ -1131,23 +1163,30 @@ def schema_definir_tabela(
     }
 
 
-def schema_definir(colunas_tabelas: list[dict[str, object]]) -> dict[str, object]:
+def schema_definir(colunas_tabelas: list[dict[str, object]], dialeto_sql: str = "") -> dict[str, object]:
     tabelas = sorted(colunas_tabelas, key=lambda t: str(t.get("nome", "")))
-    return {"tabelas": tabelas}
+    out = {"tabelas": tabelas}
+    if str(dialeto_sql).strip():
+        out["dialeto_sql"] = str(dialeto_sql).strip()
+    return out
 
 
-def _render_coluna_sql(col: dict[str, object]) -> str:
+def _render_coluna_sql(col: dict[str, object], *, dialeto: str = "sqlite") -> str:
     nome = _escapar_identificador(str(col["nome"]))
     tipo = str(col.get("tipo", "TEXT")).upper()
     nullable = bool(col.get("nulo", True))
     pk = bool(col.get("pk", False))
     auto = bool(col.get("auto_incremento", False))
     default = col.get("padrao")
+    dialeto_norm = str(dialeto).lower()
+
+    if dialeto_norm == "postgresql" and auto and tipo in {"INTEGER", "INT"}:
+        tipo = "SERIAL"
 
     parts = [nome, tipo]
     if pk:
         parts.append("PRIMARY KEY")
-    if auto and tipo == "INTEGER":
+    if auto and tipo == "INTEGER" and dialeto_norm == "sqlite":
         parts.append("AUTOINCREMENT")
     if not nullable:
         parts.append("NOT NULL")
@@ -1185,32 +1224,86 @@ def _render_constraint_sql(c: dict[str, object]) -> str:
 
 
 async def schema_inspecionar(conn: DbConnection) -> dict[str, object]:
-    if conn.backend != "sqlite":
-        raise DbError("schema_inspecionar atualmente suporta SQLite.")
-    tables = await consultar(
-        conn,
-        "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name ASC",
-    )
-    out_tables: list[dict[str, object]] = []
-    for t in tables:
-        nome = str(t["name"])
-        pragma_cols = await consultar(conn, f"PRAGMA table_info({nome})")
-        colunas = []
-        for c in pragma_cols:
-            colunas.append(
-                {
-                    "nome": c["name"],
-                    "tipo": c["type"],
-                    "nulo": not bool(c["notnull"]),
-                    "pk": bool(c["pk"]),
-                    "padrao": c["dflt_value"],
-                }
+    if conn.backend == "sqlite":
+        tables = await consultar(
+            conn,
+            "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name ASC",
+        )
+        out_tables: list[dict[str, object]] = []
+        for t in tables:
+            nome = str(t["name"])
+            pragma_cols = await consultar(conn, f"PRAGMA table_info({nome})")
+            colunas = []
+            for c in pragma_cols:
+                colunas.append(
+                    {
+                        "nome": c["name"],
+                        "tipo": c["type"],
+                        "nulo": not bool(c["notnull"]),
+                        "pk": bool(c["pk"]),
+                        "padrao": c["dflt_value"],
+                    }
+                )
+            out_tables.append({"nome": nome, "colunas": colunas, "sql": t.get("sql")})
+        return {"backend": conn.backend, "dialeto_sql": _dialeto_backend(conn), "tabelas": out_tables}
+
+    if conn.backend == "postgres":
+        tabelas_rows = await consultar(
+            conn,
+            (
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_type = 'BASE TABLE' "
+                "ORDER BY table_name ASC"
+            ),
+        )
+        out_tables: list[dict[str, object]] = []
+        for tr in tabelas_rows:
+            nome = str(tr["table_name"])
+            cols_rows = await consultar(
+                conn,
+                (
+                    "SELECT c.column_name, c.data_type, c.is_nullable, c.column_default, "
+                    "COALESCE(k.is_pk, FALSE) AS is_pk "
+                    "FROM information_schema.columns c "
+                    "LEFT JOIN ("
+                    "  SELECT kcu.column_name, TRUE AS is_pk "
+                    "  FROM information_schema.table_constraints tc "
+                    "  JOIN information_schema.key_column_usage kcu "
+                    "    ON tc.constraint_name = kcu.constraint_name "
+                    "   AND tc.table_schema = kcu.table_schema "
+                    "   AND tc.table_name = kcu.table_name "
+                    "  WHERE tc.table_schema = 'public' "
+                    "    AND tc.table_name = ? "
+                    "    AND tc.constraint_type = 'PRIMARY KEY'"
+                    ") k ON k.column_name = c.column_name "
+                    "WHERE c.table_schema = 'public' AND c.table_name = ? "
+                    "ORDER BY c.ordinal_position ASC"
+                ),
+                [nome, nome],
             )
-        out_tables.append({"nome": nome, "colunas": colunas, "sql": t.get("sql")})
-    return {"tabelas": out_tables}
+            colunas = [
+                {
+                    "nome": c["column_name"],
+                    "tipo": c["data_type"],
+                    "nulo": str(c["is_nullable"]).upper() == "YES",
+                    "pk": bool(c.get("is_pk")),
+                    "padrao": c.get("column_default"),
+                }
+                for c in cols_rows
+            ]
+            out_tables.append({"nome": nome, "colunas": colunas, "sql": None})
+        return {"backend": conn.backend, "dialeto_sql": _dialeto_backend(conn), "tabelas": out_tables}
+
+    caps = backend_capacidades(conn.backend)
+    raise DbError(
+        f"schema_inspecionar indisponível para backend '{conn.backend}'. "
+        f"Capabilities: {json.dumps(caps, ensure_ascii=False, sort_keys=True)}"
+    )
 
 
 def schema_diff(schema_atual: dict[str, object], schema_esperado: dict[str, object]) -> dict[str, object]:
+    dialeto_atual = str(schema_atual.get("dialeto_sql", "") or "")
+    dialeto_esperado = str(schema_esperado.get("dialeto_sql", "") or "")
     atual_map = {str(t["nome"]): t for t in list(schema_atual.get("tabelas", []))}
     esperado_map = {str(t["nome"]): t for t in list(schema_esperado.get("tabelas", []))}
     plano: list[dict[str, object]] = []
@@ -1229,7 +1322,12 @@ def schema_diff(schema_atual: dict[str, object], schema_esperado: dict[str, obje
         if nome not in esperado_map:
             plano.append({"acao": "remover_tabela", "tabela": nome})
 
-    return {"passos": plano, "resumo": {"total_passos": len(plano)}}
+    return {
+        "passos": plano,
+        "dialeto_atual": dialeto_atual,
+        "dialeto_esperado": dialeto_esperado,
+        "resumo": {"total_passos": len(plano)},
+    }
 
 
 def schema_preview_plano(diff: dict[str, object]) -> dict[str, object]:
@@ -1245,8 +1343,11 @@ async def schema_aplicar_diff(
     diff: dict[str, object],
     dry_run: bool = False,
 ) -> dict[str, object]:
+    if not bool(conexao_capacidades(conn).get("schema_diff_aplicar", False)):
+        raise DbError(f"Backend '{conn.backend}' não suporta aplicação de schema diff.")
     passos = list(diff.get("passos", []))
     executados = 0
+    dialeto = _dialeto_backend(conn)
     tx = await transacao_iniciar(conn)
     try:
         for passo in passos:
@@ -1256,14 +1357,14 @@ async def schema_aplicar_diff(
                 definicao = dict(passo.get("definicao", {}))
                 colunas = list(definicao.get("colunas", []))
                 constraints = list(definicao.get("constraints", []))
-                parts = [_render_coluna_sql(c) for c in colunas]
+                parts = [_render_coluna_sql(c, dialeto=dialeto) for c in colunas]
                 parts.extend(_render_constraint_sql(c) for c in constraints)
                 sql = f"CREATE TABLE IF NOT EXISTS {tabela} ({', '.join(parts)})"
                 await tx_executar(tx, sql)
                 executados += 1
             elif acao == "adicionar_coluna":
                 col = dict(passo.get("coluna", {}))
-                sql = f"ALTER TABLE {tabela} ADD COLUMN {_render_coluna_sql(col)}"
+                sql = f"ALTER TABLE {tabela} ADD COLUMN {_render_coluna_sql(col, dialeto=dialeto)}"
                 await tx_executar(tx, sql)
                 executados += 1
             elif acao == "remover_tabela":
@@ -1284,11 +1385,12 @@ async def schema_aplicar_diff(
 
 async def _ensure_meta_tables_v201(conn: DbConnection) -> None:
     await _ensure_meta_tables(conn)
+    id_tipo = "INTEGER PRIMARY KEY AUTOINCREMENT" if conn.backend == "sqlite" else "BIGSERIAL PRIMARY KEY"
     await executar(
         conn,
-        """
+        f"""
         CREATE TABLE IF NOT EXISTS _trama_migration_runs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_tipo},
             versao TEXT,
             nome TEXT NOT NULL,
             ambiente TEXT NOT NULL DEFAULT 'dev',

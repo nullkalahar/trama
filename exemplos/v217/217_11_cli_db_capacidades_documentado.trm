@@ -1,0 +1,7 @@
+função principal()
+    exibir("Comando CLI para capabilities:")
+    exibir("trama db-capacidades --dsn sqlite:///./dados/app.db --json")
+    exibir("Comando CLI para PostgreSQL:")
+    exibir("trama db-capacidades --dsn postgresql://usuario:senha@127.0.0.1:5432/app --json")
+fim
+

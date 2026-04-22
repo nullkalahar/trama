@@ -1,0 +1,13 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_v217_caps_sqlite.db")
+    caps = db_capacidades(conn)
+
+    exibir(caps["backend"])
+    exibir(caps["dialeto_sql"])
+    exibir(caps["schema_inspecao"])
+    exibir(caps["schema_diff_aplicar"])
+    exibir(caps["schema_drop_column"])
+
+    aguarde banco_fechar(conn)
+fim
+

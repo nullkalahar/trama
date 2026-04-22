@@ -1,0 +1,13 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_v217_schema_sqlite.db")
+    aguarde banco_executar(conn, "CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL)")
+
+    schema = aguarde schema_inspecionar(conn)
+    exibir(schema["backend"])
+    exibir(schema["dialeto_sql"])
+    exibir(tamanho(schema["tabelas"]) >= 1)
+    exibir(schema["tabelas"][0]["nome"])
+
+    aguarde banco_fechar(conn)
+fim
+

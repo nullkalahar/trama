@@ -1,6 +1,6 @@
 # Exemplos da Trama
 
-Este diretório traz exemplos cobrindo recursos da linguagem do v0.1 ao v2.1.1.
+Este diretório traz exemplos cobrindo recursos da linguagem do v0.1 ao v2.1.17.
 
 ## Como executar
 
@@ -101,6 +101,10 @@ trama executar exemplos/01_ola_mundo.trm
 - `v213/README_EXEMPLOS_V213.md`: coleção v2.1.3 (substituição total JS/TS por Trama nativa)
 - `v213/213_01_exemplo_v213.trm` até `v213/213_88_dados_nativos_migracao_seed_diag.trm`: pacote massivo de backend, contrato HTTP, dados nativos, frontend/PWA, operação/release e fluxo ARLS completo
 - `v213/arls_amm_trm/`: módulos de domínio ARLS em `.trm` (auth, obreiros, visitantes, reuniões e dashboard)
+- `v214/README_EXEMPLOS_V214.md`: coleção v2.1.4-v2.1.11 (modularização web/realtime)
+- `v214/214_01_estado_modular.trm` até `v214/214_10_paridade_motor_fumaca.trm`: extrações de módulos web/realtime, backplane e paridade de fachada HTTP
+- `v217/README_V217_EXEMPLOS.md`: coleção v2.1.12-v2.1.17 (ASGI, operação HTTP e capacidades de banco)
+- `v217/217_01_engine_legada_padrao.trm` até `v217/217_15_fluxo_completo_web_db_v217.trm`: engine HTTP, saúde/readiness/liveness, limites operacionais, capabilities e schema por dialeto
 - `sintaxe/01_expressoes_multilinha.trm`: lista/mapa/chamada multilinha
 - `sintaxe/02_encadeamento_multilinha.trm`: encadeamento com indexação multilinha
 - `anilist/README_ANILIST_EXEMPLOS.md`: coleção completa de integrações AniList (anime/mangá + DB em `.local/tests/anilist/`)

@@ -1,0 +1,24 @@
+assíncrona função principal()
+    # Requer PostgreSQL local disponível.
+    conn = aguarde banco_conectar("postgresql://trama:trama@127.0.0.1:5432/trama_ci")
+    atual = aguarde schema_inspecionar(conn)
+
+    esperado = {
+        "dialeto_sql": "postgresql",
+        "tabelas": [
+            schema_definir_tabela(
+                "v217_exemplo_pg",
+                [
+                    {"nome": "id", "tipo": "INTEGER", "pk": verdadeiro, "auto_incremento": verdadeiro},
+                    {"nome": "nome", "tipo": "TEXT", "nulo": falso}
+                ]
+            )
+        ]
+    }
+
+    diff = schema_diff(atual, esperado)
+    previa = schema_preview_plano(diff)
+    exibir(diff["dialeto_esperado"])
+    exibir(previa["total"] >= 0)
+    aguarde banco_fechar(conn)
+fim

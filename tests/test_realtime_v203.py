@@ -359,3 +359,184 @@ def test_v203_backplane_redis_integracao_real() -> None:
         if proc is not None:
             proc.terminate()
             proc.wait(timeout=3)
+
+
+def test_v203_backplane_redis_ack_nack_reenvio() -> None:
+    redis_url = os.environ.get("TRAMA_TEST_REDIS_URL")
+    proc: subprocess.Popen[bytes] | None = None
+    workdir: Path | None = None
+
+    if not redis_url:
+        redis_bin = shutil.which("redis-server")
+        if redis_bin:
+            workdir = Path(".local/tmp/v203_redis_test_ack")
+            workdir.mkdir(parents=True, exist_ok=True)
+            porta = 6392
+            cfg = workdir / "redis_v203_ack.conf"
+            cfg.write_text(
+                "\n".join(
+                    [
+                        f"port {porta}",
+                        "bind 127.0.0.1",
+                        "save \"\"",
+                        "appendonly no",
+                        "daemonize no",
+                        f"dir {workdir}",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            proc = subprocess.Popen([redis_bin, str(cfg)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(0.25)
+            redis_url = f"redis://127.0.0.1:{porta}/0"
+        else:
+            pytest.skip("Sem redis-server local e sem TRAMA_TEST_REDIS_URL para validar integração redis.")
+
+    sufixo = f"{int(time.time() * 1000)}"
+    grupo_redis = f"g_v203_redis_ack_{sufixo}"
+    chave_prefixo = f"trama:test:v203:ack:{sufixo}"
+
+    a = web_runtime.TempoRealHub()
+    b = web_runtime.TempoRealHub()
+    a.registrar_rota("/ws/dist", lambda req: {"aceitar": True}, {})
+    b.registrar_rota("/ws/dist", lambda req: {"aceitar": True}, {})
+    a.configurar_distribuicao(
+        ativar=True,
+        grupo=grupo_redis,
+        id_instancia="a",
+        auto_sincronizar=False,
+        backplane="redis",
+        redis_url=redis_url,
+        chave_prefixo_redis=chave_prefixo,
+    )
+    b.configurar_distribuicao(
+        ativar=True,
+        grupo=grupo_redis,
+        id_instancia="b",
+        auto_sincronizar=False,
+        backplane="redis",
+        redis_url=redis_url,
+        chave_prefixo_redis=chave_prefixo,
+    )
+    try:
+        ok, c = b.conectar("/ws/dist", "127.0.0.1", "u_redis_ack", "r1", "t1", "fallback")
+        assert ok is True
+        assert isinstance(c, web_runtime.TempoRealConexao)
+
+        pub = a.publicar_mensagem("/ws/dist", "evt_ack", {"ok": True}, id_usuario="u_redis_ack", exigir_ack=True)
+        assert int(pub["cursor"]) > 0
+        b.sincronizar_distribuicao()
+        eventos = [e for e in c.drenar(20) if e.get("evento") == "evt_ack"]
+        assert len(eventos) == 1
+        msg = eventos[0]
+        msg_id = str(msg["id_mensagem"])
+        cursor = int(msg["cursor"])
+
+        nack = b.confirmar_ack("/ws/dist", msg_id, c.id_conexao, status="nack")
+        assert nack["ok"] is True
+        a.sincronizar_distribuicao()
+        b.sincronizar_distribuicao()
+
+        retries = [e for e in c.drenar(20) if str(e.get("id_mensagem")) == msg_id]
+        assert len(retries) >= 1
+        assert all(int(e.get("cursor", 0)) == cursor for e in retries)
+
+        ack = b.confirmar_ack("/ws/dist", msg_id, c.id_conexao, status="ack")
+        assert ack["ok"] is True
+        a.sincronizar_distribuicao()
+        pend_a = a.snapshot("/ws/dist")["canais"][0]["pendencias_ack"]
+        assert pend_a == 0
+    finally:
+        if proc is not None:
+            proc.terminate()
+            proc.wait(timeout=3)
+
+
+def test_v203_backplane_redis_indisponibilidade_e_recuperacao() -> None:
+    redis_url = os.environ.get("TRAMA_TEST_REDIS_URL")
+    proc: subprocess.Popen[bytes] | None = None
+    workdir: Path | None = None
+
+    if not redis_url:
+        redis_bin = shutil.which("redis-server")
+        if redis_bin:
+            workdir = Path(".local/tmp/v203_redis_test_recover")
+            workdir.mkdir(parents=True, exist_ok=True)
+            porta = 6393
+            cfg = workdir / "redis_v203_recover.conf"
+            cfg.write_text(
+                "\n".join(
+                    [
+                        f"port {porta}",
+                        "bind 127.0.0.1",
+                        "save \"\"",
+                        "appendonly no",
+                        "daemonize no",
+                        f"dir {workdir}",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            proc = subprocess.Popen([redis_bin, str(cfg)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(0.25)
+            redis_url = f"redis://127.0.0.1:{porta}/0"
+        else:
+            pytest.skip("Sem redis-server local e sem TRAMA_TEST_REDIS_URL para validar integração redis.")
+
+    sufixo = f"{int(time.time() * 1000)}"
+    grupo_redis = f"g_v203_redis_rec_{sufixo}"
+    chave_prefixo = f"trama:test:v203:rec:{sufixo}"
+
+    a = web_runtime.TempoRealHub()
+    b = web_runtime.TempoRealHub()
+    a.registrar_rota("/ws/dist", lambda req: {"aceitar": True}, {})
+    b.registrar_rota("/ws/dist", lambda req: {"aceitar": True}, {})
+    a.configurar_distribuicao(
+        ativar=True,
+        grupo=grupo_redis,
+        id_instancia="a",
+        auto_sincronizar=False,
+        backplane="redis",
+        redis_url=redis_url,
+        chave_prefixo_redis=chave_prefixo,
+    )
+    b.configurar_distribuicao(
+        ativar=True,
+        grupo=grupo_redis,
+        id_instancia="b",
+        auto_sincronizar=False,
+        backplane="redis",
+        redis_url=redis_url,
+        chave_prefixo_redis=chave_prefixo,
+    )
+    try:
+        ok_a, ca = a.conectar("/ws/dist", "127.0.0.1", "u_a", "r1", "t1", "fallback")
+        ok_b, cb = b.conectar("/ws/dist", "127.0.0.1", "u_b", "r2", "t2", "fallback")
+        assert ok_a is True and ok_b is True
+        assert isinstance(ca, web_runtime.TempoRealConexao)
+        assert isinstance(cb, web_runtime.TempoRealConexao)
+
+        out_cfg = a.configurar_backplane(disponivel=False)
+        assert out_cfg["ok"] is True
+        pub_local = a.publicar_mensagem("/ws/dist", "evt_local", {"ok": True}, exigir_ack=False)
+        assert pub_local["backplane_degradado"] is True
+        locais = [e for e in ca.drenar(20) if e.get("evento") == "evt_local"]
+        assert len(locais) >= 1
+
+        snap_a = a.snapshot("/ws/dist")
+        assert snap_a["distribuicao"]["degradado"] is True
+        assert snap_a["metricas"]["falhas_backplane"] >= 1
+
+        a.configurar_backplane(disponivel=True)
+        pub_sync = a.publicar_mensagem("/ws/dist", "evt_sync", {"ok": True}, exigir_ack=False)
+        assert int(pub_sync["cursor"]) > 0
+        aplicados = b.sincronizar_distribuicao()
+        assert aplicados >= 1
+        remotos = [e for e in cb.drenar(20) if e.get("evento") == "evt_sync"]
+        assert len(remotos) >= 1
+    finally:
+        if proc is not None:
+            proc.terminate()
+            proc.wait(timeout=3)

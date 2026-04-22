@@ -1,0 +1,22 @@
+função principal()
+    atual = {"dialeto_sql": "sqlite", "tabelas": []}
+    esperado = {
+        "dialeto_sql": "sqlite",
+        "tabelas": [
+            schema_definir_tabela(
+                "auditoria",
+                [
+                    {"nome": "id", "tipo": "INTEGER", "pk": verdadeiro},
+                    {"nome": "evento", "tipo": "TEXT", "nulo": falso}
+                ]
+            )
+        ]
+    }
+
+    diff = schema_diff(atual, esperado)
+    previa = schema_preview_plano(diff)
+
+    exibir(diff["dialeto_atual"])
+    exibir(diff["dialeto_esperado"])
+    exibir(previa["total"])
+fim

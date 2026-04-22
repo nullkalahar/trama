@@ -1,0 +1,26 @@
+assíncrona função principal()
+    conn = aguarde banco_conectar("sqlite:////tmp/trama_v217_mig_seed.db")
+
+    mig = aguarde migracao_aplicar_versionada_v2(
+        conn,
+        "217.001",
+        "criar_tabela_itens",
+        "CREATE TABLE IF NOT EXISTS itens (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL);",
+        "DROP TABLE IF EXISTS itens;",
+        "teste",
+        falso
+    )
+    seed = aguarde seed_aplicar_ambiente(
+        conn,
+        "teste",
+        "base_itens",
+        "INSERT INTO itens (nome) VALUES ('a'); INSERT INTO itens (nome) VALUES ('b');"
+    )
+    itens = aguarde banco_consultar(conn, "SELECT id, nome FROM itens ORDER BY id ASC")
+
+    exibir(mig["aplicada"])
+    exibir(seed["ok"])
+    exibir(tamanho(itens))
+    aguarde banco_fechar(conn)
+fim
+

@@ -158,6 +158,10 @@ def build_parser() -> argparse.ArgumentParser:
     seed_aplicar.add_argument("--nome", required=True, help="Nome da seed")
     seed_aplicar.add_argument("--sql-arquivo", required=True, help="Arquivo SQL da seed")
 
+    db_caps = sub.add_parser("db-capacidades", help="Exibe capabilities formais do backend de banco")
+    db_caps.add_argument("--dsn", required=True, help="DSN de banco")
+    db_caps.add_argument("--json", action="store_true", help="Saída em JSON")
+
     op_diag = sub.add_parser("operacao-diagnostico", help="Diagnóstico operacional padronizado")
     op_diag.add_argument("--json", action="store_true", help="Saída em JSON")
 
@@ -449,6 +453,14 @@ def main(argv: list[str] | None = None) -> int:
             out = asyncio.run(_db_seed_aplicar_ambiente(args.dsn, args.ambiente, args.nome, sql))
             print(json.dumps(out, ensure_ascii=False, indent=2))
             return 0
+        if args.command == "db-capacidades":
+            out = asyncio.run(_db_capacidades(args.dsn))
+            if args.json:
+                print(json.dumps(out, ensure_ascii=False, indent=2))
+            else:
+                print(f"backend={out['backend']} dialeto={out['dialeto_sql']}")
+                print(json.dumps(out, ensure_ascii=False, indent=2))
+            return 0
         if args.command == "operacao-diagnostico":
             payload = _operacao_diagnostico()
             if args.json:
@@ -662,6 +674,14 @@ async def _db_seed_aplicar_ambiente(dsn: str, ambiente: str, nome: str, sql: str
     conn = await db_runtime.conectar(dsn)
     try:
         return await db_runtime.seed_aplicar_ambiente(conn, ambiente, nome, sql)
+    finally:
+        await db_runtime.fechar(conn)
+
+
+async def _db_capacidades(dsn: str) -> dict[str, object]:
+    conn = await db_runtime.conectar(dsn)
+    try:
+        return db_runtime.conexao_capacidades(conn)
     finally:
         await db_runtime.fechar(conn)
 

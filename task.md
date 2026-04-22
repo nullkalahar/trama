@@ -331,3 +331,182 @@ dependência: `rc.1`; release apenas com todas as suítes obrigatórias verdes.
   - baseline de performance reproduzível;
   - caos/falha parcial validados;
   - artefatos de release + rollback testados.
+
+## 12. Roadmap operacional v2.1.4+ (tarefas executáveis)
+
+### v2.1.4 - separar `web_runtime.py` em núcleo HTTP, modelo e engine legada
+- [x] criar trilha operacional detalhada para os itens `v2.1.4+`
+- [x] extrair `WebRoute`, `RateLimitPolicy` e `RateLimitDistribuidoPolicy` para módulo dedicado `src/trama/web_model.py`
+- [x] extrair configuração de `WebApp` e contratos HTTP para módulo próprio de modelo
+- [x] mover a engine legada baseada em `http.server` para módulo dedicado, preservando a API pública de `web_runtime`
+- [x] validar compatibilidade com testes web existentes (`v202`, cache, segurança, observabilidade e multipart)
+
+### v2.1.5 - introduzir interface de engine HTTP pluggável
+- [x] definir contrato interno `HttpEngine`/`HttpRuntimeEngine`
+- [x] adaptar `WebRuntime` para atuar como fachada da engine selecionada
+- [x] registrar a engine legada como implementação padrão
+
+### v2.1.6 - criar suíte de paridade entre engines
+- [x] duplicar os cenários `v202` para uma matriz por engine
+- [x] validar paridade de headers, envelopes e códigos de erro
+- [x] bloquear regressão por CI com suíte de paridade
+
+### v2.1.7 - extrair core de realtime
+- [x] mover `TempoRealHub` e conexões para módulo `realtime_core`
+- [x] separar estado de presença/salas/ack/cursor da camada HTTP
+- [x] preservar API pública atual via reexport
+
+### v2.1.8 - extrair fallback HTTP do realtime
+- [x] mover endpoints e fluxo de long-polling para módulo próprio
+- [x] testar reconexão por cursor sem depender do handler HTTP principal
+- [x] manter compatibilidade dos testes `v203`
+
+### v2.1.9 - extrair transporte WebSocket
+- [x] isolar handshake e parsing de frames
+- [x] separar ciclo de vida de conexão do hub de realtime
+- [x] cobrir fechamento/heartbeat/limites com testes dedicados
+
+### v2.1.10 - formalizar interface de backplane de realtime
+- [x] definir interface de backplane distribuído
+- [x] manter memória como backend de referência
+- [x] preparar pontos de extensão explícitos para Redis
+
+### v2.1.11 - endurecer backend Redis de realtime
+- [x] ampliar testes reais Redis multi-instância
+- [x] validar replay, ack/nack e recuperação após indisponibilidade
+- [x] medir ordenação e consistência interprocesso
+
+### v2.1.12 - introduzir engine ASGI
+- [x] implementar backend ASGI compatível com `WebApp`
+- [x] mapear request/response/stream sem quebrar contratos atuais
+- [x] validar mesma app rodando em engine legada e ASGI
+
+### v2.1.13 - shutdown, readiness e limites operacionais
+- [x] adicionar shutdown gracioso nas engines HTTP
+- [x] distinguir readiness/liveness/health na infraestrutura
+- [x] formalizar limites de payload, conexões e tempo por request
+
+### v2.1.14 - separar dialeto SQL, conexão e ORM
+- [x] criar camada explícita de dialeto SQL
+- [x] desacoplar conexão/transação de regras de ORM
+- [x] remover pressupostos implícitos de SQLite nas rotas críticas
+
+### v2.1.15 - ampliar suíte PostgreSQL real
+- [x] executar CRUD/ORM/migração/seed em PostgreSQL real
+- [x] cobrir transações, paginação e constraints
+- [x] integrar a suíte ao CI
+
+### v2.1.16 - consolidar introspecção e diff por dialeto
+- [x] alinhar inspeção de schema entre SQLite e PostgreSQL
+- [x] gerar diff/preview por dialeto
+- [x] validar aplicação e rollback em ambos os backends
+
+### v2.1.17 - formalizar capacidades por backend de banco
+- [x] expor matriz de capabilities por backend
+- [x] impedir uso implícito de features não suportadas
+- [x] refletir capabilities em erro/documentação/CLI
+
+### v2.1.18 - dividir segurança em módulos
+- [ ] separar JWT, sessão, RBAC e políticas em módulos próprios
+- [ ] manter API canônica estável via fachada
+- [ ] ampliar testes por domínio de segurança
+
+### v2.1.19 - adicionar `RS256`
+- [ ] suportar chaves assimétricas locais
+- [ ] suportar `kid` em emissão e validação
+- [ ] validar rotação básica de chaves
+
+### v2.1.20 - adicionar JWK/JWKS
+- [ ] implementar resolução e cache de JWKS
+- [ ] validar `iss`, `aud` e `kid`
+- [ ] suportar rotação sem reinício do runtime
+
+### v2.1.21 - base OIDC
+- [ ] implementar discovery básico
+- [ ] consumir `jwks_uri` e metadados do provedor
+- [ ] validar fluxo mínimo de autenticação federada
+
+### v2.1.22 - políticas contextuais de autorização
+- [ ] introduzir engine de políticas ator/ação/recurso/contexto
+- [ ] manter RBAC como subconjunto compatível
+- [ ] documentar exemplos de autorização contextual
+
+### v2.1.23 - jobs como fachada com backend pluggável
+- [ ] definir interface de backend de jobs
+- [ ] adaptar `JobQueue` para delegar no backend selecionado
+- [ ] manter backend em memória como padrão de desenvolvimento
+
+### v2.1.24 - backend persistente de jobs via SQL
+- [ ] persistir fila, tentativas, leasing e DLQ em SQL
+- [ ] implementar retry e reprocessamento
+- [ ] cobrir reinício de processo sem perda de fila
+
+### v2.1.25 - worker standalone
+- [ ] criar comando de worker separado
+- [ ] adicionar comandos operacionais de DLQ/reprocessamento/status
+- [ ] documentar topologia web + worker
+
+### v2.1.26 - backend Redis para jobs
+- [ ] implementar fila Redis
+- [ ] validar concorrência distribuída e visibilidade
+- [ ] comparar semântica com backend SQL
+
+### v2.1.27 - formalizar IR de contrato HTTP
+- [ ] definir IR para rotas, DTOs, erros, auth e versões
+- [ ] adaptar runtime HTTP para consumir o IR
+- [ ] manter compatibilidade com contratos ad hoc existentes
+
+### v2.1.28 - OpenAPI a partir do IR
+- [ ] ligar gerador OpenAPI ao IR formal
+- [ ] manter envelopes e exemplos consistentes
+- [ ] validar retrocompatibilidade do output gerado
+
+### v2.1.29 - SDKs a partir do IR
+- [ ] ligar gerador Python ao IR
+- [ ] ligar gerador TypeScript ao IR
+- [ ] validar métodos, tipos e erros produzidos
+
+### v2.1.30 - verificação de breaking changes
+- [ ] comparar IR entre versões
+- [ ] detectar mudança incompatível em rota/campo/erro
+- [ ] bloquear regressão via CI
+
+### v2.1.31 - pipeline de upload
+- [ ] validar MIME, tamanho e hash
+- [ ] suportar staging temporário e promoção
+- [ ] integrar upload com storage local/S3
+
+### v2.1.32 - multipart/streaming robustos
+- [ ] evitar carga integral de payload grande em memória
+- [ ] suportar streaming de upload
+- [ ] ampliar testes de upload grande e limite
+
+### v2.1.33 - pipeline de mídia
+- [ ] conectar transformação/variantes ao storage
+- [ ] persistir metadados e rastreabilidade
+- [ ] cobrir fluxos mínimos de imagem/arquivo
+
+### v2.1.34 - lifecycle e visibilidade de storage
+- [ ] formalizar URL assinada e retenção
+- [ ] suportar políticas por backend
+- [ ] refletir visibilidade/expiração em CLI e docs
+
+### v2.1.35 - observabilidade formal ampliada
+- [ ] propagar `traceparent`
+- [ ] medir métricas por engine/subsistema
+- [ ] padronizar integração com exportadores
+
+### v2.1.36 - resiliência operacional
+- [ ] integrar circuit breaker e timeouts globais
+- [ ] formalizar pools configuráveis
+- [ ] consolidar diagnóstico operacional por ambiente
+
+### v2.1.37 - backend de produção com SLO oficial
+- [ ] publicar benchmark reproduzível
+- [ ] adicionar suíte de carga multi-processo
+- [ ] formalizar critérios SLO e erro aceitável
+
+### v2.1.38 - documentação final da arquitetura modular
+- [ ] publicar visão arquitetural consolidada
+- [ ] publicar matriz oficial de capacidades por camada
+- [ ] fechar checklist de adoção em produção

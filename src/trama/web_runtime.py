@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import base64
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from email.parser import BytesParser
 from email.policy import default
 import hashlib
+import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import mimetypes
@@ -16,7 +17,7 @@ import socket
 import struct
 import threading
 import time
-from typing import Any, Callable
+from typing import Callable
 from urllib.parse import parse_qs, urlparse
 import uuid
 import unicodedata
@@ -24,6 +25,12 @@ import unicodedata
 from . import cache_runtime
 from . import observability_runtime
 from . import security_runtime
+from .realtime_core import TempoRealConexao, TempoRealHub
+from .realtime_fallback_http import processar_fallback_tempo_real_http
+from .realtime_websocket import processar_upgrade_websocket_tempo_real
+from .web_app_model import ConfiguracaoWebApp, aplicar_configuracao_web_app
+from .web_engine import EngineHttpAsgiReal, EngineHttpServerLegado, EngineRuntimeHttp
+from .web_model import RateLimitDistribuidoPolicy, RateLimitPolicy, WebRoute
 
 
 def _erro_campo_validacao(
@@ -497,1081 +504,7 @@ def _parse_multipart_form_data(content_type: str, data: bytes) -> tuple[dict[str
     return form, files
 
 
-def _route_to_regex(path: str) -> tuple[re.Pattern[str], list[str]]:
-    names: list[str] = []
-    chunks = path.strip("/").split("/") if path.strip("/") else []
-    parts: list[str] = ["^"]
-    if not chunks:
-        parts.append("/$")
-        return re.compile("".join(parts)), names
-    parts.append("/")
-    for idx, chunk in enumerate(chunks):
-        if chunk.startswith(":") and len(chunk) > 1:
-            name = chunk[1:]
-            names.append(name)
-            parts.append(r"(?P<" + re.escape(name) + r">[^/]+)")
-        else:
-            parts.append(re.escape(chunk))
-        if idx < len(chunks) - 1:
-            parts.append("/")
-    parts.append("$")
-    return re.compile("".join(parts)), names
-
-
 @dataclass
-class WebRoute:
-    method: str
-    path: str
-    kind: str
-    data: dict[str, object]
-    regex: re.Pattern[str] | None = None
-    param_names: list[str] = field(default_factory=list)
-
-    @staticmethod
-    def dynamic(
-        method: str,
-        path: str,
-        handler: object,
-        schema: dict[str, object] | None = None,
-        options: dict[str, object] | None = None,
-    ) -> "WebRoute":
-        regex, names = _route_to_regex(path)
-        return WebRoute(
-            method=method.upper(),
-            path=path,
-            kind="handler",
-            data={"handler": handler, "schema": dict(schema or {}), "options": dict(options or {})},
-            regex=regex,
-            param_names=names,
-        )
-
-
-@dataclass
-class RateLimitPolicy:
-    method: str
-    path: str
-    max_requisicoes: int
-    janela_segundos: float
-    by_key: dict[str, list[float]] = field(default_factory=dict)
-
-    def allow(self, key: str) -> bool:
-        now = time.time()
-        bucket = self.by_key.setdefault(key, [])
-        min_ts = now - self.janela_segundos
-        while bucket and bucket[0] < min_ts:
-            bucket.pop(0)
-        if len(bucket) >= self.max_requisicoes:
-            return False
-        bucket.append(now)
-        return True
-
-
-@dataclass
-class RateLimitDistribuidoPolicy:
-    method: str
-    path: str
-    max_requisicoes: int
-    janela_segundos: float
-    chaves: list[str] = field(default_factory=lambda: ["rota", "ip"])
-    grupo: str = "padrao"
-    id_instancia: str | None = None
-    backend: str = "memoria"
-    redis_url: str | None = None
-    chave_prefixo: str = "trama:seguranca:rl"
-
-
-@dataclass
-class _TempoRealEventoDistribuido:
-    seq: int
-    tipo: str
-    dados: dict[str, object]
-    instancia_origem: str
-    at: float = field(default_factory=time.time)
-
-
-class _TempoRealBackplaneMemoria:
-    def __init__(self, grupo: str) -> None:
-        self.grupo = grupo
-        self._lock = threading.RLock()
-        self._seq = 0
-        self._eventos: list[_TempoRealEventoDistribuido] = []
-        self._disponivel = True
-
-    def set_disponivel(self, disponivel: bool) -> None:
-        with self._lock:
-            self._disponivel = bool(disponivel)
-
-    def _check(self) -> None:
-        if not self._disponivel:
-            raise RuntimeError(f"Backplane tempo real indisponivel para grupo '{self.grupo}'.")
-
-    def publicar_evento(self, tipo: str, dados: dict[str, object], instancia_origem: str) -> int:
-        with self._lock:
-            self._check()
-            self._seq += 1
-            self._eventos.append(
-                _TempoRealEventoDistribuido(
-                    seq=self._seq,
-                    tipo=str(tipo),
-                    dados=dict(dados or {}),
-                    instancia_origem=str(instancia_origem),
-                )
-            )
-            if len(self._eventos) > 20000:
-                del self._eventos[: len(self._eventos) - 20000]
-            return self._seq
-
-    def coletar_eventos(self, desde_seq: int) -> list[_TempoRealEventoDistribuido]:
-        with self._lock:
-            self._check()
-            return [e for e in self._eventos if e.seq > int(desde_seq)]
-
-
-class _TempoRealBackplaneRedis:
-    def __init__(self, grupo: str, url: str, chave_prefixo: str = "trama:tempo_real") -> None:
-        self.grupo = str(grupo or "padrao")
-        self.url = str(url)
-        self._prefixo = f"{str(chave_prefixo).strip(':')}:{self.grupo}"
-        self._disponivel = True
-        try:
-            redis_mod = __import__("redis")
-            self._cliente = redis_mod.Redis.from_url(self.url, decode_responses=True)
-            self._cliente.ping()
-        except Exception as exc:  # noqa: BLE001
-            raise RuntimeError(f"Falha ao inicializar backplane redis: {exc}") from exc
-
-    def set_disponivel(self, disponivel: bool) -> None:
-        self._disponivel = bool(disponivel)
-
-    def _check(self) -> None:
-        if not self._disponivel:
-            raise RuntimeError(f"Backplane redis indisponivel para grupo '{self.grupo}'.")
-
-    def _k_seq(self) -> str:
-        return f"{self._prefixo}:seq"
-
-    def _k_log(self) -> str:
-        return f"{self._prefixo}:eventos"
-
-    def publicar_evento(self, tipo: str, dados: dict[str, object], instancia_origem: str) -> int:
-        self._check()
-        seq = int(self._cliente.incr(self._k_seq()))
-        payload = json.dumps(
-            {
-                "seq": seq,
-                "tipo": str(tipo),
-                "dados": dict(dados or {}),
-                "instancia_origem": str(instancia_origem),
-                "at": time.time(),
-            },
-            ensure_ascii=False,
-        )
-        pipe = self._cliente.pipeline()
-        pipe.rpush(self._k_log(), payload)
-        pipe.ltrim(self._k_log(), -20000, -1)
-        pipe.execute()
-        return seq
-
-    def coletar_eventos(self, desde_seq: int) -> list[_TempoRealEventoDistribuido]:
-        self._check()
-        itens = self._cliente.lrange(self._k_log(), 0, -1)
-        out: list[_TempoRealEventoDistribuido] = []
-        for raw in itens:
-            try:
-                obj = json.loads(str(raw))
-            except json.JSONDecodeError:
-                continue
-            seq = int(obj.get("seq", 0))
-            if seq <= int(desde_seq):
-                continue
-            out.append(
-                _TempoRealEventoDistribuido(
-                    seq=seq,
-                    tipo=str(obj.get("tipo", "")),
-                    dados=dict(obj.get("dados", {})),
-                    instancia_origem=str(obj.get("instancia_origem", "")),
-                    at=float(obj.get("at", time.time())),
-                )
-            )
-        return out
-
-
-_TR_BACKPLANES_LOCK = threading.RLock()
-_TR_BACKPLANES_MEM: dict[str, _TempoRealBackplaneMemoria] = {}
-
-
-def _tempo_real_backplane_memoria(grupo: str) -> _TempoRealBackplaneMemoria:
-    g = str(grupo or "padrao").strip() or "padrao"
-    with _TR_BACKPLANES_LOCK:
-        if g not in _TR_BACKPLANES_MEM:
-            _TR_BACKPLANES_MEM[g] = _TempoRealBackplaneMemoria(g)
-        return _TR_BACKPLANES_MEM[g]
-
-
-@dataclass
-class TempoRealConexao:
-    id_conexao: str
-    canal: str
-    ip: str
-    id_usuario: str | None
-    id_requisicao: str
-    id_traco: str
-    modo: str  # websocket | fallback
-    socket_conn: socket.socket | None = None
-    ativa: bool = True
-    criada_em: float = field(default_factory=time.time)
-    ultimo_heartbeat_em: float = field(default_factory=time.time)
-    salas: set[str] = field(default_factory=set)
-    fila_eventos: list[dict[str, object]] = field(default_factory=list)
-    janela_mensagens: list[float] = field(default_factory=list)
-    cursor_ultimo_confirmado: int = 0
-
-    def enfileirar(self, payload: dict[str, object], limite_fila: int = 1000) -> None:
-        item = dict(payload)
-        cur_raw = item.get("cursor")
-        cur_val = int(cur_raw) if isinstance(cur_raw, (int, float)) else 0
-        if cur_val > 0 and self.fila_eventos:
-            idx = len(self.fila_eventos)
-            for i, existente in enumerate(self.fila_eventos):
-                e_cur_raw = existente.get("cursor")
-                if not isinstance(e_cur_raw, (int, float)):
-                    continue
-                if int(e_cur_raw) > cur_val:
-                    idx = i
-                    break
-            self.fila_eventos.insert(idx, item)
-        else:
-            self.fila_eventos.append(item)
-        if len(self.fila_eventos) > limite_fila:
-            del self.fila_eventos[0 : len(self.fila_eventos) - limite_fila]
-
-    def drenar(self, limite: int = 100) -> list[dict[str, object]]:
-        if limite <= 0:
-            return []
-        out = self.fila_eventos[:limite]
-        del self.fila_eventos[:limite]
-        return out
-
-
-class TempoRealHub:
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self.rotas: dict[str, dict[str, object]] = {}
-        self.conexoes: dict[str, dict[str, TempoRealConexao]] = {}
-        self.salas: dict[str, dict[str, set[str]]] = {}
-        self.presenca_remota: dict[str, dict[str, dict[str, object]]] = {}
-        self.salas_remotas: dict[str, dict[str, set[str]]] = {}
-        self.fallback_ativo = False
-        self.fallback_prefixo = "/tempo-real/fallback"
-        self.fallback_timeout_segundos = 20.0
-        self.limites: dict[str, float] = {
-            "max_conexoes_total": 2000,
-            "max_conexoes_por_ip": 200,
-            "max_conexoes_por_usuario": 100,
-            "max_conexoes_por_sala": 500,
-            "max_payload_bytes": 64 * 1024,
-            "max_mensagens_por_janela": 120,
-            "max_mensagens_por_janela_usuario": 240,
-            "max_mensagens_por_janela_sala": 500,
-            "janela_rate_segundos": 60.0,
-            "heartbeat_segundos": 30.0,
-            "janela_replay_segundos": 300.0,
-            "max_eventos_historico_canal": 2000,
-        }
-        self.ordenacao_canal: dict[str, int] = {}
-        self.pendencias_ack: dict[str, dict[str, dict[str, object]]] = {}
-        self.historico_canal: dict[str, list[dict[str, object]]] = {}
-        self.janela_mensagens_usuario: dict[str, list[float]] = {}
-        self.janela_mensagens_sala: dict[str, list[float]] = {}
-        self.metricas: dict[str, float] = {
-            "entregues": 0.0,
-            "acks": 0.0,
-            "nacks": 0.0,
-            "retries": 0.0,
-            "reenvios": 0.0,
-            "reconexoes": 0.0,
-            "desconexoes": 0.0,
-            "falhas_backplane": 0.0,
-            "degradacao_eventos": 0.0,
-            "latencia_entrega_ms_total": 0.0,
-            "latencia_entrega_ms_amostras": 0.0,
-            "latencia_reconexao_ms_total": 0.0,
-            "latencia_reconexao_ms_amostras": 0.0,
-            "sincronizacoes": 0.0,
-            "eventos_remotos_aplicados": 0.0,
-        }
-        self.distribuicao_ativa = False
-        self.grupo_distribuicao = "padrao"
-        self.id_instancia = f"tr_{uuid.uuid4().hex[:8]}"
-        self.auto_sincronizar_distribuicao = True
-        self.backplane_tipo = "memoria"
-        self._backplane: object | None = None
-        self._seq_distribuido_aplicado = 0
-        self._backplane_degradado = False
-
-    def registrar_rota(self, caminho: str, handler: object, opcoes: dict[str, object] | None = None) -> None:
-        path = caminho if caminho.startswith("/") else f"/{caminho}"
-        with self._lock:
-            self.rotas[path] = {"handler": handler, "opcoes": dict(opcoes or {})}
-            self.conexoes.setdefault(path, {})
-            self.salas.setdefault(path, {})
-            self.presenca_remota.setdefault(path, {})
-            self.salas_remotas.setdefault(path, {})
-            self.historico_canal.setdefault(path, [])
-
-    def definir_limites(self, limites: dict[str, object]) -> None:
-        with self._lock:
-            for k, v in dict(limites or {}).items():
-                if k in self.limites:
-                    self.limites[k] = float(v)  # type: ignore[assignment]
-
-    def configurar_distribuicao(
-        self,
-        *,
-        ativar: bool = True,
-        grupo: str = "padrao",
-        id_instancia: str | None = None,
-        auto_sincronizar: bool = True,
-        backplane: str = "memoria",
-        redis_url: str | None = None,
-        chave_prefixo_redis: str = "trama:tempo_real",
-    ) -> dict[str, object]:
-        with self._lock:
-            self.distribuicao_ativa = bool(ativar)
-            self.grupo_distribuicao = str(grupo or "padrao").strip() or "padrao"
-            self.id_instancia = str(id_instancia or self.id_instancia).strip() or self.id_instancia
-            self.auto_sincronizar_distribuicao = bool(auto_sincronizar)
-            self.backplane_tipo = str(backplane or "memoria").lower()
-            self._seq_distribuido_aplicado = 0
-            self._backplane_degradado = False
-            if not self.distribuicao_ativa:
-                self._backplane = None
-                return {"ok": True, "ativo": False, "grupo": self.grupo_distribuicao, "instancia": self.id_instancia}
-
-            if self.backplane_tipo in {"memoria", "memory"}:
-                self._backplane = _tempo_real_backplane_memoria(self.grupo_distribuicao)
-            elif self.backplane_tipo == "redis":
-                if not redis_url:
-                    raise ValueError("web_tempo_real_configurar_distribuicao exige 'redis_url' para backplane redis.")
-                self._backplane = _TempoRealBackplaneRedis(
-                    self.grupo_distribuicao,
-                    redis_url,
-                    chave_prefixo=chave_prefixo_redis,
-                )
-            else:
-                raise ValueError("backplane de tempo real inválido; use 'memoria' ou 'redis'.")
-
-            observability_runtime.registrar_runtime_metrica(
-                "tempo_real",
-                "distribuicao_configurada",
-                labels={
-                    "grupo": self.grupo_distribuicao,
-                    "instancia": self.id_instancia,
-                    "backplane": self.backplane_tipo,
-                    "auto_sync": str(self.auto_sincronizar_distribuicao).lower(),
-                },
-            )
-            return {
-                "ok": True,
-                "ativo": True,
-                "grupo": self.grupo_distribuicao,
-                "instancia": self.id_instancia,
-                "backplane": self.backplane_tipo,
-                "auto_sincronizar": self.auto_sincronizar_distribuicao,
-            }
-
-    def configurar_backplane(self, disponivel: bool = True) -> dict[str, object]:
-        with self._lock:
-            bp = self._backplane
-            if bp is None:
-                return {"ok": False, "codigo": "DISTRIBUICAO_NAO_CONFIGURADA"}
-            if hasattr(bp, "set_disponivel"):
-                bp.set_disponivel(bool(disponivel))
-            self._backplane_degradado = not bool(disponivel)
-            return {"ok": True, "disponivel": bool(disponivel)}
-
-    def _metrica_inc(self, chave: str, valor: float = 1.0) -> None:
-        self.metricas[chave] = float(self.metricas.get(chave, 0.0) + float(valor))
-
-    def _publicar_backplane(self, tipo: str, dados: dict[str, object]) -> int | None:
-        if not self.distribuicao_ativa or self._backplane is None:
-            return None
-        try:
-            seq = self._backplane.publicar_evento(tipo, dict(dados or {}), self.id_instancia)  # type: ignore[attr-defined]
-            self._backplane_degradado = False
-            return int(seq)
-        except Exception as exc:  # noqa: BLE001
-            self._metrica_inc("falhas_backplane", 1.0)
-            self._metrica_inc("degradacao_eventos", 1.0)
-            self._backplane_degradado = True
-            observability_runtime.registrar_runtime_metrica(
-                "tempo_real",
-                "backplane_falha",
-                labels={"instancia": self.id_instancia, "erro": str(exc)[:120]},
-            )
-            return None
-
-    def sincronizar_distribuicao(self) -> int:
-        if not self.distribuicao_ativa or self._backplane is None:
-            return 0
-        start = time.perf_counter()
-        try:
-            eventos = self._backplane.coletar_eventos(self._seq_distribuido_aplicado)  # type: ignore[attr-defined]
-        except Exception as exc:  # noqa: BLE001
-            self._metrica_inc("falhas_backplane", 1.0)
-            self._backplane_degradado = True
-            observability_runtime.registrar_runtime_metrica(
-                "tempo_real",
-                "backplane_falha",
-                labels={"instancia": self.id_instancia, "erro": str(exc)[:120]},
-            )
-            return 0
-
-        aplicados = 0
-        with self._lock:
-            for ev in eventos:
-                self._seq_distribuido_aplicado = max(self._seq_distribuido_aplicado, int(ev.seq))
-                if str(ev.instancia_origem) == self.id_instancia:
-                    continue
-                self._aplicar_evento_distribuido_locked(ev)
-                aplicados += 1
-            if aplicados > 0:
-                self._metrica_inc("eventos_remotos_aplicados", float(aplicados))
-            self._metrica_inc("sincronizacoes", 1.0)
-        observability_runtime.metrica_observar(
-            "tempo_real.latencia_sincronizacao_ms",
-            (time.perf_counter() - start) * 1000.0,
-            {"instancia": self.id_instancia, "grupo": self.grupo_distribuicao},
-        )
-        return aplicados
-
-    def _sync_if_needed(self) -> None:
-        if self.distribuicao_ativa and self.auto_sincronizar_distribuicao:
-            self.sincronizar_distribuicao()
-
-    def ativar_fallback(self, prefixo: str = "/tempo-real/fallback", timeout_segundos: float = 20.0) -> None:
-        with self._lock:
-            self.fallback_ativo = True
-            self.fallback_prefixo = prefixo if str(prefixo).startswith("/") else f"/{prefixo}"
-            self.fallback_timeout_segundos = max(1.0, float(timeout_segundos))
-
-    def snapshot(self, canal: str | None = None) -> dict[str, object]:
-        self._sync_if_needed()
-        with self._lock:
-            canais = [canal] if canal else sorted(self.rotas.keys())
-            out_canais: list[dict[str, object]] = []
-            total = 0
-            total_remoto = 0
-            for c in canais:
-                conns = self.conexoes.get(c, {})
-                salas = self.salas.get(c, {})
-                conns_remotas = self.presenca_remota.get(c, {})
-                salas_remotas = self.salas_remotas.get(c, {})
-                total += len(conns)
-                total_remoto += len(conns_remotas)
-                backlog_local = sum(len(cx.fila_eventos) for cx in conns.values())
-                backlog_sala = {
-                    s: sum(len(conns[x].fila_eventos) for x in ids if x in conns)
-                    for s, ids in salas.items()
-                }
-                out_canais.append(
-                    {
-                        "canal": c,
-                        "conexoes_ativas": len(conns),
-                        "conexoes_remotas": len(conns_remotas),
-                        "salas": {s: len(ids) for s, ids in salas.items()},
-                        "salas_remotas": {s: len(ids) for s, ids in salas_remotas.items()},
-                        "pendencias_ack": len(self.pendencias_ack.get(c, {})),
-                        "backlog_local": backlog_local,
-                        "backlog_por_sala": backlog_sala,
-                    }
-                )
-            lat_ent_am = float(self.metricas.get("latencia_entrega_ms_amostras", 0.0))
-            lat_ent_tot = float(self.metricas.get("latencia_entrega_ms_total", 0.0))
-            lat_rec_am = float(self.metricas.get("latencia_reconexao_ms_amostras", 0.0))
-            lat_rec_tot = float(self.metricas.get("latencia_reconexao_ms_total", 0.0))
-            return {
-                "ok": True,
-                "total_conexoes_ativas": total,
-                "total_conexoes_remotas": total_remoto,
-                "canais": out_canais,
-                "fallback_ativo": self.fallback_ativo,
-                "fallback_prefixo": self.fallback_prefixo,
-                "limites": dict(self.limites),
-                "distribuicao": {
-                    "ativo": self.distribuicao_ativa,
-                    "grupo": self.grupo_distribuicao,
-                    "instancia": self.id_instancia,
-                    "backplane": self.backplane_tipo,
-                    "seq_sincronizado": self._seq_distribuido_aplicado,
-                    "degradado": self._backplane_degradado,
-                },
-                "metricas": {
-                    "entregues": int(self.metricas.get("entregues", 0.0)),
-                    "ack": int(self.metricas.get("acks", 0.0)),
-                    "nack": int(self.metricas.get("nacks", 0.0)),
-                    "retries": int(self.metricas.get("retries", 0.0)),
-                    "reenvios": int(self.metricas.get("reenvios", 0.0)),
-                    "reconexoes": int(self.metricas.get("reconexoes", 0.0)),
-                    "desconexoes": int(self.metricas.get("desconexoes", 0.0)),
-                    "falhas_backplane": int(self.metricas.get("falhas_backplane", 0.0)),
-                    "degradacao_eventos": int(self.metricas.get("degradacao_eventos", 0.0)),
-                    "eventos_remotos_aplicados": int(self.metricas.get("eventos_remotos_aplicados", 0.0)),
-                    "latencia_entrega_media_ms": (lat_ent_tot / lat_ent_am) if lat_ent_am > 0 else 0.0,
-                    "latencia_reconexao_media_ms": (lat_rec_tot / lat_rec_am) if lat_rec_am > 0 else 0.0,
-                },
-            }
-
-    def _contagem_total(self) -> int:
-        return sum(len(v) for v in self.conexoes.values())
-
-    def _contagem_ip(self, ip: str) -> int:
-        total = 0
-        for conns in self.conexoes.values():
-            for c in conns.values():
-                if c.ip == ip:
-                    total += 1
-        return total
-
-    def _contagem_usuario(self, id_usuario: str) -> int:
-        total = 0
-        for conns in self.conexoes.values():
-            for c in conns.values():
-                if c.id_usuario == id_usuario:
-                    total += 1
-        return total
-
-    def conectar(
-        self,
-        canal: str,
-        ip: str,
-        id_usuario: str | None,
-        id_requisicao: str,
-        id_traco: str,
-        modo: str,
-        socket_conn: socket.socket | None = None,
-        cursor_ultimo: int | None = None,
-    ) -> tuple[bool, dict[str, object] | TempoRealConexao]:
-        self._sync_if_needed()
-        with self._lock:
-            if canal not in self.rotas:
-                return False, {"codigo": "CANAL_NAO_ENCONTRADO", "mensagem": "Canal de tempo real não encontrado."}
-            if self._contagem_total() >= int(self.limites["max_conexoes_total"]):
-                return False, {"codigo": "LIMITE_CONEXOES_TOTAL", "mensagem": "Limite global de conexões atingido."}
-            if self._contagem_ip(ip) >= int(self.limites["max_conexoes_por_ip"]):
-                return False, {"codigo": "LIMITE_CONEXOES_IP", "mensagem": "Limite de conexões por IP atingido."}
-            if id_usuario and self._contagem_usuario(id_usuario) >= int(self.limites["max_conexoes_por_usuario"]):
-                return False, {"codigo": "LIMITE_CONEXOES_USUARIO", "mensagem": "Limite de conexões por usuário atingido."}
-
-            c = TempoRealConexao(
-                id_conexao=uuid.uuid4().hex,
-                canal=canal,
-                ip=ip,
-                id_usuario=id_usuario,
-                id_requisicao=id_requisicao,
-                id_traco=id_traco,
-                modo=modo,
-                socket_conn=socket_conn,
-            )
-            self.conexoes.setdefault(canal, {})[c.id_conexao] = c
-            observability_runtime.registrar_runtime_metrica(
-                "tempo_real",
-                "conexao_aberta",
-                labels={"canal": canal, "modo": modo, "id_usuario": id_usuario or "anonimo"},
-            )
-            if cursor_ultimo is not None and int(cursor_ultimo) > 0:
-                ini = time.perf_counter()
-                replay = self._replay_desde_cursor_locked(c, int(cursor_ultimo))
-                self._metrica_inc("reconexoes", 1.0)
-                self.metricas["latencia_reconexao_ms_total"] += (time.perf_counter() - ini) * 1000.0
-                self.metricas["latencia_reconexao_ms_amostras"] += 1.0
-                observability_runtime.registrar_runtime_metrica(
-                    "tempo_real",
-                    "reconexao_replay",
-                    valor=float(replay),
-                    labels={"canal": canal, "instancia": self.id_instancia},
-                )
-            self._emitir_presenca_locked(canal, c, online=True)
-            self._publicar_backplane(
-                "presenca",
-                {
-                    "acao": "conectar",
-                    "canal": canal,
-                    "id_conexao": c.id_conexao,
-                    "id_usuario": c.id_usuario,
-                    "ip": c.ip,
-                    "modo": c.modo,
-                    "cursor_ultimo": int(cursor_ultimo or 0),
-                },
-            )
-            return True, c
-
-    def desconectar(self, conexao: TempoRealConexao, motivo: str = "encerrado") -> None:
-        self._sync_if_needed()
-        with self._lock:
-            conns = self.conexoes.get(conexao.canal, {})
-            if conexao.id_conexao in conns:
-                del conns[conexao.id_conexao]
-            for ids in self.salas.get(conexao.canal, {}).values():
-                ids.discard(conexao.id_conexao)
-            conexao.ativa = False
-            self._metrica_inc("desconexoes", 1.0)
-            observability_runtime.registrar_runtime_metrica(
-                "tempo_real",
-                "conexao_fechada",
-                labels={"canal": conexao.canal, "motivo": motivo},
-            )
-            self._emitir_presenca_locked(conexao.canal, conexao, online=False)
-            self._publicar_backplane(
-                "presenca",
-                {
-                    "acao": "desconectar",
-                    "canal": conexao.canal,
-                    "id_conexao": conexao.id_conexao,
-                    "id_usuario": conexao.id_usuario,
-                },
-            )
-
-    def entrar_sala(self, conexao: TempoRealConexao, sala: str) -> tuple[bool, dict[str, object] | None]:
-        self._sync_if_needed()
-        with self._lock:
-            sala_norm = str(sala)
-            ids = self.salas.setdefault(conexao.canal, {}).setdefault(sala_norm, set())
-            if len(ids) >= int(self.limites["max_conexoes_por_sala"]):
-                return False, {"codigo": "LIMITE_CONEXOES_SALA", "mensagem": "Limite de conexões da sala excedido."}
-            ids.add(conexao.id_conexao)
-            conexao.salas.add(sala_norm)
-            self._publicar_backplane(
-                "sala",
-                {"acao": "entrar", "canal": conexao.canal, "id_conexao": conexao.id_conexao, "sala": sala_norm},
-            )
-            return True, None
-
-    def sair_sala(self, conexao: TempoRealConexao, sala: str) -> None:
-        self._sync_if_needed()
-        with self._lock:
-            sala_norm = str(sala)
-            ids = self.salas.setdefault(conexao.canal, {}).setdefault(sala_norm, set())
-            ids.discard(conexao.id_conexao)
-            conexao.salas.discard(sala_norm)
-            self._publicar_backplane(
-                "sala",
-                {"acao": "sair", "canal": conexao.canal, "id_conexao": conexao.id_conexao, "sala": sala_norm},
-            )
-
-    def _selecionar_destinos_locked(
-        self,
-        canal: str,
-        id_conexao: str | None = None,
-        id_usuario: str | None = None,
-        sala: str | None = None,
-    ) -> list[TempoRealConexao]:
-        conns = list(self.conexoes.get(canal, {}).values())
-        if id_conexao:
-            return [c for c in conns if c.id_conexao == id_conexao]
-        if id_usuario:
-            return [c for c in conns if c.id_usuario == id_usuario]
-        if sala:
-            ids = self.salas.get(canal, {}).get(sala, set())
-            return [c for c in conns if c.id_conexao in ids]
-        return conns
-
-    def emitir(
-        self,
-        canal: str,
-        evento: str,
-        dados: object | None = None,
-        *,
-        sala: str | None = None,
-        id_usuario: str | None = None,
-        id_conexao: str | None = None,
-        origem: TempoRealConexao | None = None,
-    ) -> int:
-        self._sync_if_needed()
-        with self._lock:
-            destinos = self._selecionar_destinos_locked(canal, id_conexao=id_conexao, id_usuario=id_usuario, sala=sala)
-            payload = {
-                "ok": True,
-                "evento": str(evento),
-                "dados": dados if dados is not None else {},
-                "canal": canal,
-                "sala": sala,
-                "cursor": int(self.ordenacao_canal.get(canal, 0)),
-                "id_usuario_origem": origem.id_usuario if origem else None,
-                "id_conexao_origem": origem.id_conexao if origem else None,
-                "ts": time.time(),
-            }
-            for d in destinos:
-                d.enfileirar(payload)
-            self._metrica_inc("entregues", float(len(destinos)))
-            observability_runtime.registrar_runtime_metrica(
-                "tempo_real",
-                "broadcast",
-                valor=len(destinos),
-                labels={"canal": canal, "evento": evento},
-            )
-            return len(destinos)
-
-    def publicar_mensagem(
-        self,
-        canal: str,
-        evento: str,
-        dados: object | None = None,
-        *,
-        sala: str | None = None,
-        id_usuario: str | None = None,
-        id_conexao: str | None = None,
-        exigir_ack: bool = False,
-        origem: TempoRealConexao | None = None,
-    ) -> dict[str, object]:
-        self._sync_if_needed()
-        with self._lock:
-            id_mensagem = uuid.uuid4().hex
-            ts = time.time()
-            seq_local = int(self.ordenacao_canal.get(canal, 0) + 1)
-            self.ordenacao_canal[canal] = seq_local
-            dados_evento = {
-                "id_mensagem": id_mensagem,
-                "evento": str(evento),
-                "dados": dados if dados is not None else {},
-                "canal": str(canal),
-                "sala": sala,
-                "id_usuario": id_usuario,
-                "id_conexao": id_conexao,
-                "exigir_ack": bool(exigir_ack),
-                "id_usuario_origem": origem.id_usuario if origem else None,
-                "id_conexao_origem": origem.id_conexao if origem else None,
-                "ts": ts,
-            }
-            cursor = self._publicar_backplane("publicar_mensagem", dados_evento) or seq_local
-            destinos = self._selecionar_destinos_locked(canal, id_conexao=id_conexao, id_usuario=id_usuario, sala=sala)
-            envelope = {
-                "ok": True,
-                "evento": str(evento),
-                "dados": dados if dados is not None else {},
-                "canal": canal,
-                "sala": sala,
-                "id_mensagem": id_mensagem,
-                "message_id": id_mensagem,
-                "ordem": int(cursor),
-                "seq": int(cursor),
-                "cursor": int(cursor),
-                "exigir_ack": bool(exigir_ack),
-                "id_usuario_origem": origem.id_usuario if origem else None,
-                "id_conexao_origem": origem.id_conexao if origem else None,
-                "ts": ts,
-            }
-            ini_entrega = time.perf_counter()
-            for d in destinos:
-                d.enfileirar(envelope)
-            self._registrar_historico_locked(canal, envelope)
-            self.metricas["latencia_entrega_ms_total"] += (time.perf_counter() - ini_entrega) * 1000.0
-            self.metricas["latencia_entrega_ms_amostras"] += 1.0
-            self._metrica_inc("entregues", float(len(destinos)))
-            if exigir_ack:
-                pend = self.pendencias_ack.setdefault(canal, {})
-                pend[id_mensagem] = {
-                    "envelope": envelope,
-                    "pendentes": {d.id_conexao for d in destinos},
-                    "confirmados": set(),
-                    "tentativas_reenvio": 0,
-                    "criado_em": ts,
-                }
-            observability_runtime.registrar_runtime_metrica(
-                "tempo_real",
-                "mensagem_publicada",
-                valor=len(destinos),
-                labels={"canal": canal, "evento": evento, "ack": str(bool(exigir_ack)).lower()},
-            )
-            return {
-                "id_mensagem": id_mensagem,
-                "ordem": int(cursor),
-                "cursor": int(cursor),
-                "destinos": len(destinos),
-                "ack": bool(exigir_ack),
-                "backplane_degradado": bool(self._backplane_degradado),
-            }
-
-    def confirmar_ack(self, canal: str, id_mensagem: str, id_conexao: str, status: str = "ack") -> dict[str, object]:
-        self._sync_if_needed()
-        with self._lock:
-            out = self._confirmar_ack_locked(canal, id_mensagem, id_conexao, status=status, propagar=True)
-            observability_runtime.registrar_runtime_metrica(
-                "tempo_real",
-                "ack_recebido",
-                labels={"canal": canal, "status": str(status)},
-            )
-            return out
-
-    def reenviar_pendentes(self, canal: str, id_mensagem: str | None = None) -> dict[str, object]:
-        self._sync_if_needed()
-        with self._lock:
-            reenvios = self._reenviar_pendentes_locked(canal, id_mensagem=id_mensagem, propagar=True)
-            observability_runtime.registrar_runtime_metrica(
-                "tempo_real",
-                "reenvio_pendente",
-                valor=reenvios,
-                labels={"canal": canal},
-            )
-            return {"ok": True, "reenvios": reenvios}
-
-    def receber_fallback(
-        self,
-        conexao: TempoRealConexao,
-        timeout_segundos: float | None = None,
-        limite: int = 50,
-        cursor_desde: int | None = None,
-    ) -> list[dict[str, object]]:
-        self._sync_if_needed()
-        if cursor_desde is not None and int(cursor_desde) > 0:
-            with self._lock:
-                self._replay_desde_cursor_locked(conexao, int(cursor_desde))
-        limite_t = self.fallback_timeout_segundos if timeout_segundos is None else max(0.0, float(timeout_segundos))
-        fim = time.time() + limite_t
-        while time.time() <= fim:
-            with self._lock:
-                data = conexao.drenar(limite)
-                if data:
-                    for ev in data:
-                        cur = int(ev.get("cursor", 0))
-                        if cur > conexao.cursor_ultimo_confirmado:
-                            conexao.cursor_ultimo_confirmado = cur
-                if data:
-                    return data
-            time.sleep(0.05)
-        return []
-
-    def por_id(self, id_conexao: str) -> TempoRealConexao | None:
-        with self._lock:
-            for conns in self.conexoes.values():
-                c = conns.get(id_conexao)
-                if c is not None:
-                    return c
-        return None
-
-    def rota_info(self, canal: str) -> dict[str, object] | None:
-        self._sync_if_needed()
-        with self._lock:
-            return self.rotas.get(canal)
-
-    def validar_rate(self, conexao: TempoRealConexao, mensagem: dict[str, object] | None = None) -> bool:
-        now = time.time()
-        janela = float(self.limites["janela_rate_segundos"])
-        max_m = int(self.limites["max_mensagens_por_janela"])
-        max_u = int(self.limites["max_mensagens_por_janela_usuario"])
-        max_s = int(self.limites["max_mensagens_por_janela_sala"])
-        with self._lock:
-            conexao.janela_mensagens = [t for t in conexao.janela_mensagens if t >= now - janela]
-            if len(conexao.janela_mensagens) >= max_m:
-                return False
-            conexao.janela_mensagens.append(now)
-            if conexao.id_usuario:
-                uid = str(conexao.id_usuario)
-                bucket_u = [t for t in self.janela_mensagens_usuario.get(uid, []) if t >= now - janela]
-                if len(bucket_u) >= max_u:
-                    return False
-                bucket_u.append(now)
-                self.janela_mensagens_usuario[uid] = bucket_u
-            if isinstance(mensagem, dict):
-                sala = str(mensagem.get("sala") or "")
-                if sala:
-                    chave_sala = f"{conexao.canal}:{sala}"
-                    bucket_s = [t for t in self.janela_mensagens_sala.get(chave_sala, []) if t >= now - janela]
-                    if len(bucket_s) >= max_s:
-                        return False
-                    bucket_s.append(now)
-                    self.janela_mensagens_sala[chave_sala] = bucket_s
-        return True
-
-    def _emitir_presenca_locked(self, canal: str, conexao: TempoRealConexao, online: bool) -> None:
-        payload = {
-            "id_usuario": conexao.id_usuario,
-            "id_conexao": conexao.id_conexao,
-            "online": bool(online),
-            "canal": canal,
-            "ts": time.time(),
-        }
-        for c in self.conexoes.get(canal, {}).values():
-            c.enfileirar({"ok": True, "evento": "presenca", "dados": payload, "canal": canal, "ts": time.time()})
-
-    def _registrar_historico_locked(self, canal: str, envelope: dict[str, object]) -> None:
-        now = time.time()
-        hist = self.historico_canal.setdefault(canal, [])
-        hist.append(dict(envelope))
-        ttl = float(self.limites.get("janela_replay_segundos", 300.0))
-        min_ts = now - ttl
-        hist[:] = [ev for ev in hist if float(ev.get("ts", now)) >= min_ts]
-        limite = int(self.limites.get("max_eventos_historico_canal", 2000))
-        if len(hist) > limite:
-            del hist[: len(hist) - limite]
-
-    def _replay_desde_cursor_locked(self, conexao: TempoRealConexao, cursor_ultimo: int) -> int:
-        replay = 0
-        for ev in self.historico_canal.get(conexao.canal, []):
-            cur = int(ev.get("cursor", 0))
-            if cur > int(cursor_ultimo):
-                conexao.enfileirar(dict(ev))
-                replay += 1
-        return replay
-
-    def _confirmar_ack_locked(
-        self,
-        canal: str,
-        id_mensagem: str,
-        id_conexao: str,
-        *,
-        status: str,
-        propagar: bool,
-    ) -> dict[str, object]:
-        pend = self.pendencias_ack.get(canal, {})
-        item = pend.get(str(id_mensagem))
-        if item is None:
-            return {"ok": False, "codigo": "MENSAGEM_NAO_ENCONTRADA"}
-        pendentes = set(item.get("pendentes", set()))
-        confirmados = set(item.get("confirmados", set()))
-        s = str(status or "ack").lower()
-        if s == "ack":
-            if str(id_conexao) in pendentes:
-                pendentes.remove(str(id_conexao))
-            confirmados.add(str(id_conexao))
-            self._metrica_inc("acks", 1.0)
-        else:
-            self._metrica_inc("nacks", 1.0)
-            if str(id_conexao) not in pendentes:
-                pendentes.add(str(id_conexao))
-        item["pendentes"] = pendentes
-        item["confirmados"] = confirmados
-        item["ultimo_status"] = s
-        if s != "ack":
-            env = dict(item.get("envelope", {}))
-            c = self.conexoes.get(canal, {}).get(str(id_conexao))
-            if c is not None:
-                c.enfileirar(env)
-                self._metrica_inc("retries", 1.0)
-        if not pendentes:
-            del pend[str(id_mensagem)]
-        if propagar:
-            self._publicar_backplane(
-                "ack",
-                {
-                    "canal": canal,
-                    "id_mensagem": str(id_mensagem),
-                    "id_conexao": str(id_conexao),
-                    "status": s,
-                },
-            )
-        return {"ok": True, "pendentes": len(pendentes), "confirmados": len(confirmados), "status": s}
-
-    def _reenviar_pendentes_locked(self, canal: str, id_mensagem: str | None, *, propagar: bool) -> int:
-        pend = self.pendencias_ack.get(canal, {})
-        ids = [str(id_mensagem)] if id_mensagem else list(pend.keys())
-        reenvios = 0
-        for mid in ids:
-            item = pend.get(mid)
-            if item is None:
-                continue
-            env = dict(item.get("envelope", {}))
-            alvos = sorted(str(x) for x in set(item.get("pendentes", set())))
-            for cid in alvos:
-                c = self.conexoes.get(canal, {}).get(cid)
-                if c is not None:
-                    c.enfileirar(env)
-                    reenvios += 1
-            item["tentativas_reenvio"] = int(item.get("tentativas_reenvio", 0)) + 1
-        self._metrica_inc("reenvios", float(reenvios))
-        if propagar:
-            self._publicar_backplane(
-                "reenviar",
-                {"canal": canal, "id_mensagem": str(id_mensagem) if id_mensagem is not None else None},
-            )
-        return reenvios
-
-    def _aplicar_evento_distribuido_locked(self, ev: _TempoRealEventoDistribuido) -> None:
-        dados = dict(ev.dados or {})
-        tipo = str(ev.tipo or "")
-        canal = str(dados.get("canal") or "")
-        if tipo == "presenca":
-            acao = str(dados.get("acao") or "")
-            rem = self.presenca_remota.setdefault(canal, {})
-            id_c = str(dados.get("id_conexao") or "")
-            if acao == "conectar":
-                rem[id_c] = {
-                    "id_conexao": id_c,
-                    "id_usuario": dados.get("id_usuario"),
-                    "ip": dados.get("ip"),
-                    "modo": dados.get("modo"),
-                }
-            elif acao == "desconectar":
-                rem.pop(id_c, None)
-                for salas in self.salas_remotas.get(canal, {}).values():
-                    salas.discard(id_c)
-            return
-        if tipo == "sala":
-            acao = str(dados.get("acao") or "")
-            sala = str(dados.get("sala") or "")
-            id_c = str(dados.get("id_conexao") or "")
-            ids = self.salas_remotas.setdefault(canal, {}).setdefault(sala, set())
-            if acao == "entrar":
-                ids.add(id_c)
-            elif acao == "sair":
-                ids.discard(id_c)
-            return
-        if tipo == "publicar_mensagem":
-            id_mensagem = str(dados.get("id_mensagem") or uuid.uuid4().hex)
-            evento = str(dados.get("evento") or "mensagem")
-            sala = str(dados.get("sala")) if dados.get("sala") is not None else None
-            id_usuario = str(dados.get("id_usuario")) if dados.get("id_usuario") is not None else None
-            id_conexao = str(dados.get("id_conexao")) if dados.get("id_conexao") is not None else None
-            exigir_ack = bool(dados.get("exigir_ack", False))
-            envelope = {
-                "ok": True,
-                "evento": evento,
-                "dados": dados.get("dados", {}),
-                "canal": canal,
-                "sala": sala,
-                "id_mensagem": id_mensagem,
-                "message_id": id_mensagem,
-                "ordem": int(ev.seq),
-                "seq": int(ev.seq),
-                "cursor": int(ev.seq),
-                "exigir_ack": exigir_ack,
-                "id_usuario_origem": dados.get("id_usuario_origem"),
-                "id_conexao_origem": dados.get("id_conexao_origem"),
-                "ts": float(dados.get("ts", time.time())),
-            }
-            destinos = self._selecionar_destinos_locked(canal, id_conexao=id_conexao, id_usuario=id_usuario, sala=sala)
-            for d in destinos:
-                d.enfileirar(envelope)
-            self._registrar_historico_locked(canal, envelope)
-            self._metrica_inc("entregues", float(len(destinos)))
-            if exigir_ack:
-                pend = self.pendencias_ack.setdefault(canal, {})
-                pend[id_mensagem] = {
-                    "envelope": envelope,
-                    "pendentes": {d.id_conexao for d in destinos},
-                    "confirmados": set(),
-                    "tentativas_reenvio": 0,
-                    "criado_em": float(dados.get("ts", time.time())),
-                }
-            return
-        if tipo == "ack":
-            self._confirmar_ack_locked(
-                canal,
-                str(dados.get("id_mensagem") or ""),
-                str(dados.get("id_conexao") or ""),
-                status=str(dados.get("status") or "ack"),
-                propagar=False,
-            )
-            return
-        if tipo == "reenviar":
-            idm = dados.get("id_mensagem")
-            self._reenviar_pendentes_locked(
-                canal,
-                str(idm) if idm not in {None, "", "None"} else None,
-                propagar=False,
-            )
-
-
 class WebApp:
     def __init__(self) -> None:
         self.routes: list[WebRoute] = []
@@ -1579,45 +512,12 @@ class WebApp:
         self.middlewares_pos: list[object] = []
         self.error_handler: object | None = None
         self.middlewares: set[str] = set()
-        self.cors_enabled = False
-        self.cors_origin = "*"
-        self.cors_methods = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
-        self.cors_headers = "Content-Type,Authorization"
-        self.health_path = "/saude"
-        self.readiness_path = "/pronto"
-        self.liveness_path = "/vivo"
-        self.health_enabled = True
-        self.static_prefix: str | None = None
-        self.static_dir: Path | None = None
         self.rate_limits: list[RateLimitPolicy] = []
         self.rate_limits_distribuidos: list[RateLimitDistribuidoPolicy] = []
-        self.api_versions: set[str] = set()
-        self.contratos_http: dict[str, dict[str, object]] = {}
-        self.observabilidade_ativa = False
-        self.observabilidade_path = "/observabilidade"
-        self.alertas_path = "/alertas"
-        self.metricas_path = "/metricas"
-        self.otlp_path = "/otlp-json"
-        self.alertas_config: dict[str, object] = {}
-        self.ambiente = "dev"
-        self.cors_origens_por_ambiente: dict[str, list[str]] = {
-            "dev": ["*"],
-            "teste": ["http://localhost", "http://127.0.0.1"],
-            "producao": [],
-        }
-        self.seguranca_http_headers: dict[str, str] = {
-            "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-            "X-Content-Type-Options": "nosniff",
-            "X-Frame-Options": "DENY",
-            "Referrer-Policy": "no-referrer",
-            "X-Permitted-Cross-Domain-Policies": "none",
-        }
-        self.csp_por_ambiente: dict[str, str] = {
-            "dev": "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src *;",
-            "teste": "default-src 'self' 'unsafe-inline' data: blob:; connect-src 'self';",
-            "producao": "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';",
-        }
-        self.auditoria_admin_ativa = True
+        cfg = ConfiguracaoWebApp()
+        cfg.static_dir = None
+        aplicar_configuracao_web_app(self, cfg)
+        self.static_dir: Path | None = None
         self.tempo_real = TempoRealHub()
 
 
@@ -1637,6 +537,90 @@ class WebRuntime:
         self.invoke_callable_sync = invoke_callable_sync
         self.server: ThreadingHTTPServer | None = None
         self.thread: threading.Thread | None = None
+        self._proxy_server: ThreadingHTTPServer | None = None
+        self._proxy_thread: threading.Thread | None = None
+        self._proxy_port: int | None = None
+        self._asgi_server: object | None = None
+        self._asgi_thread: threading.Thread | None = None
+        self._estado_inicializado = False
+        self._estado_pronto = False
+        self._estado_drenando = False
+        self._estado_falha: str | None = None
+        self._engine_ativa_nome = "legada"
+        self.engine_http: EngineRuntimeHttp = EngineHttpServerLegado(
+            iniciar=self._start_legacy_httpserver,
+            parar=self._stop_legacy_httpserver,
+        )
+        self._configurar_engine_preferida()
+
+    def _configurar_engine_preferida(self) -> None:
+        preferida = str(getattr(self.app, "engine_http_preferida", "legada") or "legada").strip().lower()
+        if preferida in {"asgi", "asgi_real"}:
+            self.engine_http = EngineHttpAsgiReal(
+                iniciar=self._start_asgi_httpserver,
+                parar=self._stop_asgi_httpserver,
+            )
+            return
+        self.engine_http = EngineHttpServerLegado(
+            iniciar=self._start_legacy_httpserver,
+            parar=self._stop_legacy_httpserver,
+        )
+
+    def _limites_engine(self) -> dict[str, object]:
+        engine = str(getattr(self, "_engine_ativa_nome", getattr(self.engine_http, "nome", "legada")) or "legada")
+        mapa = dict(getattr(self.app, "limites_operacionais_por_engine", {}) or {})
+        base = dict(mapa.get("legada", {}))
+        if engine in mapa:
+            base.update(dict(mapa.get(engine, {})))
+        return base
+
+    def _limite_payload_bytes(self) -> int:
+        limite = self._limites_engine().get("max_body_bytes", 5 * 1024 * 1024)
+        try:
+            out = int(limite)
+        except Exception:
+            out = 5 * 1024 * 1024
+        return max(out, 1024)
+
+    def _status_saude(self, tipo: str) -> tuple[int, dict[str, object]]:
+        engine = str(getattr(self.engine_http, "nome", "legada"))
+        base = {
+            "ok": True,
+            "engine": engine,
+            "status": "up",
+            "drenando": bool(self._estado_drenando),
+            "pronto": bool(self._estado_pronto),
+            "inicializado": bool(self._estado_inicializado),
+            "limites": self._limites_engine(),
+        }
+        if self._estado_falha:
+            base["ok"] = False
+            base["status"] = "erro"
+            base["falha"] = str(self._estado_falha)
+            return 503, base
+        if tipo == "liveness":
+            if not self._estado_inicializado:
+                base["ok"] = False
+                base["status"] = "iniciando"
+                return 503, base
+            base["status"] = "alive"
+            return 200, base
+        if tipo == "readiness":
+            if not self._estado_pronto or self._estado_drenando:
+                base["ok"] = False
+                base["status"] = "not_ready" if not self._estado_drenando else "draining"
+                return 503, base
+            base["status"] = "ready"
+            return 200, base
+        if not self._estado_inicializado:
+            base["ok"] = False
+            base["status"] = "iniciando"
+            return 503, base
+        if not self._estado_pronto or self._estado_drenando:
+            base["ok"] = False
+            base["status"] = "degradado"
+            return 503, base
+        return 200, base
 
     def _invoke(self, fn: object, args: list[object]) -> object:
         if self.invoke_callable_sync is None:
@@ -1644,9 +628,224 @@ class WebRuntime:
         return self.invoke_callable_sync(fn, args)
 
     def start(self) -> None:
+        self._estado_inicializado = False
+        self._estado_pronto = False
+        self._estado_drenando = False
+        self._estado_falha = None
+        self._engine_ativa_nome = str(getattr(self.engine_http, "nome", "legada"))
+        fallback = bool(getattr(self.app, "engine_http_fallback_automatico", True))
+        try:
+            self.engine_http.iniciar()
+            self._estado_inicializado = True
+            self._estado_pronto = True
+            self._engine_ativa_nome = str(getattr(self.engine_http, "nome", "legada"))
+        except Exception as exc:
+            self._estado_falha = str(exc)
+            if fallback and str(getattr(self.engine_http, "nome", "")) == "asgi":
+                self.out(f"[WEB] fallback para engine legada: {exc}")
+                self.engine_http = EngineHttpServerLegado(
+                    iniciar=self._start_legacy_httpserver,
+                    parar=self._stop_legacy_httpserver,
+                )
+                self._estado_falha = None
+                self.engine_http.iniciar()
+                self._estado_inicializado = True
+                self._estado_pronto = True
+                self._engine_ativa_nome = "legada"
+                return
+            raise
+
+    def _start_asgi_httpserver(self) -> None:
+        try:
+            import uvicorn  # type: ignore
+        except Exception as exc:  # pragma: no cover - dependência opcional
+            raise RuntimeError("Engine ASGI requer dependência opcional 'uvicorn'.") from exc
+
+        host_publico = self.host
+        porta_publica = int(self.port)
+        self._start_proxy_legacy_backend()
+        if self._proxy_port is None:
+            raise RuntimeError("Falha ao iniciar backend legado interno para ASGI.")
+
+        limite_payload = self._limite_payload_bytes()
+        timeout_leitura = float(self._limites_engine().get("timeout_leitura_segundos", 20.0) or 20.0)
+        proxy_port = int(self._proxy_port)
+
+        async def asgi_app(scope: dict[str, object], receive: object, send: object) -> None:
+            if str(scope.get("type")) != "http":
+                await send({"type": "http.response.start", "status": 501, "headers": [(b"content-type", b"text/plain; charset=utf-8")]})
+                await send({"type": "http.response.body", "body": b"tipo ASGI nao suportado", "more_body": False})
+                return
+
+            metodo = str(scope.get("method", "GET")).upper()
+            raw_path = str(scope.get("raw_path", b"").decode("latin-1") if isinstance(scope.get("raw_path"), (bytes, bytearray)) else "")
+            if not raw_path:
+                raw_path = str(scope.get("path", "/"))
+            raw_query = scope.get("query_string", b"")
+            query = raw_query.decode("latin-1") if isinstance(raw_query, (bytes, bytearray)) else ""
+            destino = raw_path + (f"?{query}" if query else "")
+
+            headers_scope = list(scope.get("headers", []))
+            headers_dict: dict[str, str] = {}
+            for item in headers_scope:
+                if not isinstance(item, (list, tuple)) or len(item) != 2:
+                    continue
+                k_raw, v_raw = item
+                if not isinstance(k_raw, (bytes, bytearray)) or not isinstance(v_raw, (bytes, bytearray)):
+                    continue
+                headers_dict[k_raw.decode("latin-1")] = v_raw.decode("latin-1")
+
+            body = bytearray()
+            while True:
+                evento = await receive()
+                if not isinstance(evento, dict):
+                    break
+                if str(evento.get("type")) != "http.request":
+                    break
+                chunk = evento.get("body", b"")
+                if isinstance(chunk, (bytes, bytearray)):
+                    body.extend(chunk)
+                if len(body) > limite_payload:
+                    await send(
+                        {
+                            "type": "http.response.start",
+                            "status": 413,
+                            "headers": [(b"content-type", b"application/json; charset=utf-8")],
+                        }
+                    )
+                    await send(
+                        {
+                            "type": "http.response.body",
+                            "body": json.dumps(
+                                {"ok": False, "erro": {"codigo": "PAYLOAD_GRANDE", "mensagem": "Payload excede o limite da engine ASGI."}},
+                                ensure_ascii=False,
+                            ).encode("utf-8"),
+                            "more_body": False,
+                        }
+                    )
+                    return
+                if not bool(evento.get("more_body", False)):
+                    break
+
+            conn = http.client.HTTPConnection("127.0.0.1", proxy_port, timeout=timeout_leitura)
+            try:
+                conn.request(metodo, destino, body=bytes(body), headers=headers_dict)
+                resp = conn.getresponse()
+                status = int(resp.status)
+                payload = resp.read()
+                headers_out: list[tuple[bytes, bytes]] = []
+                for hk, hv in resp.getheaders():
+                    hk_l = str(hk).lower()
+                    if hk_l in {"connection", "transfer-encoding", "keep-alive"}:
+                        continue
+                    headers_out.append((str(hk).encode("latin-1"), str(hv).encode("latin-1")))
+                await send({"type": "http.response.start", "status": status, "headers": headers_out})
+                await send({"type": "http.response.body", "body": payload, "more_body": False})
+            except Exception as exc:
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 502,
+                        "headers": [(b"content-type", b"application/json; charset=utf-8")],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": json.dumps(
+                            {"ok": False, "erro": {"codigo": "ASGI_PROXY_FALHA", "mensagem": "Falha no proxy ASGI interno.", "detalhes": str(exc)}},
+                            ensure_ascii=False,
+                        ).encode("utf-8"),
+                        "more_body": False,
+                    }
+                )
+            finally:
+                conn.close()
+
+        try:
+            config = uvicorn.Config(  # type: ignore[attr-defined]
+                asgi_app,
+                host=host_publico,
+                port=porta_publica,
+                log_level="warning",
+                access_log=False,
+            )
+            server = uvicorn.Server(config)  # type: ignore[attr-defined]
+            th = threading.Thread(target=server.run, daemon=True)
+            th.start()
+
+            limite_espera = time.time() + 8.0
+            while time.time() < limite_espera:
+                if bool(getattr(server, "started", False)):
+                    break
+                if not th.is_alive():
+                    raise RuntimeError("Engine ASGI encerrou durante bootstrap.")
+                time.sleep(0.05)
+            if not bool(getattr(server, "started", False)):
+                raise RuntimeError("Timeout ao iniciar engine ASGI.")
+
+            self._asgi_server = server
+            self._asgi_thread = th
+            try:
+                servers = list(getattr(server, "servers", []) or [])
+                if servers:
+                    sockets = list(getattr(servers[0], "sockets", []) or [])
+                    if sockets:
+                        self.port = int(sockets[0].getsockname()[1])
+            except Exception:
+                pass
+        except Exception:
+            self._stop_proxy_legacy_backend()
+            raise
+
+    def _stop_asgi_httpserver(self) -> None:
+        self._estado_drenando = True
+        timeout = float(getattr(self.app, "shutdown_gracioso_segundos", 5.0) or 5.0)
+        server = self._asgi_server
+        th = self._asgi_thread
+        if server is not None:
+            try:
+                setattr(server, "should_exit", True)
+            except Exception:
+                pass
+        if th is not None and th.is_alive():
+            th.join(timeout=max(timeout, 0.1))
+        self._asgi_server = None
+        self._asgi_thread = None
+        self._stop_proxy_legacy_backend()
+
+    def _start_proxy_legacy_backend(self) -> None:
+        old_host, old_port = self.host, int(self.port)
+        old_server, old_thread = self.server, self.thread
+        try:
+            self.host = "127.0.0.1"
+            self.port = 0
+            self._start_legacy_httpserver()
+            self._proxy_server = self.server
+            self._proxy_thread = self.thread
+            self._proxy_port = int(self.port)
+        finally:
+            self.server = old_server
+            self.thread = old_thread
+            self.host = old_host
+            self.port = old_port
+
+    def _stop_proxy_legacy_backend(self) -> None:
+        if self._proxy_server is not None:
+            self._proxy_server.shutdown()
+            self._proxy_server.server_close()
+        if self._proxy_thread is not None and self._proxy_thread.is_alive():
+            timeout = float(getattr(self.app, "shutdown_gracioso_segundos", 5.0) or 5.0)
+            self._proxy_thread.join(timeout=max(timeout, 0.1))
+        self._proxy_server = None
+        self._proxy_thread = None
+        self._proxy_port = None
+
+    def _start_legacy_httpserver(self) -> None:
         app = self.app
         out = self.out
         invoke = self._invoke
+        runtime_ref = self
 
         class Handler(BaseHTTPRequestHandler):
             protocol_version = "HTTP/1.1"
@@ -1813,15 +1012,16 @@ class WebRuntime:
                     )
                 if length <= 0:
                     return b"", {}, {}, {}, None
-                if length > 5 * 1024 * 1024:
+                limite_payload = runtime_ref._limite_payload_bytes()
+                if length > limite_payload:
                     return b"", None, {}, {}, (
                         413,
                         {
                             "ok": False,
                             "erro": {
                                 "codigo": "PAYLOAD_GRANDE",
-                                "mensagem": "Payload excede o limite de 5MB.",
-                                "detalhes": None,
+                                "mensagem": "Payload excede o limite operacional da engine.",
+                                "detalhes": {"limite_bytes": int(limite_payload)},
                             },
                         },
                     )
@@ -2111,136 +1311,15 @@ class WebRuntime:
                 query: dict[str, object],
                 headers_map: dict[str, str],
             ) -> bool:
-                if not app.tempo_real.fallback_ativo:
-                    return False
-                prefixo = app.tempo_real.fallback_prefixo
-                if not path.startswith(prefixo):
-                    return False
-
-                raw_body, body, _, _, body_err = self._read_body()
-                _ = raw_body
-                if body_err:
-                    self._send_json(body_err[0], body_err[1], None)
-                    return True
-                corpo = body or {}
-                sufixo = path[len(prefixo) :] or "/"
-
-                if sufixo == "/status":
-                    self._send_json(200, app.tempo_real.snapshot(str(query.get("canal") or "") or None), None)
-                    return True
-
-                if sufixo == "/conectar":
-                    canal = str(corpo.get("canal") or query.get("canal") or "")
-                    info = app.tempo_real.rota_info(canal)
-                    if info is None:
-                        self._send_json(404, {"ok": False, "erro": {"codigo": "CANAL_NAO_ENCONTRADO"}}, None)
-                        return True
-                    ok_auth, auth, err_auth = self._auth_ws_usuario(headers_map, query, dict(info.get("opcoes", {})))
-                    if not ok_auth:
-                        self._send_json(401, {"ok": False, "erro": err_auth}, None)
-                        return True
-                    cursor_ultimo_raw = corpo.get("cursor_ultimo")
-                    if cursor_ultimo_raw is None:
-                        cursor_ultimo_raw = query.get("cursor_ultimo")
-                    if cursor_ultimo_raw is None:
-                        cursor_ultimo_raw = query.get("cursor")
-                    try:
-                        cursor_ultimo = int(cursor_ultimo_raw) if cursor_ultimo_raw is not None else None
-                    except Exception:
-                        cursor_ultimo = None
-
-                    ok, obj = app.tempo_real.conectar(
-                        canal=canal,
-                        ip=self.client_address[0] if self.client_address else "0.0.0.0",
-                        id_usuario=(auth or {}).get("id_usuario"),  # type: ignore[arg-type]
-                        id_requisicao=str(getattr(self, "_trama_id_requisicao", uuid.uuid4().hex)),
-                        id_traco=str(getattr(self, "_trama_id_traco", uuid.uuid4().hex)),
-                        modo="fallback",
-                        cursor_ultimo=cursor_ultimo,
-                    )
-                    if not ok:
-                        self._send_json(429, {"ok": False, "erro": obj}, None)
-                        return True
-                    c = obj  # type: ignore[assignment]
-                    assert isinstance(c, TempoRealConexao)
-                    h = info.get("handler")
-                    if h is not None:
-                        try:
-                            req = self._ctx_conexao(c, {"evento": "conectar"})
-                            res = invoke(h, [req])
-                            if isinstance(res, dict) and res.get("aceitar") is False:
-                                app.tempo_real.desconectar(c, motivo="negada")
-                                self._send_json(403, {"ok": False, "erro": {"codigo": "CONEXAO_NEGADA"}}, None)
-                                return True
-                        except Exception:
-                            app.tempo_real.desconectar(c, motivo="erro_handler")
-                            self._send_json(500, {"ok": False, "erro": {"codigo": "ERRO_HANDLER_CONECTAR"}}, None)
-                            return True
-                    self._send_json(
-                        200,
-                        {
-                            "ok": True,
-                            "id_conexao": c.id_conexao,
-                            "connection_id": c.id_conexao,
-                            "id_usuario": c.id_usuario,
-                            "user_id": c.id_usuario,
-                            "canal": canal,
-                            "cursor_ultimo_confirmado": c.cursor_ultimo_confirmado,
-                        },
-                        None,
-                    )
-                    return True
-
-                if sufixo == "/desconectar":
-                    id_c = str(corpo.get("id_conexao") or query.get("id_conexao") or query.get("connection_id") or "")
-                    c = app.tempo_real.por_id(id_c)
-                    if c is None:
-                        self._send_json(404, {"ok": False, "erro": {"codigo": "CONEXAO_NAO_ENCONTRADA"}}, None)
-                        return True
-                    app.tempo_real.desconectar(c, motivo="fallback_desconectar")
-                    self._send_json(200, {"ok": True}, None)
-                    return True
-
-                if sufixo == "/receber":
-                    id_c = str(query.get("id_conexao") or query.get("connection_id") or corpo.get("id_conexao") or "")
-                    c = app.tempo_real.por_id(id_c)
-                    if c is None:
-                        self._send_json(404, {"ok": False, "erro": {"codigo": "CONEXAO_NAO_ENCONTRADA"}}, None)
-                        return True
-                    timeout = query.get("timeout_segundos")
-                    cursor_desde = query.get("cursor_desde")
-                    if cursor_desde is None:
-                        cursor_desde = query.get("cursor")
-                    try:
-                        cursor_int = int(cursor_desde) if cursor_desde is not None else None
-                    except Exception:
-                        cursor_int = None
-                    evs = app.tempo_real.receber_fallback(
-                        c,
-                        float(timeout) if timeout is not None else None,
-                        cursor_desde=cursor_int,
-                    )
-                    cursor_ate = int(c.cursor_ultimo_confirmado)
-                    self._send_json(200, {"ok": True, "eventos": evs, "cursor_ate": cursor_ate}, None)
-                    return True
-
-                if sufixo == "/enviar":
-                    id_c = str(corpo.get("id_conexao") or query.get("id_conexao") or "")
-                    c = app.tempo_real.por_id(id_c)
-                    if c is None:
-                        self._send_json(404, {"ok": False, "erro": {"codigo": "CONEXAO_NAO_ENCONTRADA"}}, None)
-                        return True
-                    info = app.tempo_real.rota_info(c.canal) or {}
-                    msg = corpo.get("mensagem", corpo)
-                    if not isinstance(msg, dict):
-                        self._send_json(422, {"ok": False, "erro": {"codigo": "MENSAGEM_INVALIDA"}}, None)
-                        return True
-                    self._processar_mensagem_tempo_real(c, msg, invoke, info)
-                    self._send_json(200, {"ok": True}, None)
-                    return True
-
-                self._send_json(404, {"ok": False, "erro": {"codigo": "FALLBACK_ROTA_INVALIDA"}}, None)
-                return True
+                return processar_fallback_tempo_real_http(
+                    self,
+                    app=app,
+                    path=path,
+                    query=query,
+                    headers_map=headers_map,
+                    invocar_sync=invoke,
+                    processar_mensagem=self._processar_mensagem_tempo_real,
+                )
 
             def _handle_websocket_upgrade(
                 self,
@@ -2248,147 +1327,15 @@ class WebRuntime:
                 query: dict[str, object],
                 headers_map: dict[str, str],
             ) -> bool:
-                upgrade = str(headers_map.get("upgrade", "")).lower()
-                connection = str(headers_map.get("connection", "")).lower()
-                if upgrade != "websocket" or "upgrade" not in connection:
-                    return False
-                info = app.tempo_real.rota_info(path)
-                if info is None:
-                    return False
-                sec_key = str(headers_map.get("sec-websocket-key", "")).strip()
-                if not sec_key:
-                    self._send_json(400, {"ok": False, "erro": {"codigo": "WS_HANDSHAKE_INVALIDO", "mensagem": "Sec-WebSocket-Key ausente."}}, None)
-                    return True
-
-                ok_auth, auth, err_auth = self._auth_ws_usuario(headers_map, query, dict(info.get("opcoes", {})))
-                if not ok_auth:
-                    self._send_json(401, {"ok": False, "erro": err_auth}, None)
-                    return True
-
-                cursor_q = query.get("cursor_ultimo")
-                if cursor_q is None:
-                    cursor_q = query.get("cursor")
-                try:
-                    cursor_ultimo = int(cursor_q) if cursor_q is not None else None
-                except Exception:
-                    cursor_ultimo = None
-
-                ok, obj = app.tempo_real.conectar(
-                    canal=path,
-                    ip=self.client_address[0] if self.client_address else "0.0.0.0",
-                    id_usuario=(auth or {}).get("id_usuario"),  # type: ignore[arg-type]
-                    id_requisicao=str(getattr(self, "_trama_id_requisicao", uuid.uuid4().hex)),
-                    id_traco=str(getattr(self, "_trama_id_traco", uuid.uuid4().hex)),
-                    modo="websocket",
-                    socket_conn=self.connection,
-                    cursor_ultimo=cursor_ultimo,
+                return processar_upgrade_websocket_tempo_real(
+                    self,
+                    app=app,
+                    path=path,
+                    query=query,
+                    headers_map=headers_map,
+                    invocar_sync=invoke,
+                    processar_mensagem=self._processar_mensagem_tempo_real,
                 )
-                if not ok:
-                    self._send_json(429, {"ok": False, "erro": obj}, None)
-                    return True
-                c = obj  # type: ignore[assignment]
-                assert isinstance(c, TempoRealConexao)
-
-                h = info.get("handler")
-                if h is not None:
-                    try:
-                        req = self._ctx_conexao(c, {"evento": "conectar"})
-                        res = invoke(h, [req])
-                        if isinstance(res, dict) and res.get("aceitar") is False:
-                            app.tempo_real.desconectar(c, motivo="negada")
-                            self._send_json(403, {"ok": False, "erro": {"codigo": "CONEXAO_NEGADA"}}, None)
-                            return True
-                    except Exception:
-                        app.tempo_real.desconectar(c, motivo="erro_handler")
-                        self._send_json(500, {"ok": False, "erro": {"codigo": "ERRO_HANDLER_CONECTAR"}}, None)
-                        return True
-
-                accept = self._ws_accept_key(sec_key)
-                self.send_response(101, "Switching Protocols")
-                self.send_header("Upgrade", "websocket")
-                self.send_header("Connection", "Upgrade")
-                self.send_header("Sec-WebSocket-Accept", accept)
-                self._add_common_headers({})
-                self.end_headers()
-                self.close_connection = False
-                self.connection.settimeout(0.2)
-
-                try:
-                    ultimo_ping = 0.0
-                    self._emitir_evento_ws(
-                        c,
-                        {
-                            "ok": True,
-                            "evento": "conectado",
-                            "id_conexao": c.id_conexao,
-                            "connection_id": c.id_conexao,
-                            "id_usuario": c.id_usuario,
-                            "user_id": c.id_usuario,
-                            "canal": c.canal,
-                            "cursor_ultimo_confirmado": c.cursor_ultimo_confirmado,
-                        },
-                    )
-                    while c.ativa:
-                        pendentes = c.drenar(100)
-                        for p in pendentes:
-                            self._emitir_evento_ws(c, p)
-
-                        try:
-                            opcode, payload = self._ws_recv_frame(self.connection)
-                        except socket.timeout:
-                            hb = float(app.tempo_real.limites["heartbeat_segundos"])
-                            if time.time() - ultimo_ping >= hb:
-                                self._ws_send_frame(self.connection, b"", opcode=0x9)
-                                ultimo_ping = time.time()
-                            continue
-                        if opcode == 0x8:
-                            self._ws_send_frame(self.connection, b"", opcode=0x8)
-                            break
-                        if opcode == 0x9:
-                            self._ws_send_frame(self.connection, payload, opcode=0xA)
-                            continue
-                        if opcode == 0xA:
-                            c.ultimo_heartbeat_em = time.time()
-                            continue
-                        if opcode != 0x1:
-                            continue
-                        texto = payload.decode("utf-8", errors="replace")
-                        try:
-                            if texto.startswith("42"):
-                                # Compatibilidade mínima Socket.IO: 42["evento",{...}]
-                                raw = json.loads(texto[2:])
-                                if isinstance(raw, list) and len(raw) >= 1:
-                                    msg = {
-                                        "tipo": str(raw[0]),
-                                        "socketio_evento": str(raw[0]),
-                                        "dados": raw[1] if len(raw) >= 2 else {},
-                                    }
-                                else:
-                                    msg = {}
-                            else:
-                                msg = json.loads(texto) if texto.strip() else {}
-                        except json.JSONDecodeError:
-                            self._emitir_evento_ws(c, {"ok": False, "erro": {"codigo": "MENSAGEM_JSON_INVALIDA"}})
-                            continue
-                        if not isinstance(msg, dict):
-                            self._emitir_evento_ws(c, {"ok": False, "erro": {"codigo": "MENSAGEM_INVALIDA"}})
-                            continue
-                        self._processar_mensagem_tempo_real(c, msg, invoke, info)
-                except Exception as exc:  # noqa: BLE001
-                    observability_runtime.registrar_runtime_metrica(
-                        "tempo_real",
-                        "erro_conexao",
-                        labels={"canal": c.canal, "erro": str(exc)[:120]},
-                    )
-                finally:
-                    app.tempo_real.desconectar(c, motivo="websocket_encerrado")
-                    if h is not None:
-                        try:
-                            req = self._ctx_conexao(c, {"evento": "desconectar"})
-                            invoke(h, [req])
-                        except Exception:
-                            pass
-                return True
 
             def _apply_rate_limit(
                 self,
@@ -2850,12 +1797,13 @@ class WebRuntime:
 
                 if app.health_enabled and path in {app.health_path, app.readiness_path, app.liveness_path}:
                     headers = {"X-Request-Id": request_id} if request_id else None
-                    status = "up"
+                    tipo = "health"
                     if path == app.readiness_path:
-                        status = "ready"
+                        tipo = "readiness"
                     if path == app.liveness_path:
-                        status = "alive"
-                    self._send_json(200, {"ok": True, "status": status}, headers)
+                        tipo = "liveness"
+                    http_status, payload_saude = runtime_ref._status_saude(tipo)
+                    self._send_json(http_status, payload_saude, headers)
                     return
 
                 if app.static_prefix and app.static_dir and path.startswith(app.static_prefix):
@@ -3256,8 +2204,15 @@ class WebRuntime:
         self.thread.start()
 
     def stop(self) -> None:
+        self._estado_drenando = True
+        self._estado_pronto = False
+        self.engine_http.parar()
+        self._estado_inicializado = False
+
+    def _stop_legacy_httpserver(self) -> None:
+        timeout = float(getattr(self.app, "shutdown_gracioso_segundos", 5.0) or 5.0)
         if self.server is not None:
             self.server.shutdown()
             self.server.server_close()
         if self.thread is not None and self.thread.is_alive():
-            self.thread.join(timeout=2.0)
+            self.thread.join(timeout=max(timeout, 0.1))
