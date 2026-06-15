@@ -1,0 +1,6 @@
+assíncrona função principal()
+    storage = armazenamento_criar_local(".local/v234_storage_url")
+    armazenamento_salvar(storage, "docs/url.txt", "conteudo", "text/plain")
+    url = armazenamento_url_assinada(storage, "docs/url.txt", 120, "baixar")
+    exibir(url)
+fim

@@ -1,0 +1,9 @@
+função principal()
+    priv = ler_texto(".local/chaves/alias_priv.pem")
+    pub = ler_texto(".local/chaves/alias_pub.pem")
+
+    token = token_assinar({"sub": "u_alias", "iss": "trama", "aud": "sdk"}, priv, 600, "RS256", "kid-alias")
+    claims = token_validar(token, pub, 0, "trama", "sdk")
+
+    exibir(claims["sub"])
+fim

@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import sys
 
+from . import __version__
 from .bytecode import format_program, program_to_dict
 from .compiler import CompileError, compile_source
 from .devtools import coverage_trm, format_trm, gerar_template_backend, lint_trm, run_test_runner
@@ -19,12 +20,18 @@ from . import observability_runtime
 from .parser import ParseError
 from . import testes_avancados_runtime
 from . import tooling_runtime
+from . import jobs_runtime
 from trama_semente.semente import semente_compilar_arquivo
-from .vm import VMError, run_bytecode_file, run_source
+from .vm import UserFunction, VMError, VirtualMachine, run_bytecode_file, run_source
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="trama", description="Ferramentas da linguagem trama")
+    parser.add_argument(
+        "--version",
+        action="store_true",
+        help="Exibe a versão da CLI Trama",
+    )
     parser.add_argument(
         "--diagnostico-runtime",
         action="store_true",
@@ -114,11 +121,24 @@ def build_parser() -> argparse.ArgumentParser:
     openapi.add_argument("--versao", default="1.0.0", help="Versão da API")
     openapi.add_argument("--servidor", default="", help="URL base do servidor (opcional)")
 
-    sdk = sub.add_parser("sdk-gerar", help="Gera SDK cliente a partir de OpenAPI")
-    sdk.add_argument("--openapi", required=True, help="Arquivo OpenAPI JSON")
+    contrato_ir = sub.add_parser("contrato-ir-gerar", help="Gera IR formal de contrato HTTP a partir de JSON")
+    contrato_ir.add_argument("--contrato", required=True, help="Arquivo JSON de entrada (IR/OpenAPI/contrato legado)")
+    contrato_ir.add_argument("--saida", required=True, help="Arquivo IR de saída (.json)")
+    contrato_ir.add_argument("--titulo", default="API Trama", help="Título da API")
+    contrato_ir.add_argument("--versao", default="1.0.0", help="Versão da API")
+    contrato_ir.add_argument("--servidor", default="", help="URL base do servidor (opcional)")
+
+    sdk = sub.add_parser("sdk-gerar", help="Gera SDK cliente a partir de OpenAPI ou IR formal")
+    sdk.add_argument("--openapi", help="Arquivo OpenAPI JSON")
+    sdk.add_argument("--contrato-ir", help="Arquivo IR formal de contrato JSON")
     sdk.add_argument("--saida", required=True, help="Arquivo SDK de saída")
     sdk.add_argument("--linguagem", default="python", choices=["python", "typescript", "ts"], help="Linguagem do SDK")
     sdk.add_argument("--cliente", default="ClienteApiTrama", help="Nome da classe cliente")
+
+    contrato_breaking = sub.add_parser("contrato-breaking-verificar", help="Verifica breaking changes entre duas versoes de contrato")
+    contrato_breaking.add_argument("--antes", required=True, help="Arquivo JSON da versao anterior (IR/OpenAPI)")
+    contrato_breaking.add_argument("--depois", required=True, help="Arquivo JSON da versao nova (IR/OpenAPI)")
+    contrato_breaking.add_argument("--saida", default="", help="Arquivo JSON opcional de saida")
 
     admin_usuario_criar = sub.add_parser("admin-usuario-criar", help="Cria usuário administrativo local")
     admin_usuario_criar.add_argument("--id", required=True, help="ID do usuário")
@@ -134,6 +154,33 @@ def build_parser() -> argparse.ArgumentParser:
 
     admin_jobs = sub.add_parser("admin-jobs-listar", help="Lista resumo operacional de jobs")
     admin_jobs.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    jobs_status = sub.add_parser("jobs-fila-status", help="Exibe status operacional de uma fila de jobs")
+    jobs_status.add_argument("--dsn", required=True, help="DSN do backend SQL")
+    jobs_status.add_argument("--fila", required=True, help="Nome da fila")
+    jobs_status.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    jobs_dlq_listar = sub.add_parser("jobs-dlq-listar", help="Lista itens de DLQ de uma fila")
+    jobs_dlq_listar.add_argument("--dsn", required=True, help="DSN do backend SQL")
+    jobs_dlq_listar.add_argument("--fila", required=True, help="Nome da fila")
+    jobs_dlq_listar.add_argument("--limite", default=20, type=int, help="Limite de itens")
+    jobs_dlq_listar.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    jobs_dlq_reprocessar = sub.add_parser("jobs-dlq-reprocessar", help="Reprocessa itens da DLQ de uma fila")
+    jobs_dlq_reprocessar.add_argument("--dsn", required=True, help="DSN do backend SQL")
+    jobs_dlq_reprocessar.add_argument("--fila", required=True, help="Nome da fila")
+    jobs_dlq_reprocessar.add_argument("--limite", default=100, type=int, help="Limite de itens")
+    jobs_dlq_reprocessar.add_argument("--json", action="store_true", help="Saída em JSON")
+
+    jobs_worker = sub.add_parser("jobs-worker-rodar", help="Processa fila SQL com handlers carregados de arquivo .trm")
+    jobs_worker.add_argument("--dsn", required=True, help="DSN do backend SQL")
+    jobs_worker.add_argument("--fila", required=True, help="Nome da fila")
+    jobs_worker.add_argument("--arquivo", required=True, help="Arquivo .trm com handlers")
+    jobs_worker.add_argument("--uma-vez", action="store_true", help="Executa apenas um ciclo")
+    jobs_worker.add_argument("--ciclos", default=1, type=int, help="Quantidade de ciclos quando nao estiver em modo continuo")
+    jobs_worker.add_argument("--intervalo", default=0.25, type=float, help="Intervalo entre ciclos em segundos")
+    jobs_worker.add_argument("--limite", default=100, type=int, help="Lote maximo por ciclo")
+    jobs_worker.add_argument("--json", action="store_true", help="Saída em JSON")
 
     admin_manut = sub.add_parser("admin-manutencao-status", help="Status de manutenção operacional")
     admin_manut.add_argument("--json", action="store_true", help="Saída em JSON")
@@ -203,6 +250,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if bool(args.version):
+        print(f"trama {__version__}")
+        return 0
 
     if bool(args.diagnostico_runtime):
         # Canônico pt-BR
@@ -339,7 +390,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "openapi-gerar":
             contrato = json.loads(Path(args.contrato).read_text(encoding="utf-8"))
-            if "openapi" in contrato and "paths" in contrato:
+            if isinstance(contrato, dict) and contrato.get("ir_contrato") == "trama_http_v1":
+                spec = tooling_runtime.gerar_openapi_de_ir(contrato)
+            elif "openapi" in contrato and "paths" in contrato:
                 spec = contrato
                 if args.titulo:
                     spec.setdefault("info", {})
@@ -349,18 +402,43 @@ def main(argv: list[str] | None = None) -> int:
                 if args.servidor:
                     spec["servers"] = [{"url": args.servidor}]
             else:
-                spec = {
-                    "openapi": "3.0.3",
-                    "info": {"title": args.titulo, "version": args.versao},
-                    "servers": [{"url": args.servidor}] if args.servidor else [],
-                    "paths": dict(contrato.get("paths", {})),
-                }
+                ir = tooling_runtime.gerar_ir_contrato(
+                    contrato,
+                    titulo=args.titulo,
+                    versao=args.versao,
+                    servidor_base=(args.servidor or None),
+                )
+                spec = tooling_runtime.gerar_openapi_de_ir(ir)
             out = tooling_runtime.salvar_openapi(spec, args.saida)
             print(json.dumps(out, ensure_ascii=False, indent=2))
             return 0
+        if args.command == "contrato-ir-gerar":
+            contrato = json.loads(Path(args.contrato).read_text(encoding="utf-8"))
+            ir = tooling_runtime.gerar_ir_contrato(
+                contrato,
+                titulo=args.titulo,
+                versao=args.versao,
+                servidor_base=(args.servidor or None),
+            )
+            out = tooling_runtime.salvar_ir_contrato(ir, args.saida)
+            print(json.dumps(out, ensure_ascii=False, indent=2))
+            return 0
         if args.command == "sdk-gerar":
-            spec = json.loads(Path(args.openapi).read_text(encoding="utf-8"))
+            origem = args.contrato_ir or args.openapi
+            if not origem:
+                raise SystemExit("sdk-gerar exige --openapi ou --contrato-ir")
+            spec = json.loads(Path(origem).read_text(encoding="utf-8"))
             out = tooling_runtime.gerar_sdk_cliente(spec, args.saida, linguagem=args.linguagem, nome_cliente=args.cliente)
+            print(json.dumps(out, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "contrato-breaking-verificar":
+            antes = json.loads(Path(args.antes).read_text(encoding="utf-8"))
+            depois = json.loads(Path(args.depois).read_text(encoding="utf-8"))
+            out = tooling_runtime.verificar_breaking_changes_contrato(antes, depois)
+            if args.saida:
+                Path(args.saida).parent.mkdir(parents=True, exist_ok=True)
+                Path(args.saida).write_text(json.dumps(out, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+                out = {**out, "arquivo": str(Path(args.saida).resolve())}
             print(json.dumps(out, ensure_ascii=False, indent=2))
             return 0
         if args.command == "admin-usuario-criar":
@@ -410,6 +488,53 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(payload, ensure_ascii=False, indent=2))
             else:
                 print("Resumo de jobs coletado de métricas.")
+            return 0
+        if args.command == "jobs-fila-status":
+            payload = asyncio.run(_jobs_fila_status(args.dsn, args.fila))
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print(f"fila={payload['fila']} backend={payload['backend']}")
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "jobs-dlq-listar":
+            payload = asyncio.run(_jobs_dlq_listar(args.dsn, args.fila, limite=int(args.limite)))
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print(f"fila={payload['fila']} dlq={payload['total']}")
+                for item in payload["itens"]:
+                    print(f"- {item.get('id')} {item.get('handler_ref')} [{item.get('status')}]")
+            return 0
+        if args.command == "jobs-dlq-reprocessar":
+            payload = asyncio.run(_jobs_dlq_reprocessar(args.dsn, args.fila, limite=int(args.limite)))
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print(
+                    f"fila={payload['fila']} backend={payload['backend']} "
+                    f"reprocessados={payload['reprocessados']}"
+                )
+            return 0
+        if args.command == "jobs-worker-rodar":
+            payload = asyncio.run(
+                _jobs_worker_rodar(
+                    dsn=args.dsn,
+                    fila=args.fila,
+                    arquivo=args.arquivo,
+                    uma_vez=bool(args.uma_vez),
+                    ciclos=int(args.ciclos),
+                    intervalo=float(args.intervalo),
+                    limite=int(args.limite),
+                )
+            )
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print(
+                    f"fila={payload['fila']} backend={payload['backend']} "
+                    f"processados_total={payload['processados_total']}"
+                )
             return 0
         if args.command == "admin-manutencao-status":
             payload = {
@@ -697,6 +822,109 @@ def _operacao_diagnostico() -> dict[str, object]:
         "alertas": alertas,
         "dashboards": tooling_runtime.dashboards_operacionais_prontos().get("dashboards", []),
         "runbooks": tooling_runtime.runbooks_incidentes_prontos().get("runbooks", []),
+    }
+
+
+async def _carregar_handlers_trama(arquivo: str) -> tuple[dict[str, object], object]:
+    path = Path(arquivo).resolve()
+    codigo = path.read_text(encoding="utf-8")
+    program = compile_source(codigo, arquivo=str(path))
+    vm = VirtualMachine(program=program, print_fn=None, source_path=str(path))
+    await vm.execute_async(auto_call_principal=False)
+    handlers = {
+        nome: valor
+        for nome, valor in vm.globals_env.values.items()
+        if nome not in vm._builtins and isinstance(valor, UserFunction)
+    }
+    if not handlers:
+        raise RuntimeError("Nenhum handler de job encontrado no arquivo .trm informado.")
+    return handlers, vm._invoke_from_runtime_sync
+
+
+def _jobs_queue_sql(
+    dsn: str,
+    fila: str,
+    *,
+    handlers: dict[str, object] | None = None,
+    invocador: object | None = None,
+    limite: int = 100,
+) -> jobs_runtime.JobQueue:
+    invoke_callable_sync = invocador if callable(invocador) else None
+    queue = jobs_runtime.JobQueue(
+        fila,
+        invoke_callable_sync=invoke_callable_sync,
+        backend="sql",
+        backend_opcoes={
+            "dsn": dsn,
+            "lote_processamento": int(limite),
+            "handlers_registrados": dict(handlers or {}),
+        },
+    )
+    if handlers:
+        queue.handlers_registrar(dict(handlers))
+    return queue
+
+
+async def _jobs_fila_status(dsn: str, fila: str) -> dict[str, object]:
+    queue = _jobs_queue_sql(dsn, fila)
+    payload = await queue.refresh_status()
+    payload["ok"] = True
+    payload["fila"] = fila
+    return payload
+
+
+async def _jobs_dlq_listar(dsn: str, fila: str, limite: int = 20) -> dict[str, object]:
+    queue = _jobs_queue_sql(dsn, fila)
+    itens = await queue.list_dlq(int(limite))
+    return {
+        "ok": True,
+        "backend": "sql",
+        "fila": fila,
+        "total": len(itens),
+        "itens": itens,
+    }
+
+
+async def _jobs_dlq_reprocessar(dsn: str, fila: str, limite: int = 100) -> dict[str, object]:
+    queue = _jobs_queue_sql(dsn, fila)
+    payload = await queue.reprocess_dlq(int(limite))
+    payload["ok"] = True
+    payload["fila"] = fila
+    return payload
+
+
+async def _jobs_worker_rodar(
+    *,
+    dsn: str,
+    fila: str,
+    arquivo: str,
+    uma_vez: bool = False,
+    ciclos: int = 1,
+    intervalo: float = 0.25,
+    limite: int = 100,
+) -> dict[str, object]:
+    handlers, invocador = await _carregar_handlers_trama(arquivo)
+    queue = _jobs_queue_sql(dsn, fila, handlers=handlers, invocador=invocador, limite=limite)
+    total_processados = 0
+    historico: list[dict[str, object]] = []
+    ciclos_total = 1 if uma_vez else max(1, int(ciclos))
+    for idx in range(ciclos_total):
+        out = await queue.process_all()
+        total_processados += int(out.get("processados", 0))
+        historico.append(dict(out))
+        if idx + 1 < ciclos_total:
+            await asyncio.sleep(max(0.0, float(intervalo)))
+    status = await queue.refresh_status()
+    return {
+        "ok": True,
+        "backend": "sql",
+        "fila": fila,
+        "arquivo_handlers": str(Path(arquivo).resolve()),
+        "handlers": sorted(handlers.keys()),
+        "ciclos": ciclos_total,
+        "processados_total": total_processados,
+        "status_final": status,
+        "historico": historico,
     }
 
 

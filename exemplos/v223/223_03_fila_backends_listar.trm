@@ -1,0 +1,4 @@
+função principal()
+    backends = fila_backends_listar()
+    exibir(tamanho(backends) > 0)
+fim

@@ -1,0 +1,16 @@
+função principal()
+    token = ler_texto(".local/tokens/token_rs256.jwt")
+    url_jwks = "https://id.trama.dev/.well-known/jwks.json"
+
+    claims = jwt_validar_jwks(
+        token,
+        url_jwks,
+        0,
+        "https://id.trama.dev",
+        "backend-trama",
+        300,
+        2.0
+    )
+
+    exibir(claims["sub"])
+fim

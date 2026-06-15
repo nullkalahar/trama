@@ -1,0 +1,3 @@
+função falhar(payload)
+    lance "erro:" + texto(payload["id"])
+fim

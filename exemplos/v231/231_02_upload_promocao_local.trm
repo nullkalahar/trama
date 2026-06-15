@@ -1,0 +1,6 @@
+assíncrona função principal()
+    storage = armazenamento_criar_local(".local/v231_storage_promocao")
+    r = armazenamento_processar_upload(storage, "tmp/a.txt", "abc", {"content_type": "text/plain"})
+    final = armazenamento_promover(storage, r["key"], "docs/a.txt")
+    exibir(final["key"])
+fim

@@ -1,0 +1,4 @@
+função principal()
+    exibir("trama contrato-ir-gerar --contrato config/contrato.json --saida build/contrato_ir.json")
+    exibir("trama openapi-gerar --contrato build/contrato_ir.json --saida build/openapi.json")
+fim

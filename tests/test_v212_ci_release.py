@@ -6,10 +6,11 @@ from pathlib import Path
 def test_ci_v212_tem_suite_critica_e_gate() -> None:
     root = Path(__file__).resolve().parents[1]
     conteudo = (root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-    assert "name: ci_trama_v212" in conteudo
+    assert "name: ci_trama_v234" in conteudo
     assert "suite_critica_v212" in conteudo
     assert "gate_v212_obrigatorio" in conteudo
     assert "testes-avancados-v212" in conteudo
+    assert "suite_recente_v219_v234" in conteudo
 
 
 def test_release_v212_publica_checksum_e_rollback() -> None:

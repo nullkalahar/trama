@@ -1,0 +1,83 @@
+"""Módulos de segurança (v2.1.18)."""
+
+from .comum import SecurityError
+from .jwt import jwt_criar, jwt_ler_cabecalho, jwt_publica_de_jwk, jwt_validar_claims, jwt_verificar, senha_hash, senha_verificar
+from .jwks import jwks_cache_limpar, jwks_chave_por_kid, jwks_obter, jwt_verificar_jwks
+from .oidc import (
+    oidc_configurar_provedor,
+    oidc_descobrir_configuracao,
+    oidc_listar_provedores,
+    oidc_obter_provedor,
+    oidc_remover_provedor,
+    oidc_validar_token,
+)
+from .politicas import (
+    RateLimitDistribuido,
+    autorizacao_politicas_avaliar,
+    autorizacao_politicas_criar,
+    auditoria_seguranca_listar,
+    auditoria_seguranca_registrar,
+    rate_limit_distribuido_obter_instancia,
+    rate_limit_distribuido_permitir,
+    token_bloquear,
+    token_denylist_limpar_expirados,
+    token_esta_bloqueado,
+)
+from .rbac import autorizacao_avaliar, rbac_atribuir, rbac_criar, rbac_papeis_usuario, rbac_tem_papel, rbac_tem_permissao
+from .sessao import (
+    refresh_token_emitir,
+    refresh_token_trocar,
+    sessao_ativa,
+    sessao_criar,
+    sessao_obter,
+    sessao_revogar,
+    sessao_revogar_dispositivo,
+    sessao_revogar_usuario,
+    token_acesso_emitir,
+)
+
+__all__ = [
+    "SecurityError",
+    "RateLimitDistribuido",
+    "jwt_criar",
+    "jwt_verificar",
+    "jwt_ler_cabecalho",
+    "jwt_validar_claims",
+    "jwt_publica_de_jwk",
+    "jwks_obter",
+    "jwks_chave_por_kid",
+    "jwks_cache_limpar",
+    "jwt_verificar_jwks",
+    "oidc_descobrir_configuracao",
+    "oidc_configurar_provedor",
+    "oidc_obter_provedor",
+    "oidc_listar_provedores",
+    "oidc_remover_provedor",
+    "oidc_validar_token",
+    "senha_hash",
+    "senha_verificar",
+    "rbac_criar",
+    "rbac_atribuir",
+    "rbac_papeis_usuario",
+    "rbac_tem_papel",
+    "rbac_tem_permissao",
+    "autorizacao_politicas_criar",
+    "autorizacao_politicas_avaliar",
+    "autorizacao_avaliar",
+    "sessao_criar",
+    "sessao_obter",
+    "sessao_ativa",
+    "sessao_revogar",
+    "sessao_revogar_dispositivo",
+    "sessao_revogar_usuario",
+    "token_acesso_emitir",
+    "refresh_token_emitir",
+    "refresh_token_trocar",
+    "token_bloquear",
+    "token_esta_bloqueado",
+    "token_denylist_limpar_expirados",
+    "auditoria_seguranca_registrar",
+    "auditoria_seguranca_listar",
+    "rate_limit_distribuido_obter_instancia",
+    "rate_limit_distribuido_permitir",
+]

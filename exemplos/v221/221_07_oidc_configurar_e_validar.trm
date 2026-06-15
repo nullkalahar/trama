@@ -1,0 +1,10 @@
+função principal()
+    oidc_configurar_provedor("provedor_principal", "https://id.trama.dev", "backend-trama", 2.0, 300)
+
+    token = ler_texto(".local/tokens/id_token.jwt")
+    validacao = oidc_validar_token("provedor_principal", token)
+
+    exibir(validacao["ok"])
+    exibir(validacao["identidade"]["id_usuario_externo"])
+    exibir(validacao["identidade"]["email"])
+fim

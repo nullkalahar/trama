@@ -1,0 +1,11 @@
+assíncrona função principal()
+    storage = armazenamento_criar_local(".local/v233_storage")
+    armazenamento_salvar(storage, "origens/a.bin", "abcabcabc", "application/octet-stream")
+    resultado = midia_pipeline_storage(storage, "origens/a.bin", "midia/a", {
+        "variantes": [
+            {"nome": "gzip", "opcoes": {"comprimir_gzip": verdadeiro, "nivel_gzip": 6}, "chave": "midia/a/a.bin.gz"},
+            {"nome": "copia", "acao": "copiar", "chave": "midia/a/a.bin"}
+        ]
+    })
+    exibir(resultado["total_variantes"])
+fim

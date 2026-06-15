@@ -1,6 +1,22 @@
 # TASK - Evoluir a linguagem Trama para substituir 100% JS/TS do ARLS_AMM (sem Python)
 
-## 0. Status Atual (v2.1.3)
+## Execução corrente derivada do roadmap
+
+Próxima frente interna planejada a partir do roadmap oficial do `README.md`:
+
+- `v2.1.35-v2.1.38` observabilidade formal ampliada, resiliência operacional, backend de produção com SLO oficial e documentação final da arquitetura modular.
+- execução anterior concluída em `docs/TODO_V2_1_29_A_V2_1_34_SDK_STORAGE_MEDIA.md`.
+
+## 0. Status Atual (v2.1.34)
+
+Estado consolidado após saneamento:
+- versão canônica do pacote atualizada para `2.1.34` (`pyproject.toml`, `src/trama/__init__.py` e metadados `egg-info`);
+- CLI Python passa a expor `--version`, alinhada ao contrato já existente no binário nativo;
+- referência oficial de capacidades regenerada a partir do código-fonte atual;
+- roadmap interno alinhado até `v2.1.34`;
+- próxima frente permanece `v2.1.35-v2.1.38`.
+
+## 0.1 Histórico de fechamento v2.1.3
 
 Entregue nesta rodada:
 - versão do projeto atualizada para `2.1.3` (`pyproject.toml` e `src/trama/__init__.py`);
@@ -407,89 +423,89 @@ dependência: `rc.1`; release apenas com todas as suítes obrigatórias verdes.
 - [x] refletir capabilities em erro/documentação/CLI
 
 ### v2.1.18 - dividir segurança em módulos
-- [ ] separar JWT, sessão, RBAC e políticas em módulos próprios
-- [ ] manter API canônica estável via fachada
-- [ ] ampliar testes por domínio de segurança
+- [x] separar JWT, sessão, RBAC e políticas em módulos próprios
+- [x] manter API canônica estável via fachada
+- [x] ampliar testes por domínio de segurança
 
 ### v2.1.19 - adicionar `RS256`
-- [ ] suportar chaves assimétricas locais
-- [ ] suportar `kid` em emissão e validação
-- [ ] validar rotação básica de chaves
+- [x] suportar chaves assimétricas locais
+- [x] suportar `kid` em emissão e validação
+- [x] validar rotação básica de chaves
 
 ### v2.1.20 - adicionar JWK/JWKS
-- [ ] implementar resolução e cache de JWKS
-- [ ] validar `iss`, `aud` e `kid`
-- [ ] suportar rotação sem reinício do runtime
+- [x] implementar resolução e cache de JWKS
+- [x] validar `iss`, `aud` e `kid`
+- [x] suportar rotação sem reinício do runtime
 
 ### v2.1.21 - base OIDC
-- [ ] implementar discovery básico
-- [ ] consumir `jwks_uri` e metadados do provedor
-- [ ] validar fluxo mínimo de autenticação federada
+- [x] implementar discovery básico
+- [x] consumir `jwks_uri` e metadados do provedor
+- [x] validar fluxo mínimo de autenticação federada
 
 ### v2.1.22 - políticas contextuais de autorização
-- [ ] introduzir engine de políticas ator/ação/recurso/contexto
-- [ ] manter RBAC como subconjunto compatível
-- [ ] documentar exemplos de autorização contextual
+- [x] introduzir engine de políticas ator/ação/recurso/contexto
+- [x] manter RBAC como subconjunto compatível
+- [x] documentar exemplos de autorização contextual
 
 ### v2.1.23 - jobs como fachada com backend pluggável
-- [ ] definir interface de backend de jobs
-- [ ] adaptar `JobQueue` para delegar no backend selecionado
-- [ ] manter backend em memória como padrão de desenvolvimento
+- [x] definir interface de backend de jobs
+- [x] adaptar `JobQueue` para delegar no backend selecionado
+- [x] manter backend em memória como padrão de desenvolvimento
 
 ### v2.1.24 - backend persistente de jobs via SQL
-- [ ] persistir fila, tentativas, leasing e DLQ em SQL
-- [ ] implementar retry e reprocessamento
-- [ ] cobrir reinício de processo sem perda de fila
+- [x] persistir fila, tentativas, leasing e DLQ em SQL
+- [x] implementar retry e reprocessamento
+- [x] cobrir reinício de processo sem perda de fila
 
 ### v2.1.25 - worker standalone
-- [ ] criar comando de worker separado
-- [ ] adicionar comandos operacionais de DLQ/reprocessamento/status
-- [ ] documentar topologia web + worker
+- [x] criar comando de worker separado
+- [x] adicionar comandos operacionais de DLQ/reprocessamento/status
+- [x] documentar topologia web + worker
 
 ### v2.1.26 - backend Redis para jobs
-- [ ] implementar fila Redis
-- [ ] validar concorrência distribuída e visibilidade
-- [ ] comparar semântica com backend SQL
+- [x] implementar fila Redis
+- [x] validar concorrência distribuída e visibilidade
+- [x] comparar semântica com backend SQL
 
 ### v2.1.27 - formalizar IR de contrato HTTP
-- [ ] definir IR para rotas, DTOs, erros, auth e versões
-- [ ] adaptar runtime HTTP para consumir o IR
-- [ ] manter compatibilidade com contratos ad hoc existentes
+- [x] definir IR para rotas, DTOs, erros, auth e versões
+- [x] adaptar runtime HTTP para consumir o IR
+- [x] manter compatibilidade com contratos ad hoc existentes
 
 ### v2.1.28 - OpenAPI a partir do IR
-- [ ] ligar gerador OpenAPI ao IR formal
-- [ ] manter envelopes e exemplos consistentes
-- [ ] validar retrocompatibilidade do output gerado
+- [x] ligar gerador OpenAPI ao IR formal
+- [x] manter envelopes e exemplos consistentes
+- [x] validar retrocompatibilidade do output gerado
 
 ### v2.1.29 - SDKs a partir do IR
-- [ ] ligar gerador Python ao IR
-- [ ] ligar gerador TypeScript ao IR
-- [ ] validar métodos, tipos e erros produzidos
+- [x] ligar gerador Python ao IR
+- [x] ligar gerador TypeScript ao IR
+- [x] validar métodos, tipos e erros produzidos
 
 ### v2.1.30 - verificação de breaking changes
-- [ ] comparar IR entre versões
-- [ ] detectar mudança incompatível em rota/campo/erro
-- [ ] bloquear regressão via CI
+- [x] comparar IR entre versões
+- [x] detectar mudança incompatível em rota/campo/erro
+- [x] bloquear regressão via CI
 
 ### v2.1.31 - pipeline de upload
-- [ ] validar MIME, tamanho e hash
-- [ ] suportar staging temporário e promoção
-- [ ] integrar upload com storage local/S3
+- [x] validar MIME, tamanho e hash
+- [x] suportar staging temporário e promoção
+- [x] integrar upload com storage local/S3
 
 ### v2.1.32 - multipart/streaming robustos
-- [ ] evitar carga integral de payload grande em memória
-- [ ] suportar streaming de upload
-- [ ] ampliar testes de upload grande e limite
+- [x] evitar carga integral de payload grande em memória
+- [x] suportar streaming de upload
+- [x] ampliar testes de upload grande e limite
 
 ### v2.1.33 - pipeline de mídia
-- [ ] conectar transformação/variantes ao storage
-- [ ] persistir metadados e rastreabilidade
-- [ ] cobrir fluxos mínimos de imagem/arquivo
+- [x] conectar transformação/variantes ao storage
+- [x] persistir metadados e rastreabilidade
+- [x] cobrir fluxos mínimos de imagem/arquivo
 
 ### v2.1.34 - lifecycle e visibilidade de storage
-- [ ] formalizar URL assinada e retenção
-- [ ] suportar políticas por backend
-- [ ] refletir visibilidade/expiração em CLI e docs
+- [x] formalizar URL assinada e retenção
+- [x] suportar políticas por backend
+- [x] refletir visibilidade/expiração em CLI e docs
 
 ### v2.1.35 - observabilidade formal ampliada
 - [ ] propagar `traceparent`
@@ -510,3 +526,205 @@ dependência: `rc.1`; release apenas com todas as suítes obrigatórias verdes.
 - [ ] publicar visão arquitetural consolidada
 - [ ] publicar matriz oficial de capacidades por camada
 - [ ] fechar checklist de adoção em produção
+
+## 13. Saneamento obrigatório antes de v2.1.35-v2.1.38
+
+Esta seção registra as falhas e pendências encontradas na revisão local e as correções aplicadas para voltar a uma base auditável antes de iniciar implementação nova em `v2.1.35-v2.1.38`.
+
+## 13.1 Restaurar gates locais quebrados
+
+### 13.1.1 Referência de capacidades desatualizada
+
+Problema encontrado:
+- `pytest -q` falha em `tests/test_documentacao_capacidades_v212.py::test_referencia_capacidades_v212_esta_atualizada`;
+- `docs/REFERENCIA_CAPACIDADES_V2_1_2.md` não reflete comandos e builtins adicionados após as versões recentes.
+
+Correção aplicada:
+- regenerar a referência oficial com:
+  - `PYTHONPATH=src .venv/bin/python scripts/gerar_referencia_capacidades.py --saida docs/REFERENCIA_CAPACIDADES_V2_1_2.md`;
+- revisar o diff para confirmar inclusão de:
+  - comandos `contrato-ir-gerar`, `contrato-breaking-verificar`, `jobs-fila-status`, `jobs-dlq-listar`, `jobs-dlq-reprocessar`, `jobs-worker-rodar`;
+  - builtins de IR HTTP, jobs DLQ, upload/storage, URL assinada e mídia integrada ao storage.
+
+Critério de aceite:
+- `.venv/bin/python -m pytest -q tests/test_documentacao_capacidades_v212.py` verde;
+- `pytest -q` completo verde.
+
+### 13.1.2 Ruff quebrado
+
+Problema encontrado:
+- `.venv/bin/ruff check src tests scripts` falha com imports e variáveis não usadas.
+
+Correção aplicada:
+- remover imports não usados de `Any`, `os` e `json` nos arquivos apontados pelo ruff;
+- remover ou usar variáveis locais não usadas em `src/trama/builtins.py` e `tests/test_realtime_v203.py`;
+- manter mudanças estritamente mecânicas, sem alterar comportamento.
+
+Critério de aceite:
+- `.venv/bin/ruff check src tests scripts` verde.
+
+## 13.2 Alinhar versão, roadmap e status real
+
+Problema encontrado:
+- `pyproject.toml` e `src/trama/__init__.py` continuavam em `2.1.3`;
+- documentação, exemplos e testes já registravam entregas até `v2.1.34`;
+- `task.md` ainda marcava `v2.1.18` a `v2.1.28` como pendentes, apesar de existirem docs, exemplos e testes correspondentes.
+
+Correção aplicada:
+- versão canônica atual definida como `2.1.34`;
+- metadados atualizados em `pyproject.toml`, `src/trama/__init__.py` e `src/trama.egg-info/PKG-INFO`;
+- `scripts/build_release_nativo.sh` atualizado para usar `2.1.34` como padrão;
+- `task.md` atualizado para marcar `v2.1.18` a `v2.1.28` como concluídas, com histórico preservado da v2.1.3.
+
+Critério de aceite:
+- `python -m trama.cli` e artefatos de build reportam versão coerente com `pyproject.toml`;
+- README, `task.md`, docs de linguagem e scripts não se contradizem sobre a versão atual.
+
+## 13.3 Atualizar README e índices oficiais
+
+Problema encontrado:
+- índice de documentação no `README.md` para em `docs/LINGUAGEM_V2_1_17.md`;
+- índice de exemplos para em `exemplos/v217/`;
+- o mesmo README já cita evidências de `v2.1.21` a `v2.1.34`, gerando inconsistência interna.
+
+Correção aplicada:
+- incluir no índice oficial os documentos `v2.1.21` a `v2.1.34`;
+- incluir no índice oficial os exemplos `v221` a `v234`;
+- garantir que `exemplos/README_EXEMPLOS.md` e README principal tenham a mesma visão de exemplos publicados.
+
+Critério de aceite:
+- todos os diretórios `exemplos/v221` a `exemplos/v234` aparecem no índice;
+- todos os documentos `LINGUAGEM` e `MANUAL` publicados para essas versões aparecem no README ou em seção consolidada equivalente.
+
+## 13.4 Atualizar CI para cobrir entregas recentes
+
+Problema encontrado:
+- `.github/workflows/ci.yml` ainda está nomeado `ci_trama_v212`;
+- gates obrigatórios cobrem até `suite_critica_v213` e PostgreSQL/capacidades `v215-v217`;
+- não há gate explícito para segurança `v219-v222`, jobs `v223-v226`, IR/OpenAPI/CLI `v227-v230`, storage/mídia/multipart `v231-v234`.
+
+Correção aplicada:
+- renomear workflow para refletir o estado atual;
+- adicionar jobs ou etapas para:
+  - `tests/test_security_runtime_v219_v221.py`;
+  - `tests/test_security_runtime_v222.py`;
+  - `tests/test_jobs_runtime_v223.py` a `tests/test_jobs_runtime_v226.py`;
+  - `tests/test_cli_v225.py`;
+  - `tests/test_tooling_runtime_v227_v228.py`;
+  - `tests/test_cli_v227_v228.py`;
+  - `tests/test_tooling_runtime_v229_v230.py`;
+  - `tests/test_cli_v229_v230.py`;
+  - `tests/test_storage_runtime_v231_v234.py`;
+  - `tests/test_web_runtime_multipart_v232.py`;
+- incluir lint dos exemplos `v221` a `v234`, ou pelo menos dos blocos alterados por release.
+
+Critério de aceite:
+- gate obrigatório falha se qualquer suíte recente falhar;
+- CI local equivalente pode ser executado por comando documentado.
+
+## 13.5 Resolver contrato de `--version` na CLI
+
+Problema encontrado:
+- `task.md` registra runtime com `--version`;
+- o binário nativo aceita `--version`;
+- a CLI Python (`python -m trama.cli --version`) rejeita o argumento.
+
+Correção aplicada:
+- adicionar `--version` ao parser Python em `src/trama/cli.py`;
+- retornar `trama <versao>` usando `trama.__version__`;
+- adicionar teste em `tests/test_cli.py`;
+- manter saída nativa e Python coerentes, mesmo que o backend reportado por `--diagnostico-runtime` seja diferente.
+
+Critério de aceite:
+- `.venv/bin/python -m trama.cli --version` retorna código `0`;
+- `dist/native/trama-native --version` retorna código `0`;
+- testes de CLI cobrem ambas as superfícies quando aplicável.
+
+## 13.6 Corrigir documentação de runtime nativo
+
+Problema encontrado:
+- README marca execução/compilação 100% nativas no caminho crítico;
+- `trama.cli --diagnostico-runtime` reporta `backend_runtime=python_legado` e `requer_python_host=sim`;
+- `native/README.md` ainda lista pendências para compilação/execução `.trm` e async avançado, enquanto o roadmap marca essas capacidades como concluídas.
+
+Correção aplicada:
+- separar claramente:
+  - CLI Python de desenvolvimento;
+  - binário nativo `dist/native/trama-native`;
+  - standalone/`.deb` de distribuição;
+- atualizar `native/README.md` conforme o comportamento real testado;
+- se houver pendência real no nativo, remover marcação `[x]` de "100% nativo" nos documentos afetados ou detalhar exceções.
+
+Critério de aceite:
+- `--diagnostico-runtime` de cada entrypoint é documentado sem contradição;
+- testes nativos (`tests/test_native_runtime_v20.py`, `tests/test_native_runtime_v209.py`, `tests/test_native_runtime_v211.py`) continuam verdes;
+- docs não prometem "sem Python" para o entrypoint Python.
+
+## 13.7 Limpar TODOs documentais inconsistentes
+
+Problema encontrado:
+- `docs/TODO_V2_1_24_BACKEND_JOBS_SQL.md` continha fases internas ainda `[ ]`, mas a seção final marcava entrega concluída;
+- isso prejudica auditoria e leitura histórica.
+
+Correção aplicada:
+- checkboxes internos concluídos foram atualizados;
+- o mesmo padrão deve ser aplicado aos TODOs das versões seguintes quando houver divergência futura.
+
+Critério de aceite:
+- cada TODO versionado tem uma única leitura possível:
+  - concluído com evidências;
+  - pendente com motivo;
+  - fora de escopo movido para versão futura.
+
+## 13.8 Comando de validação final do saneamento
+
+Executar ao concluir esta seção:
+
+```bash
+.venv/bin/ruff check src tests scripts
+.venv/bin/python -m pytest -q
+.venv/bin/python -m trama.cli lint exemplos/v221 --json
+.venv/bin/python -m trama.cli lint exemplos/v222 --json
+.venv/bin/python -m trama.cli lint exemplos/v223 --json
+.venv/bin/python -m trama.cli lint exemplos/v224 --json
+.venv/bin/python -m trama.cli lint exemplos/v225 --json
+.venv/bin/python -m trama.cli lint exemplos/v226 --json
+.venv/bin/python -m trama.cli lint exemplos/v227 --json
+.venv/bin/python -m trama.cli lint exemplos/v228 --json
+.venv/bin/python -m trama.cli lint exemplos/v229 --json
+.venv/bin/python -m trama.cli lint exemplos/v230 --json
+.venv/bin/python -m trama.cli lint exemplos/v231 --json
+.venv/bin/python -m trama.cli lint exemplos/v232 --json
+.venv/bin/python -m trama.cli lint exemplos/v233 --json
+.venv/bin/python -m trama.cli lint exemplos/v234 --json
+bash scripts/build_native_stub.sh
+dist/native/trama-native --version
+dist/native/trama-native --diagnostico-runtime
+```
+
+Critério de pronto:
+- todos os comandos acima verdes;
+- `git status --short` revisado para distinguir alterações intencionais de arquivos gerados;
+- só então iniciar implementação funcional de `v2.1.35`.
+
+## 13.9 Fechamento do saneamento
+
+Status:
+- [x] referência de capacidades regenerada e teste dedicado verde;
+- [x] `ruff` verde;
+- [x] versão canônica alinhada em `2.1.34`;
+- [x] `--version` implementado na CLI Python;
+- [x] README e `task.md` alinhados com docs/exemplos até `v2.1.34`;
+- [x] CI ampliado para cobrir suítes `v2.1.19-v2.1.34`;
+- [x] TODO documental `v2.1.24` saneado;
+- [x] documentação do runtime nativo ajustada para separar CLI Python e binário nativo.
+
+Validação executada:
+- `.venv/bin/ruff check src tests scripts`: verde;
+- `.venv/bin/python -m pytest -q`: verde;
+- `.venv/bin/python -m pytest -q tests/test_cli.py tests/test_documentacao_capacidades_v212.py tests/test_v213_ci_release.py`: verde;
+- `.venv/bin/python -m pytest -q tests/test_security_runtime_v219_v221.py tests/test_security_runtime_v222.py tests/test_jobs_runtime_v223.py tests/test_jobs_runtime_v224.py tests/test_jobs_runtime_v225.py tests/test_jobs_runtime_v226.py tests/test_cli_v225.py tests/test_tooling_runtime_v227_v228.py tests/test_cli_v227_v228.py tests/test_tooling_runtime_v229_v230.py tests/test_cli_v229_v230.py tests/test_storage_runtime_v231_v234.py tests/test_web_runtime_multipart_v232.py`: verde;
+- `lint` dos exemplos `v221` a `v234`: verde;
+- `bash scripts/build_native_stub.sh`: verde;
+- `dist/native/trama-native --version`: `trama-nativo (v2.1.34)`;
+- `dist/native/trama-native --diagnostico-runtime`: `backend_runtime=nativo_c_vm`, `backend_compilador=nativo_c_compilador`, `requer_python_host=nao`.

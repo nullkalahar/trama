@@ -659,6 +659,49 @@ def test_v10_jobs_fila_retry_idempotencia() -> None:
     assert out == ["True", "True", "1", "0"]
 
 
+def test_v223_jobs_fachada_backend_memoria_explicito() -> None:
+    codigo = (
+        "função job(payload)\n"
+        "    retorne payload[\"x\"] + 1\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    fila = fila_criar_com_backend(\"emails\", \"memoria\")\n"
+        "    lista = fila_backends_listar()\n"
+        "    a = aguarde fila_enfileirar(fila, job, {\"x\": 1}, 1, 2.0, nulo)\n"
+        "    r = aguarde fila_processar(fila)\n"
+        "    s = fila_status(fila)\n"
+        "    exibir(a[\"enfileirado\"])\n"
+        "    exibir(r[\"backend\"])\n"
+        "    exibir(s[\"backend\"])\n"
+        "    exibir(tamanho(lista) > 0)\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["True", "memoria", "memoria", "True"]
+
+
+def test_v224_jobs_fachada_backend_sql_explicito(tmp_path) -> None:
+    db_file = tmp_path / "vm_jobs_v224.db"
+    codigo = (
+        "função job(payload)\n"
+        "    retorne payload[\"x\"] + 1\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        f"    fila = fila_criar_com_backend(\"emails\", \"sql\", {{\"dsn\": \"sqlite:///{db_file}\"}})\n"
+        "    a = aguarde fila_enfileirar(fila, job, {\"x\": 2}, 1, 2.0, \"id-sql-1\")\n"
+        "    r = aguarde fila_processar(fila)\n"
+        "    s = fila_status(fila)\n"
+        "    j = aguarde fila_obter_job(fila, a[\"id\"])\n"
+        "    exibir(a[\"enfileirado\"])\n"
+        "    exibir(r[\"backend\"])\n"
+        "    exibir(s[\"concluidos\"])\n"
+        "    exibir(j[\"status\"])\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["True", "sql", "1", "concluido"]
+
+
 def test_v202_dto_contrato_versionado_em_vm() -> None:
     codigo = (
         "função criar(req)\n"
@@ -972,6 +1015,30 @@ def test_v206_tooling_openapi_sdk_em_vm(tmp_path) -> None:
     )
     _, out = _run_capture(codigo)
     assert out == ["3.0.3", "get_api_v1_ping_id", "True", "True"]
+
+
+def test_v227_v228_ir_formal_e_openapi_em_vm(tmp_path) -> None:
+    ir_path = tmp_path / "contrato_ir_vm.json"
+    codigo = (
+        "função ping(req)\n"
+        "    retorne {\"status\": 200, \"json\": {\"ok\": verdadeiro, \"dados\": {\"pong\": verdadeiro}, \"meta\": {\"v\": \"v1\"}}}\n"
+        "fim\n"
+        "assíncrona função principal()\n"
+        "    app = web_criar_app()\n"
+        "    dto = {\"corpo\": {\"tipo\": \"objeto\", \"campos\": {\"nome\": {\"tipo\": \"texto\", \"obrigatorio\": verdadeiro}}}}\n"
+        "    contrato = {\"versao_padrao\": \"v1\", \"versoes\": {\"v1\": {\"campos_obrigatorios\": [\"ok\", \"dados\", \"meta\"]}}}\n"
+        "    web_rota_dto(app, \"POST\", \"/api/v1/ping/:id\", ping, dto, contrato)\n"
+        "    ir = web_gerar_ir_contrato(app, \"API IR VM\", \"2.1.27\", \"http://127.0.0.1:9999\")\n"
+        "    exibir(ir[\"ir_contrato\"])\n"
+        "    exibir(ir[\"rotas\"][0][\"operation_id\"])\n"
+        f"    o = web_exportar_ir_contrato(app, \"{ir_path}\", \"API IR VM\", \"2.1.27\")\n"
+        "    exibir(o[\"ok\"])\n"
+        "    spec = web_gerar_openapi(app, \"API IR VM\", \"2.1.28\", \"http://127.0.0.1:9999\")\n"
+        "    exibir(spec[\"openapi\"])\n"
+        "fim\n"
+    )
+    _, out = _run_capture(codigo)
+    assert out == ["trama_http_v1", "post_api_v1_ping_id", "True", "3.0.3"]
 
 
 def test_v207_observabilidade_exportadores_e_smoke_em_vm() -> None:

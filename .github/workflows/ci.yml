@@ -1,4 +1,4 @@
-name: ci_trama_v212
+name: ci_trama_v234
 
 on:
   pull_request:
@@ -204,16 +204,57 @@ jobs:
         run: |
           pytest -q tests/test_db_capacidades_v217.py tests/test_cli_db_capacidades_v217.py
 
+  suite_recente_v219_v234:
+    name: suite_recente_v219_v234
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup_python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: instalar_dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev,security,media,storage]
+
+      - name: suites_v219_v234
+        run: |
+          pytest -q \
+            tests/test_security_runtime_v219_v221.py \
+            tests/test_security_runtime_v222.py \
+            tests/test_jobs_runtime_v223.py \
+            tests/test_jobs_runtime_v224.py \
+            tests/test_jobs_runtime_v225.py \
+            tests/test_jobs_runtime_v226.py \
+            tests/test_cli_v225.py \
+            tests/test_tooling_runtime_v227_v228.py \
+            tests/test_cli_v227_v228.py \
+            tests/test_tooling_runtime_v229_v230.py \
+            tests/test_cli_v229_v230.py \
+            tests/test_storage_runtime_v231_v234.py \
+            tests/test_web_runtime_multipart_v232.py
+
+      - name: lint_exemplos_v221_v234
+        run: |
+          for alvo in exemplos/v221 exemplos/v222 exemplos/v223 exemplos/v224 exemplos/v225 exemplos/v226 exemplos/v227 exemplos/v228 exemplos/v229 exemplos/v230 exemplos/v231 exemplos/v232 exemplos/v233 exemplos/v234; do
+            python -m trama.cli lint "$alvo" --json
+          done
+
   gate_v213:
     name: gate_v213_obrigatorio
-    needs: [qualidade, seguranca, suite_critica_v213, postgres_real_v215]
+    needs: [qualidade, seguranca, suite_critica_v213, postgres_real_v215, suite_recente_v219_v234]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: validar_jobs_criticos_v213
         run: |
-          if [ "${{ needs.qualidade.result }}" != "success" ] || [ "${{ needs.seguranca.result }}" != "success" ] || [ "${{ needs.suite_critica_v213.result }}" != "success" ] || [ "${{ needs.postgres_real_v215.result }}" != "success" ]; then
-            echo "Gate de qualidade v2.1.3 falhou (merge bloqueado)."
+          if [ "${{ needs.qualidade.result }}" != "success" ] || [ "${{ needs.seguranca.result }}" != "success" ] || [ "${{ needs.suite_critica_v213.result }}" != "success" ] || [ "${{ needs.postgres_real_v215.result }}" != "success" ] || [ "${{ needs.suite_recente_v219_v234.result }}" != "success" ]; then
+            echo "Gate de qualidade v2.1.34 falhou (merge bloqueado)."
             exit 1
           fi
-          echo "Gate v2.1.3+v2.1.15 aprovado."
+          echo "Gate v2.1.34 aprovado."

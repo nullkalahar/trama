@@ -7,6 +7,8 @@ Este diretório concentra a implementação nativa da Trama para eliminar Python
 - `runtime_stub.c`: stub nativo inicial com diagnóstico de backend.
 - `trama_native.c`: VM/CLI nativa base com suporte a `executar-tbc`.
 - build local via `scripts/build_native_stub.sh`.
+- o entrypoint Python (`python -m trama.cli` ou instalação editável de desenvolvimento) continua existindo para desenvolvimento e diagnóstico legado.
+- o binário nativo de distribuição é `dist/native/trama-native`.
 
 ## Objetivo final
 
@@ -18,9 +20,11 @@ Substituir gradualmente os caminhos Python por binário nativo que suporte:
 
 sem Python instalado no host do usuário.
 
-## Capacidades da VM nativa base (v2.0 inicial)
+## Capacidades da VM nativa
 
 - `executar-tbc` sem Python no host.
+- `executar arquivo.trm` por compilação nativa para bytecode temporário.
+- `compilar arquivo.trm -o arquivo.tbc` pelo compilador nativo.
 - alias de compatibilidade: `run-tbc`.
 - diagnóstico de runtime com campos canônicos pt-BR e compatibilidade.
 - suporte síncrono de bytecode para:
@@ -30,16 +34,14 @@ sem Python instalado no host do usuário.
   - listas/mapas/indexação,
   - builtin `exibir`,
   - exceções (`THROW`, `PUSH_TRY`, `END_*`),
-  - `AWAIT` (sequencial),
+  - `AWAIT`, criação/cancelamento de tarefas e timeout básico,
   - `IMPORT_NAME` para módulos `.tbc`.
-
-- comandos `executar` e `compilar` disponíveis por ponte de compatibilidade via binário standalone (`trama`), sem invocar `python` diretamente.
 
 Pendências conhecidas:
 
-- backend de compilação/execução de `.trm` ainda não é 100% nativo (ponte standalone).
-- import nativo de `.trm` (compilação on-the-fly) ainda pendente.
-- async avançado (scheduler concorrente completo) ainda pendente.
+- o stub `dist/native/trama-native-stub` existe apenas como artefato histórico/de diagnóstico mínimo.
+- a CLI Python de desenvolvimento reporta `backend_runtime=python_legado` e `requer_python_host=sim`.
+- novas capacidades de runtime devem ser validadas no binário `dist/native/trama-native` antes de serem documentadas como 100% nativas.
 
 ## Fases técnicas
 

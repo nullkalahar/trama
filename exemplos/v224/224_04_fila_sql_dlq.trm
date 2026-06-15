@@ -1,0 +1,14 @@
+função falhar(payload)
+    lance "erro:" + texto(payload["id"])
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("dlq", "sql", {
+        "dsn": "sqlite:///.local/v224/jobs_dlq.db"
+    })
+    aguarde fila_enfileirar(fila, falhar, {"id": 7}, 0, 5.0, "dlq-7")
+    aguarde fila_processar(fila)
+    itens = aguarde fila_listar_dlq(fila, 10)
+    exibir(tamanho(itens))
+    exibir(itens[0]["status"])
+fim

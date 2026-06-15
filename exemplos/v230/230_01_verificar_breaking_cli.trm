@@ -1,0 +1,3 @@
+assíncrona função principal()
+    exibir("use a CLI: trama contrato-breaking-verificar --antes contrato_v1.json --depois contrato_v2.json --saida build/breaking.json")
+fim

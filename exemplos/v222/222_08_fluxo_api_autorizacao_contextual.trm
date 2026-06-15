@@ -1,0 +1,31 @@
+função pode_executar(modelo, usuarios, politicas, id_usuario, acao, recurso, contexto)
+    out = autorizacao_avaliar(modelo, usuarios, id_usuario, acao, recurso, contexto, politicas)
+    retorne out["permitido"]
+fim
+
+função principal()
+    modelo = rbac_criar({"operador": ["ticket:atualizar"], "admin": ["ticket:atualizar", "ticket:encerrar"]})
+    usuarios = {}
+    usuarios = rbac_atribuir(usuarios, "eva", "admin")
+
+    politicas = autorizacao_politicas_criar([
+        {
+            "id": "encerrar_so_tenant_a",
+            "efeito": "permitir",
+            "ator": {"papeis": ["admin"]},
+            "acao": "ticket:encerrar",
+            "contexto": {"tenant": "A"}
+        },
+        {
+            "id": "encerrar_negado_demais",
+            "efeito": "negar",
+            "acao": "ticket:encerrar"
+        }
+    ], "negar")
+
+    ok_a = pode_executar(modelo, usuarios, politicas, "eva", "ticket:encerrar", {"tipo": "ticket", "id": "t1"}, {"tenant": "A"})
+    ok_b = pode_executar(modelo, usuarios, politicas, "eva", "ticket:encerrar", {"tipo": "ticket", "id": "t2"}, {"tenant": "B"})
+
+    exibir(ok_a)
+    exibir(ok_b)
+fim

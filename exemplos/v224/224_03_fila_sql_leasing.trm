@@ -1,0 +1,14 @@
+função tarefa(payload)
+    retorne payload["ok"]
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("lease", "sql", {
+        "dsn": "sqlite:///.local/v224/jobs_lease.db",
+        "lease_segundos": 10.0
+    })
+    aguarde fila_enfileirar(fila, tarefa, {"ok": verdadeiro}, 0, 5.0, "lease-1")
+    r = aguarde fila_processar(fila)
+    exibir(r["processados"])
+    exibir(fila_status(fila)["processando"])
+fim

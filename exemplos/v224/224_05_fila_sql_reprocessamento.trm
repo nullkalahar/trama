@@ -1,0 +1,14 @@
+função falhar(payload)
+    lance "erro:" + texto(payload["id"])
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("reprocesso", "sql", {
+        "dsn": "sqlite:///.local/v224/jobs_reprocesso.db"
+    })
+    aguarde fila_enfileirar(fila, falhar, {"id": 9}, 0, 5.0, "job-9")
+    aguarde fila_processar(fila)
+    r = aguarde fila_reprocessar_dlq(fila, 10)
+    exibir(r["reprocessados"])
+    exibir(r["pendentes"])
+fim

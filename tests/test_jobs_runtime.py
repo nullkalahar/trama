@@ -4,7 +4,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import threading
 
-from trama.jobs_runtime import JobQueue, send_webhook
+from trama.jobs_runtime import JobQueue, jobs_backend_registrar, jobs_backend_remover, jobs_backends_listar, send_webhook
 
 
 def test_job_queue_retry_idempotencia() -> None:
@@ -74,3 +74,66 @@ def test_send_webhook_ok() -> None:
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_v223_job_queue_fachada_backend_memoria_padrao() -> None:
+    def invoke(fn, args):
+        return fn(*args)
+
+    def job(payload):
+        return payload["x"] + 1
+
+    import asyncio
+
+    async def run():
+        q = JobQueue("v223_memoria", invoke_callable_sync=invoke)
+        await q.enqueue(job, {"x": 1}, retries=1)
+        await q.process_all()
+        return q.status()
+
+    st = asyncio.run(run())
+    assert st["backend"] == "memoria"
+    assert st["concluidos"] == 1
+
+
+def test_v223_backend_custom_plugavel() -> None:
+    class BackendFake:
+        def __init__(self, name: str, **kwargs):  # noqa: ANN003
+            _ = kwargs
+            self.name = name
+            self.itens: list[object] = []
+
+        async def enqueue(self, handler, payload, retries=3, timeout_seconds=30.0, idempotency_key=None):  # noqa: ANN001
+            _ = (handler, retries, timeout_seconds, idempotency_key)
+            self.itens.append(payload)
+            return {"enfileirado": True, "id": f"fake-{len(self.itens)}"}
+
+        async def process_all(self):
+            qtd = len(self.itens)
+            self.itens.clear()
+            return {"fila": self.name, "processados": qtd, "concluidos": qtd, "dlq": 0, "backend": "fake"}
+
+        def status(self):
+            return {"fila": self.name, "pendentes": len(self.itens), "concluidos": 0, "dlq": 0, "backend": "fake"}
+
+    def factory(name: str, **kwargs):  # noqa: ANN003
+        return BackendFake(name=name, **kwargs)
+
+    jobs_backend_registrar("fake", factory)
+    try:
+        assert "fake" in jobs_backends_listar()
+        q = JobQueue("fila_fake", backend="fake")
+
+        import asyncio
+
+        async def run():
+            await q.enqueue(handler=None, payload={"ok": True})
+            out = await q.process_all()
+            return out, q.status()
+
+        out, st = asyncio.run(run())
+        assert out["backend"] == "fake"
+        assert out["concluidos"] == 1
+        assert st["backend"] == "fake"
+    finally:
+        _ = jobs_backend_remover("fake")

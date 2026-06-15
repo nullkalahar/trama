@@ -1,0 +1,15 @@
+função principal()
+    politicas = autorizacao_politicas_criar([
+        {"id": "permitir_leitura", "efeito": "permitir", "acao": "doc:ler"}
+    ], "negar")
+
+    out = autorizacao_politicas_avaliar(
+        politicas,
+        {"id": "u1", "papeis": ["viewer"]},
+        "doc:ler",
+        {"tipo": "documento", "id": "d1"},
+        {"ambiente": "dev"}
+    )
+
+    exibir(out["permitido"])
+fim

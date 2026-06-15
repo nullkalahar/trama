@@ -1,0 +1,18 @@
+função principal()
+    politicas = autorizacao_politicas_criar([
+        {
+            "id": "suporte_debug",
+            "efeito": "permitir",
+            "ator": {"ids": ["suporte_01", "suporte_02"]},
+            "acao": "sistema:debug"
+        }
+    ], "negar")
+
+    out = autorizacao_politicas_avaliar(
+        politicas,
+        {"id": "suporte_01", "papeis": ["suporte"]},
+        "sistema:debug"
+    )
+
+    exibir(out["permitido"])
+fim

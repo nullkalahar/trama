@@ -1,4 +1,4 @@
-"""Runtime de mídia (v1.2): compressão e processamento de imagem."""
+"""Runtime de mídia com variantes, metadados e integração com storage."""
 
 from __future__ import annotations
 
@@ -7,6 +7,8 @@ import hashlib
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+
+from . import storage_runtime
 
 try:
     from PIL import Image  # type: ignore
@@ -78,6 +80,36 @@ def _save_image(img: Any, formato_saida: str, qualidade: int = 85) -> bytes:
         params["optimize"] = True
     img.save(out, format=fmt, **params)
     return out.getvalue()
+
+
+def _detectar_formato(conteudo: bytes, fallback: str = "BIN") -> str:
+    if Image is not None:
+        try:
+            with Image.open(BytesIO(conteudo)) as img:  # type: ignore[union-attr]
+                if img.format:
+                    return str(img.format).upper()
+        except Exception:
+            pass
+    return fallback.upper()
+
+
+def midia_extrair_metadados(conteudo: object) -> dict[str, object]:
+    data = _to_bytes(conteudo)
+    meta: dict[str, object] = {
+        "sha256": midia_sha256(data),
+        "tamanho": len(data),
+        "formato": _detectar_formato(data, fallback="BIN"),
+    }
+    if Image is not None:
+        try:
+            with Image.open(BytesIO(data)) as img:  # type: ignore[union-attr]
+                meta["largura"] = int(img.width)
+                meta["altura"] = int(img.height)
+                meta["modo"] = str(img.mode)
+                meta["formato"] = str(img.format or meta["formato"]).upper()
+        except Exception:
+            pass
+    return {"ok": True, "meta": meta}
 
 
 def midia_redimensionar_imagem(
@@ -163,6 +195,83 @@ def midia_pipeline(
         atual = midia_comprimir_gzip(atual, nivel=int(opts.get("nivel_gzip", 6)))
         meta["etapas"].append("gzip")
 
-    meta["sha256"] = midia_sha256(atual)
-    meta["tamanho"] = len(atual)
+    meta.update(midia_extrair_metadados(atual)["meta"])
     return {"ok": True, "bytes": atual, "meta": meta}
+
+
+def midia_pipeline_storage(
+    storage: object,
+    chave_origem: str,
+    prefixo_destino: str,
+    opcoes: dict[str, object] | None = None,
+) -> dict[str, object]:
+    if not isinstance(storage, (storage_runtime.LocalStorage, storage_runtime.S3CompatStorage)):
+        raise MediaError("storage inválido para pipeline de mídia.")
+    origem = storage.get(chave_origem)
+    bruto = bytes(origem["bytes"])
+    opts = dict(opcoes or {})
+    meta_origem = midia_extrair_metadados(bruto)["meta"]
+    variantes_conf = list(opts.get("variantes", []))
+    variantes: list[dict[str, object]] = []
+
+    if not variantes_conf:
+        variantes_conf = [{"nome": "original", "acao": "copiar"}]
+
+    for variante in variantes_conf:
+        if not isinstance(variante, dict):
+            continue
+        nome = str(variante.get("nome", "variante"))
+        chave_saida = str(variante.get("chave") or f"{prefixo_destino.rstrip('/')}/{nome}")
+        acao = str(variante.get("acao", "pipeline"))
+        content_type = str(variante.get("content_type") or origem.get("content_type") or "application/octet-stream")
+        if acao == "copiar":
+            saida = bruto
+            meta_saida = dict(meta_origem)
+        else:
+            proc = midia_pipeline(bruto, opcoes=dict(variante.get("opcoes", {})))
+            saida = bytes(proc["bytes"])
+            meta_saida = dict(proc["meta"])
+            if "formato" in meta_saida:
+                fmt = str(meta_saida["formato"]).lower()
+                if fmt in {"jpeg", "jpg"}:
+                    content_type = "image/jpeg"
+                elif fmt == "png":
+                    content_type = "image/png"
+                elif fmt == "webp":
+                    content_type = "image/webp"
+        salvo = storage.put(
+            chave_saida,
+            saida,
+            content_type=content_type,
+            metadata={
+                "pipeline_midia": True,
+                "origem": chave_origem,
+                "variante": nome,
+                **dict(variante.get("metadata", {})),
+            },
+        )
+        variantes.append(
+            {
+                "nome": nome,
+                "chave": salvo["key"],
+                "content_type": salvo["content_type"],
+                "tamanho": salvo["size"],
+                "etag": salvo["etag"],
+                "meta": meta_saida,
+            }
+        )
+
+    manifesto = {
+        "ok": True,
+        "origem": {
+            "chave": chave_origem,
+            "content_type": origem.get("content_type"),
+            "meta": meta_origem,
+        },
+        "variantes": variantes,
+        "total_variantes": len(variantes),
+    }
+    manifesto_key = str(opts.get("manifesto") or f"{prefixo_destino.rstrip('/')}/manifesto.json")
+    storage.put(manifesto_key, manifesto, content_type="application/json", metadata={"pipeline_midia": True, "tipo": "manifesto"})
+    manifesto["manifesto"] = manifesto_key
+    return manifesto

@@ -1,0 +1,5 @@
+assíncrona função principal()
+    storage = armazenamento_criar_local(".local/v233_storage")
+    manifesto = armazenamento_ler(storage, "midia/a/manifesto.json")
+    exibir(manifesto["content_type"])
+fim

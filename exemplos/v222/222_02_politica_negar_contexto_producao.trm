@@ -1,0 +1,22 @@
+função principal()
+    politicas = autorizacao_politicas_criar([
+        {
+            "id": "bloqueio_prod",
+            "efeito": "negar",
+            "ator": {"papeis": ["admin"]},
+            "acao": "usuario:apagar",
+            "contexto": {"ambiente": "producao"}
+        }
+    ], "negar")
+
+    out = autorizacao_politicas_avaliar(
+        politicas,
+        {"id": "ana", "papeis": ["admin"]},
+        "usuario:apagar",
+        {"tipo": "usuario", "id": "u10"},
+        {"ambiente": "producao"}
+    )
+
+    exibir(out["regra_id"])
+    exibir(out["permitido"])
+fim

@@ -1,0 +1,12 @@
+função tarefa(payload)
+    retorne payload["ok"]
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("emails", "redis", {
+        "redis_url": "redis://127.0.0.1:6379/0"
+    })
+    aguarde fila_enfileirar(fila, tarefa, {"ok": verdadeiro}, 1, 5.0, "ok-1")
+    r = aguarde fila_processar(fila)
+    exibir(r["backend"])
+fim

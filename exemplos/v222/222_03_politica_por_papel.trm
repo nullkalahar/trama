@@ -1,0 +1,18 @@
+função principal()
+    politicas = autorizacao_politicas_criar([
+        {
+            "id": "editor_publicar",
+            "efeito": "permitir",
+            "ator": {"papeis": ["editor", "admin"]},
+            "acao": "post:publicar"
+        }
+    ], "negar")
+
+    out = autorizacao_politicas_avaliar(
+        politicas,
+        {"id": "bia", "papeis": ["editor"]},
+        "post:publicar"
+    )
+
+    exibir(out["permitido"])
+fim

@@ -1,0 +1,15 @@
+função tarefa(payload)
+    se payload["falhar"]
+        lance "falha transitória"
+    fim
+    retorne payload["id"]
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("retry", "sql", {
+        "dsn": "sqlite:///.local/v224/jobs_retry.db"
+    })
+    aguarde fila_enfileirar(fila, tarefa, {"id": 1, "falhar": verdadeiro}, 1, 5.0, "retry-1")
+    r1 = aguarde fila_processar(fila)
+    exibir(r1["falhos"])
+fim

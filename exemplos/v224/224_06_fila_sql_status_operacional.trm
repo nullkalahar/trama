@@ -1,0 +1,15 @@
+função tarefa(payload)
+    retorne payload["ok"]
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("status_sql", "sql", {
+        "dsn": "sqlite:///.local/v224/jobs_status.db"
+    })
+    aguarde fila_enfileirar(fila, tarefa, {"ok": verdadeiro}, 1, 5.0, "status-1")
+    s1 = fila_status(fila)
+    aguarde fila_processar(fila)
+    s2 = fila_status(fila)
+    exibir(s1["pendentes"])
+    exibir(s2["concluidos"])
+fim

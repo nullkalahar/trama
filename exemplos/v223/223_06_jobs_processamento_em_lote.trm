@@ -1,0 +1,14 @@
+função tarefa(payload)
+    retorne payload["n"] + 10
+fim
+
+assíncrona função principal()
+    fila = fila_criar("lote")
+    aguarde fila_enfileirar(fila, tarefa, {"n": 1})
+    aguarde fila_enfileirar(fila, tarefa, {"n": 2})
+    aguarde fila_enfileirar(fila, tarefa, {"n": 3})
+
+    r = aguarde fila_processar(fila)
+    exibir(r["processados"])
+    exibir(r["concluidos"])
+fim

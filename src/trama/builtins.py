@@ -11,7 +11,6 @@ import os
 from pathlib import Path
 import threading
 import time
-from typing import Any
 import urllib.error
 import urllib.request
 from urllib.parse import parse_qs, urlparse
@@ -861,9 +860,78 @@ def make_builtins(
         st = _as_storage(storage)
         return st.put(chave, conteudo, content_type=content_type, metadata=metadata)
 
+    def armazenamento_definir_politicas(storage: object, politicas: dict[str, object] | None = None) -> dict[str, object]:
+        st = _as_storage(storage)
+        return st.definir_politicas(politicas)
+
+    def armazenamento_iniciar_upload(
+        storage: object,
+        chave_final: str,
+        opcoes: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        st = _as_storage(storage)
+        opts = dict(opcoes or {})
+        return st.iniciar_upload(
+            chave_final,
+            content_type=(str(opts["content_type"]) if opts.get("content_type") else None),
+            metadata=dict(opts.get("metadata", {})) if isinstance(opts.get("metadata"), dict) else None,
+            validacao=dict(opts.get("validacao", {})) if isinstance(opts.get("validacao"), dict) else None,
+            politicas=dict(opts.get("politicas", {})) if isinstance(opts.get("politicas"), dict) else None,
+        )
+
+    def armazenamento_upload_escrever(storage: object, upload_id: str, conteudo: object) -> dict[str, object]:
+        st = _as_storage(storage)
+        return st.escrever_upload(upload_id, conteudo)
+
+    def armazenamento_upload_finalizar(
+        storage: object,
+        upload_id: str,
+        opcoes: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        st = _as_storage(storage)
+        opts = dict(opcoes or {})
+        return st.finalizar_upload(
+            upload_id,
+            chave_final=(str(opts["chave_final"]) if opts.get("chave_final") else None),
+            content_type=(str(opts["content_type"]) if opts.get("content_type") else None),
+            metadata=dict(opts.get("metadata", {})) if isinstance(opts.get("metadata"), dict) else None,
+            politicas=dict(opts.get("politicas", {})) if isinstance(opts.get("politicas"), dict) else None,
+            validacao=dict(opts.get("validacao", {})) if isinstance(opts.get("validacao"), dict) else None,
+        )
+
+    def armazenamento_processar_upload(
+        storage: object,
+        chave_final: str,
+        conteudo: object,
+        opcoes: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        st = _as_storage(storage)
+        opts = dict(opcoes or {})
+        return st.processar_upload(
+            chave_final,
+            conteudo,
+            content_type=(str(opts["content_type"]) if opts.get("content_type") else None),
+            metadata=dict(opts.get("metadata", {})) if isinstance(opts.get("metadata"), dict) else None,
+            politicas=dict(opts.get("politicas", {})) if isinstance(opts.get("politicas"), dict) else None,
+            validacao=dict(opts.get("validacao", {})) if isinstance(opts.get("validacao"), dict) else None,
+        )
+
+    def armazenamento_promover(
+        storage: object,
+        chave_temporaria: str,
+        chave_final: str,
+        metadata: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        st = _as_storage(storage)
+        return st.promover(chave_temporaria, chave_final, metadata=metadata)
+
     def armazenamento_ler(storage: object, chave: str) -> dict[str, object]:
         st = _as_storage(storage)
         return st.get(chave)
+
+    def armazenamento_metadados(storage: object, chave: str) -> dict[str, object]:
+        st = _as_storage(storage)
+        return st.obter_metadados(chave)
 
     def armazenamento_remover(storage: object, chave: str) -> bool:
         st = _as_storage(storage)
@@ -878,6 +946,12 @@ def make_builtins(
         if isinstance(st, storage_runtime.S3CompatStorage):
             return st.url(chave, expires_in=expira_em)
         return st.url(chave)
+
+    def armazenamento_url_assinada(storage: object, chave: str, expira_em: int = 3600, operacao: str = "baixar") -> str:
+        st = _as_storage(storage)
+        if isinstance(st, storage_runtime.S3CompatStorage):
+            return st.url(chave, expires_in=expira_em)
+        return st.url_assinada(chave, expira_em=expira_em, operacao=operacao)
 
     def midia_ler_arquivo(caminho: str) -> bytes:
         return media_runtime.midia_ler_arquivo(caminho)
@@ -916,6 +990,18 @@ def make_builtins(
 
     def midia_pipeline(conteudo: object, opcoes: dict[str, object] | None = None) -> dict[str, object]:
         return media_runtime.midia_pipeline(conteudo, opcoes=opcoes)
+
+    def midia_extrair_metadados(conteudo: object) -> dict[str, object]:
+        return media_runtime.midia_extrair_metadados(conteudo)
+
+    def midia_pipeline_storage(
+        storage: object,
+        chave_origem: str,
+        prefixo_destino: str,
+        opcoes: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        st = _as_storage(storage)
+        return media_runtime.midia_pipeline_storage(st, chave_origem, prefixo_destino, opcoes=opcoes)
 
     def agora_iso() -> str:
         return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
@@ -1239,6 +1325,32 @@ def make_builtins(
             servidor_base=servidor_base,
         )
 
+    def web_gerar_ir_contrato(
+        app: object,
+        titulo: str = "API Trama",
+        versao: str = "1.0.0",
+        servidor_base: str | None = None,
+    ) -> dict[str, object]:
+        web_app = _as_app(app)
+        return tooling_runtime.gerar_ir_web_app(
+            web_app,
+            titulo=titulo,
+            versao=versao,
+            servidor_base=servidor_base,
+        )
+
+    def web_exportar_ir_contrato(
+        app: object,
+        arquivo_saida: str,
+        titulo: str = "API Trama",
+        versao: str = "1.0.0",
+        servidor_base: str | None = None,
+    ) -> dict[str, object]:
+        ir = web_gerar_ir_contrato(app, titulo=titulo, versao=versao, servidor_base=servidor_base)
+        out = tooling_runtime.salvar_ir_contrato(ir, arquivo_saida)
+        out["ir_contrato"] = ir.get("ir_contrato")
+        return out
+
     def web_exportar_openapi(
         app: object,
         arquivo_saida: str,
@@ -1260,9 +1372,9 @@ def make_builtins(
         versao: str = "1.0.0",
         servidor_base: str | None = None,
     ) -> dict[str, object]:
-        spec = web_gerar_openapi(app, titulo=titulo, versao=versao, servidor_base=servidor_base)
+        ir = web_gerar_ir_contrato(app, titulo=titulo, versao=versao, servidor_base=servidor_base)
         return tooling_runtime.gerar_sdk_cliente(
-            spec,
+            ir,
             destino_arquivo=arquivo_saida,
             linguagem=linguagem,
             nome_cliente=nome_cliente,
@@ -1535,7 +1647,19 @@ def make_builtins(
         return None
 
     def fila_criar(nome: str) -> object:
-        return jobs_runtime.JobQueue(nome, invoke_callable_sync=invoke_callable_sync)
+        return jobs_runtime.JobQueue(nome, invoke_callable_sync=invoke_callable_sync, backend="memoria")
+
+    def fila_criar_com_backend(
+        nome: str,
+        backend: str = "memoria",
+        opcoes_backend: dict[str, object] | None = None,
+    ) -> object:
+        return jobs_runtime.JobQueue(
+            nome,
+            invoke_callable_sync=invoke_callable_sync,
+            backend=backend,
+            backend_opcoes=opcoes_backend,
+        )
 
     def _as_fila(queue: object) -> jobs_runtime.JobQueue:
         if not isinstance(queue, jobs_runtime.JobQueue):
@@ -1566,6 +1690,21 @@ def make_builtins(
     def fila_status(queue: object) -> dict[str, object]:
         q = _as_fila(queue)
         return q.status()
+
+    async def fila_listar_dlq(queue: object, limite: int = 20) -> list[dict[str, object]]:
+        q = _as_fila(queue)
+        return await q.list_dlq(int(limite))
+
+    async def fila_obter_job(queue: object, id_job: str) -> dict[str, object] | None:
+        q = _as_fila(queue)
+        return await q.get_job(id_job)
+
+    async def fila_reprocessar_dlq(queue: object, limite: int = 100) -> dict[str, object]:
+        q = _as_fila(queue)
+        return await q.reprocess_dlq(int(limite))
+
+    def fila_backends_listar() -> list[str]:
+        return jobs_runtime.jobs_backends_listar()
 
     async def webhook_enviar(
         url: str,
@@ -1907,6 +2046,109 @@ def make_builtins(
     def jwt_verificar(token: str, segredo: str, leeway_segundos: int = 0) -> dict[str, object]:
         return security_runtime.jwt_verificar(token, segredo, leeway_segundos)
 
+    def jwt_assinar(
+        payload: dict[str, object],
+        chave: str,
+        exp_segundos: int | None = None,
+        algoritmo: str = "RS256",
+        kid: str | None = None,
+        senha_chave: str | None = None,
+    ) -> str:
+        return security_runtime.jwt_criar(
+            payload,
+            chave,
+            exp_segundos,
+            algoritmo=algoritmo,
+            kid=kid,
+            senha_chave=senha_chave,
+        )
+
+    def jwt_validar(
+        token: str,
+        chave: str,
+        leeway_segundos: int = 0,
+        emissor: str | None = None,
+        audiencia: str | list[str] | None = None,
+    ) -> dict[str, object]:
+        return security_runtime.jwt_verificar(
+            token,
+            chave,
+            leeway_segundos,
+            emissor=emissor,
+            audiencia=audiencia,
+        )
+
+    def jwks_obter(
+        url_jwks: str,
+        cache_ttl_segundos: float = 300.0,
+        timeout_segundos: float = 2.0,
+        forcar_refresh: bool = False,
+    ) -> dict[str, object]:
+        return security_runtime.jwks_obter(
+            url_jwks,
+            cache_ttl_segundos=cache_ttl_segundos,
+            timeout_segundos=timeout_segundos,
+            forcar_refresh=forcar_refresh,
+        )
+
+    def jwt_validar_jwks(
+        token: str,
+        url_jwks: str,
+        leeway_segundos: int = 0,
+        emissor: str | None = None,
+        audiencia: str | list[str] | None = None,
+        cache_ttl_segundos: float = 300.0,
+        timeout_segundos: float = 2.0,
+    ) -> dict[str, object]:
+        return security_runtime.jwt_verificar_jwks(
+            token,
+            url_jwks,
+            leeway_segundos=leeway_segundos,
+            emissor=emissor,
+            audiencia=audiencia,
+            cache_ttl_segundos=cache_ttl_segundos,
+            timeout_segundos=timeout_segundos,
+        )
+
+    def oidc_descobrir_configuracao(issuer_url: str, timeout_segundos: float = 2.0) -> dict[str, object]:
+        return security_runtime.oidc_descobrir_configuracao(issuer_url, timeout_segundos=timeout_segundos)
+
+    def oidc_configurar_provedor(
+        nome: str,
+        issuer_url: str,
+        audiencia: str | list[str] | None = None,
+        timeout_segundos: float = 2.0,
+        cache_ttl_jwks_segundos: float = 300.0,
+    ) -> dict[str, object]:
+        return security_runtime.oidc_configurar_provedor(
+            nome,
+            issuer_url,
+            audiencia=audiencia,
+            timeout_segundos=timeout_segundos,
+            cache_ttl_jwks_segundos=cache_ttl_jwks_segundos,
+        )
+
+    def oidc_validar_token(
+        nome_provedor: str,
+        token: str,
+        leeway_segundos: int = 0,
+        audiencia: str | list[str] | None = None,
+        emissor: str | None = None,
+    ) -> dict[str, object]:
+        return security_runtime.oidc_validar_token(
+            nome_provedor,
+            token,
+            leeway_segundos=leeway_segundos,
+            audiencia=audiencia,
+            emissor=emissor,
+        )
+
+    def oidc_listar_provedores() -> list[dict[str, object]]:
+        return security_runtime.oidc_listar_provedores()
+
+    def oidc_remover_provedor(nome: str) -> bool:
+        return security_runtime.oidc_remover_provedor(nome)
+
     def senha_hash(senha: str, algoritmo: str = "pbkdf2") -> str:
         return security_runtime.senha_hash(senha, algoritmo)
 
@@ -1939,6 +2181,40 @@ def make_builtins(
         permissao: str,
     ) -> bool:
         return security_runtime.rbac_tem_permissao(modelo, usuarios_papeis, usuario, permissao)
+
+    def autorizacao_politicas_criar(
+        regras: list[dict[str, object]],
+        efeito_padrao: str = "negar",
+    ) -> dict[str, object]:
+        return security_runtime.autorizacao_politicas_criar(regras, efeito_padrao)
+
+    def autorizacao_politicas_avaliar(
+        modelo: dict[str, object],
+        ator: dict[str, object],
+        acao: str,
+        recurso: dict[str, object] | None = None,
+        contexto: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        return security_runtime.autorizacao_politicas_avaliar(modelo, ator, acao, recurso, contexto)
+
+    def autorizacao_avaliar(
+        modelo_rbac: dict[str, object],
+        usuarios_papeis: dict[str, list[str]],
+        ator: str | dict[str, object],
+        acao: str,
+        recurso: dict[str, object] | None = None,
+        contexto: dict[str, object] | None = None,
+        politicas: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        return security_runtime.autorizacao_avaliar(
+            modelo_rbac,
+            usuarios_papeis,
+            ator,
+            acao,
+            recurso=recurso,
+            contexto=contexto,
+            politicas=politicas,
+        )
 
     def auth_sessao_criar(
         id_usuario: str,
@@ -2162,6 +2438,12 @@ def make_builtins(
     migracao_trilha = migracao_trilha_listar
     token_criar = jwt_criar
     token_verificar = jwt_verificar
+    token_assinar = jwt_assinar
+    token_validar = jwt_validar
+    token_validar_jwks = jwt_validar_jwks
+    autenticacao_oidc_descobrir = oidc_descobrir_configuracao
+    autenticacao_oidc_configurar = oidc_configurar_provedor
+    autenticacao_oidc_validar = oidc_validar_token
     senha_gerar_hash = senha_hash
     senha_validar = senha_verificar
     papel_criar_modelo = rbac_criar
@@ -2169,6 +2451,8 @@ def make_builtins(
     papel_listar_usuario = rbac_papeis_usuario
     papel_tem = rbac_tem_papel
     permissao_tem = rbac_tem_permissao
+    politica_autorizacao_criar = autorizacao_politicas_criar
+    politica_autorizacao_avaliar = autorizacao_politicas_avaliar
     sessao_criar = auth_sessao_criar
     sessao_ativa = auth_sessao_ativa
     sessao_revogar = auth_sessao_revogar
@@ -2186,8 +2470,6 @@ def make_builtins(
     observabilidade_exportar_otlp = observabilidade_exportar_otel_json
     dashboards_operacionais_prontos = observabilidade_dashboards_prontos
     runbooks_incidentes_prontos = observabilidade_runbooks_prontos
-    requisicao = "requisicao"
-    resposta = "resposta"
     http_obter = http_get
     http_postar = http_post
     web_limite_taxa = web_rate_limit
@@ -2199,6 +2481,8 @@ def make_builtins(
     web_observabilidade_ativar = web_ativar_observabilidade
     web_openapi_gerar = web_gerar_openapi
     web_openapi_exportar = web_exportar_openapi
+    web_contrato_ir_gerar = web_gerar_ir_contrato
+    web_contrato_ir_exportar = web_exportar_ir_contrato
     web_sdk_gerar = web_gerar_sdk
     web_engine_configurar = web_configurar_engine_http
     web_configurar_hardening = web_configurar_seguranca_http
@@ -2330,10 +2614,18 @@ def make_builtins(
         "armazenamento_local_criar": armazenamento_local_criar,
         "armazenamento_s3_criar": armazenamento_s3_criar,
         "armazenamento_salvar": armazenamento_salvar,
+        "armazenamento_definir_politicas": armazenamento_definir_politicas,
+        "armazenamento_iniciar_upload": armazenamento_iniciar_upload,
+        "armazenamento_upload_escrever": armazenamento_upload_escrever,
+        "armazenamento_upload_finalizar": armazenamento_upload_finalizar,
+        "armazenamento_processar_upload": armazenamento_processar_upload,
+        "armazenamento_promover": armazenamento_promover,
         "armazenamento_ler": armazenamento_ler,
+        "armazenamento_metadados": armazenamento_metadados,
         "armazenamento_remover": armazenamento_remover,
         "armazenamento_listar": armazenamento_listar,
         "armazenamento_url": armazenamento_url,
+        "armazenamento_url_assinada": armazenamento_url_assinada,
         "midia_ler_arquivo": midia_ler_arquivo,
         "midia_salvar_arquivo": midia_salvar_arquivo,
         "midia_comprimir_gzip": midia_comprimir_gzip,
@@ -2344,6 +2636,8 @@ def make_builtins(
         "midia_redimensionar_imagem": midia_redimensionar_imagem,
         "midia_converter_imagem": midia_converter_imagem,
         "midia_pipeline": midia_pipeline,
+        "midia_extrair_metadados": midia_extrair_metadados,
+        "midia_pipeline_storage": midia_pipeline_storage,
         "agora_iso": agora_iso,
         "timestamp": timestamp,
         "web_criar_app": web_criar_app,
@@ -2375,8 +2669,12 @@ def make_builtins(
         "web_saude_paths": web_saude_paths,
         "web_ativar_observabilidade": web_ativar_observabilidade,
         "web_observabilidade_ativar": web_observabilidade_ativar,
+        "web_gerar_ir_contrato": web_gerar_ir_contrato,
+        "web_exportar_ir_contrato": web_exportar_ir_contrato,
         "web_gerar_openapi": web_gerar_openapi,
         "web_exportar_openapi": web_exportar_openapi,
+        "web_contrato_ir_gerar": web_contrato_ir_gerar,
+        "web_contrato_ir_exportar": web_contrato_ir_exportar,
         "web_openapi_gerar": web_openapi_gerar,
         "web_openapi_exportar": web_openapi_exportar,
         "web_gerar_sdk": web_gerar_sdk,
@@ -2524,6 +2822,15 @@ def make_builtins(
         "migracao_trilha": migracao_trilha,
         "jwt_criar": jwt_criar,
         "jwt_verificar": jwt_verificar,
+        "jwt_assinar": jwt_assinar,
+        "jwt_validar": jwt_validar,
+        "jwks_obter": jwks_obter,
+        "jwt_validar_jwks": jwt_validar_jwks,
+        "oidc_descobrir_configuracao": oidc_descobrir_configuracao,
+        "oidc_configurar_provedor": oidc_configurar_provedor,
+        "oidc_validar_token": oidc_validar_token,
+        "oidc_listar_provedores": oidc_listar_provedores,
+        "oidc_remover_provedor": oidc_remover_provedor,
         "senha_hash": senha_hash,
         "senha_verificar": senha_verificar,
         "rbac_criar": rbac_criar,
@@ -2531,6 +2838,9 @@ def make_builtins(
         "rbac_papeis_usuario": rbac_papeis_usuario,
         "rbac_tem_papel": rbac_tem_papel,
         "rbac_tem_permissao": rbac_tem_permissao,
+        "autorizacao_politicas_criar": autorizacao_politicas_criar,
+        "autorizacao_politicas_avaliar": autorizacao_politicas_avaliar,
+        "autorizacao_avaliar": autorizacao_avaliar,
         "auth_sessao_criar": auth_sessao_criar,
         "auth_sessao_obter": auth_sessao_obter,
         "auth_sessao_ativa": auth_sessao_ativa,
@@ -2554,6 +2864,12 @@ def make_builtins(
         "refresh_rotacionar": refresh_rotacionar,
         "token_criar": token_criar,
         "token_verificar": token_verificar,
+        "token_assinar": token_assinar,
+        "token_validar": token_validar,
+        "token_validar_jwks": token_validar_jwks,
+        "autenticacao_oidc_descobrir": autenticacao_oidc_descobrir,
+        "autenticacao_oidc_configurar": autenticacao_oidc_configurar,
+        "autenticacao_oidc_validar": autenticacao_oidc_validar,
         "senha_gerar_hash": senha_gerar_hash,
         "senha_validar": senha_validar,
         "papel_criar_modelo": papel_criar_modelo,
@@ -2561,6 +2877,8 @@ def make_builtins(
         "papel_listar_usuario": papel_listar_usuario,
         "papel_tem": papel_tem,
         "permissao_tem": permissao_tem,
+        "politica_autorizacao_criar": politica_autorizacao_criar,
+        "politica_autorizacao_avaliar": politica_autorizacao_avaliar,
         "log_estruturado": log_estruturado,
         "log_estruturado_json": log_estruturado_json,
         "metrica_incrementar": metrica_incrementar,
@@ -2590,8 +2908,13 @@ def make_builtins(
         "tracas_snapshot": tracas_snapshot,
         "tracas_reset": tracas_reset,
         "fila_criar": fila_criar,
+        "fila_criar_com_backend": fila_criar_com_backend,
         "fila_enfileirar": fila_enfileirar,
         "fila_processar": fila_processar,
         "fila_status": fila_status,
+        "fila_listar_dlq": fila_listar_dlq,
+        "fila_obter_job": fila_obter_job,
+        "fila_reprocessar_dlq": fila_reprocessar_dlq,
+        "fila_backends_listar": fila_backends_listar,
         "webhook_enviar": webhook_enviar,
     }

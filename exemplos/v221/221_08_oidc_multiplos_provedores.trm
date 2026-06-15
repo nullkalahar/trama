@@ -1,0 +1,7 @@
+função principal()
+    oidc_configurar_provedor("interno", "https://id.interno.trama.dev", "painel", 2.0, 120)
+    oidc_configurar_provedor("parceiro", "https://id.parceiro.dev", "painel", 2.0, 120)
+
+    provedores = oidc_listar_provedores()
+    exibir(tamanho(provedores))
+fim

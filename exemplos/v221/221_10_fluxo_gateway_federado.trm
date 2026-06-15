@@ -1,0 +1,21 @@
+função autorizar_bearer(token)
+    resultado = autenticacao_oidc_validar("provedor_gateway", token)
+    se resultado["ok"]
+        retorne resultado["identidade"]
+    fim
+    retorne nulo
+fim
+
+função principal()
+    autenticacao_oidc_configurar("provedor_gateway", "https://id.trama.dev", "gateway-api", 2.0, 300)
+
+    bearer = ler_texto(".local/tokens/gateway.jwt")
+    identidade = autorizar_bearer(bearer)
+
+    se identidade != nulo
+        exibir("autorizado")
+        exibir(identidade["id_usuario_externo"])
+    senão
+        exibir("negado")
+    fim
+fim

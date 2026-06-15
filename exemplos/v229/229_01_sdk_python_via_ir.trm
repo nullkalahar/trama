@@ -1,0 +1,11 @@
+função ping(req)
+    retorne {"status": 200, "json": {"ok": verdadeiro}}
+fim
+
+assíncrona função principal()
+    app = web_criar_app()
+    web_rota(app, "GET", "/api/v1/ping/:id", ping)
+    sdk = web_gerar_sdk(app, "build/cliente_v229.py", "python", "ClienteV229Py", "API SDK", "2.1.29", "http://127.0.0.1:8080")
+    exibir(sdk["linguagem"])
+    exibir(sdk["ir_contrato"])
+fim

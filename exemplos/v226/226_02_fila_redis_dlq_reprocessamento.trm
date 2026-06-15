@@ -1,0 +1,13 @@
+função falhar(payload)
+    lance "erro:" + texto(payload["id"])
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("falhas", "redis", {
+        "redis_url": "redis://127.0.0.1:6379/0"
+    })
+    aguarde fila_enfileirar(fila, falhar, {"id": 7}, 0, 5.0, "dlq-7")
+    aguarde fila_processar(fila)
+    itens = aguarde fila_listar_dlq(fila, 10)
+    exibir(tamanho(itens))
+fim

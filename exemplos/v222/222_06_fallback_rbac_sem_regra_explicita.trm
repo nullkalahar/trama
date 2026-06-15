@@ -1,0 +1,17 @@
+função principal()
+    modelo = rbac_criar({"editor": ["doc:editar"]})
+    usuarios = {}
+    usuarios = rbac_atribuir(usuarios, "carol", "editor")
+
+    out = autorizacao_avaliar(
+        modelo,
+        usuarios,
+        "carol",
+        "doc:editar",
+        {"tipo": "documento", "id": "d2"},
+        {"ambiente": "homolog"}
+    )
+
+    exibir(out["origem_decisao"])
+    exibir(out["permitido"])
+fim

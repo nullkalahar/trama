@@ -108,7 +108,7 @@ def test_v203_ack_nack_reenvio_ordenado_multino() -> None:
     assert ok2 is True
     assert isinstance(c2, web_runtime.TempoRealConexao)
 
-    pub = a.publicar_mensagem("/ws/dist", "chat", {"txt": "oi"}, id_usuario="u2", exigir_ack=True)
+    a.publicar_mensagem("/ws/dist", "chat", {"txt": "oi"}, id_usuario="u2", exigir_ack=True)
     b.sincronizar_distribuicao()
     eventos = [e for e in c2.drenar(10) if e.get("evento") == "chat"]
     assert len(eventos) == 1

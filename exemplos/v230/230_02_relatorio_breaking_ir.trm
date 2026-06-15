@@ -1,0 +1,14 @@
+assíncrona função principal()
+    antes = {
+        "ir_contrato": "trama_http_v1",
+        "titulo": "API A",
+        "versao": "1.0.0",
+        "rotas": [
+            {"metodo": "GET", "caminho": "/saude", "operation_id": "get_saude", "dto_schemas": {}, "contrato_resposta": {"versoes": {"v1": {"campos_obrigatorios": ["ok"]}}}}
+        ],
+        "componentes": {}
+    }
+    depois = {"ir_contrato": "trama_http_v1", "titulo": "API A", "versao": "2.0.0", "rotas": [], "componentes": {}}
+    exibir(tamanho(antes["rotas"]))
+    exibir(tamanho(depois["rotas"]))
+fim

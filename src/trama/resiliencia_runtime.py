@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import random
 import threading
 import time
-from typing import Any, Awaitable, Callable
+from typing import Awaitable, Callable
 
 from . import observability_runtime
 

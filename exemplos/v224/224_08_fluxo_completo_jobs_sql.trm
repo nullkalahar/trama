@@ -1,0 +1,18 @@
+função processar(payload)
+    retorne payload["destino"]
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("emails_sql", "sql", {
+        "dsn": "sqlite:///.local/v224/jobs_fluxo.db",
+        "lote_processamento": 20,
+        "lease_segundos": 15.0
+    })
+    aguarde fila_enfileirar(fila, processar, {"destino": "ana@trama.dev"}, 2, 5.0, "email-ana")
+    aguarde fila_enfileirar(fila, processar, {"destino": "bia@trama.dev"}, 2, 5.0, "email-bia")
+    r = aguarde fila_processar(fila)
+    s = fila_status(fila)
+    exibir(r["backend"])
+    exibir(r["processados"])
+    exibir(s["concluidos"])
+fim

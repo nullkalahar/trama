@@ -1,0 +1,13 @@
+assíncrona função principal()
+    storage = armazenamento_criar_local(".local/v231_storage")
+    conteudo = "arquivo v231"
+    sha = midia_sha256(conteudo)
+    sessao = armazenamento_iniciar_upload(storage, "docs/arquivo.txt", {
+        "content_type": "text/plain",
+        "metadata": {"origem": "exemplo"},
+        "validacao": {"mime_permitidos": ["text/plain"], "tamanho_maximo": 1024, "hash_sha256": sha}
+    })
+    armazenamento_upload_escrever(storage, sessao["upload_id"], conteudo)
+    final = armazenamento_upload_finalizar(storage, sessao["upload_id"])
+    exibir(final["key"])
+fim

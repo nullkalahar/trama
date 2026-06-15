@@ -135,6 +135,14 @@ def test_cli_diagnostico_runtime_campos_canonicos_e_compat() -> None:
     assert "python_host_required=" in text
 
 
+def test_cli_version() -> None:
+    out = StringIO()
+    with redirect_stdout(out):
+        code = main(["--version"])
+    assert code == 0
+    assert out.getvalue().strip() == "trama 2.1.34"
+
+
 def test_cli_template_servico_modulo_openapi_sdk_admin_ops(tmp_path: Path) -> None:
     cwd = os.getcwd()
     os.chdir(tmp_path)

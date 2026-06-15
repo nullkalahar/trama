@@ -1,0 +1,7 @@
+assíncrona função principal()
+    storage = armazenamento_criar_local(".local/v234_storage")
+    armazenamento_definir_politicas(storage, {"visibilidade": "publico", "lifecycle_dias": 7, "retencao_ate": "2026-12-31T00:00:00Z"})
+    armazenamento_salvar(storage, "docs/a.txt", "ola", "text/plain")
+    meta = armazenamento_metadados(storage, "docs/a.txt")
+    exibir(meta["politicas"]["visibilidade"])
+fim

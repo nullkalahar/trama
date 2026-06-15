@@ -6,10 +6,10 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 import time
-from typing import Any
 from urllib import error, request
 
 from . import observability_runtime
+from . import contrato_ir
 from .web_runtime import WebApp
 
 
@@ -121,131 +121,34 @@ def gerar_openapi_web_app(
     versao: str = "1.0.0",
     servidor_base: str | None = None,
 ) -> dict[str, object]:
-    paths: dict[str, object] = {}
-    for r in app.routes:
-        if str(r.kind) != "handler":
-            continue
-        path = _normalizar_path_openapi(str(r.path))
-        method = str(r.method).lower()
-        if path not in paths:
-            paths[path] = {}
-        data = dict(r.data or {})
-        schema = dict(data.get("schema", {})) if isinstance(data.get("schema"), dict) else {}
-        options = dict(data.get("options", {})) if isinstance(data.get("options"), dict) else {}
-        dto_req = options.get("dto_requisicao") if isinstance(options.get("dto_requisicao"), dict) else None
-        contrato_resp = options.get("contrato_resposta") if isinstance(options.get("contrato_resposta"), dict) else {}
+    ir = gerar_ir_web_app(app, titulo=titulo, versao=versao, servidor_base=servidor_base)
+    return gerar_openapi_de_ir(ir)
 
-        req_body_schema: dict[str, object] | None = None
-        if dto_req and isinstance(dto_req, dict):
-            if "corpo" in dto_req and isinstance(dto_req.get("corpo"), dict):
-                req_body_schema = _schema_para_openapi(dto_req.get("corpo"))
-            else:
-                req_body_schema = _schema_para_openapi(dto_req)
-        elif schema.get("corpo_obrigatorio"):
-            req_body_schema = {
-                "type": "object",
-                "required": [str(x) for x in list(schema.get("corpo_obrigatorio", []))],
-                "properties": {str(x): {"type": "string"} for x in list(schema.get("corpo_obrigatorio", []))},
-            }
 
-        responses: dict[str, object] = {
-            "200": {
-                "description": "Resposta de sucesso",
-                "content": {"application/json": {"schema": {"type": "object"}}},
-            },
-            "422": {
-                "description": "Falha de validação",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "ok": {"type": "boolean"},
-                                "erro": {
-                                    "type": "object",
-                                    "properties": {
-                                        "codigo": {"type": "string"},
-                                        "mensagem": {"type": "string"},
-                                        "detalhes": {"type": "object"},
-                                    },
-                                },
-                            },
-                        }
-                    }
-                },
-            },
-            "401": {"description": "Não autenticado"},
-            "403": {"description": "Sem permissão"},
-            "429": {"description": "Limite de taxa excedido"},
-        }
+def gerar_ir_web_app(
+    app: WebApp,
+    titulo: str = "API Trama",
+    versao: str = "1.0.0",
+    servidor_base: str | None = None,
+) -> dict[str, object]:
+    return contrato_ir.gerar_ir_web_app(app, titulo=titulo, versao=versao, servidor_base=servidor_base)
 
-        if contrato_resp:
-            if isinstance(contrato_resp.get("versoes"), dict):
-                versoes = dict(contrato_resp.get("versoes", {}))
-                if versoes:
-                    vpad = str(contrato_resp.get("versao_padrao") or sorted(versoes.keys())[0])
-                    escolhido = dict(versoes.get(vpad, {}))
-                    campos = [str(x) for x in list(escolhido.get("campos_obrigatorios", []))]
-                    if campos:
-                        responses["200"] = {
-                            "description": "Resposta de sucesso contratada",
-                            "content": {
-                                "application/json": {
-                                    "schema": {
-                                        "type": "object",
-                                        "required": campos,
-                                        "properties": {c: {"type": "object"} for c in campos},
-                                    }
-                                }
-                            },
-                        }
 
-        operation: dict[str, object] = {
-            "operationId": _op_id(method, path),
-            "summary": f"{method.upper()} {path}",
-            "parameters": _parametros_de_path(path),
-            "responses": responses,
-        }
+def gerar_ir_contrato(
+    contrato: dict[str, object],
+    titulo: str = "API Trama",
+    versao: str = "1.0.0",
+    servidor_base: str | None = None,
+) -> dict[str, object]:
+    return contrato_ir.gerar_ir_de_documento(contrato, titulo=titulo, versao=versao, servidor_base=servidor_base)
 
-        if req_body_schema is not None and method in {"post", "put", "patch"}:
-            operation["requestBody"] = {
-                "required": True,
-                "content": {"application/json": {"schema": req_body_schema}},
-            }
 
-        cast_paths = dict(paths[path])
-        cast_paths[method] = operation
-        paths[path] = cast_paths
+def gerar_openapi_de_ir(ir: dict[str, object]) -> dict[str, object]:
+    return contrato_ir.gerar_openapi_de_ir(ir)
 
-    servers = [{"url": servidor_base}] if servidor_base else []
-    return {
-        "openapi": "3.0.3",
-        "info": {
-            "title": str(titulo),
-            "version": str(versao),
-            "description": "Especificação OpenAPI gerada automaticamente pela Trama.",
-        },
-        "servers": servers,
-        "paths": paths,
-        "components": {
-            "schemas": {
-                "ErroPadrao": {
-                    "type": "object",
-                    "properties": {
-                        "ok": {"type": "boolean"},
-                        "erro": {
-                            "type": "object",
-                            "properties": {
-                                "codigo": {"type": "string"},
-                                "mensagem": {"type": "string"},
-                                "detalhes": {"type": "object"},
-                            },
-                        },
-                    },
-                }
-            }
-        },
-    }
+
+def salvar_ir_contrato(ir: dict[str, object], caminho_saida: str) -> dict[str, object]:
+    return contrato_ir.salvar_ir(ir, caminho_saida)
 
 
 def salvar_openapi(spec: dict[str, object], caminho_saida: str) -> dict[str, object]:
@@ -255,19 +158,31 @@ def salvar_openapi(spec: dict[str, object], caminho_saida: str) -> dict[str, obj
     return {"ok": True, "arquivo": str(out.resolve())}
 
 
-def _sdk_python(spec: dict[str, object], nome_cliente: str = "ClienteApiTrama") -> str:
-    paths = dict(spec.get("paths", {}))
+def _metodos_ir(doc: dict[str, object]) -> list[_MetodoRota]:
+    ir = contrato_ir.gerar_ir_de_documento(doc)
     methods: list[_MetodoRota] = []
-    for path, ops in paths.items():
-        if not isinstance(ops, dict):
+    for rota in list(ir.get("rotas", [])):
+        if not isinstance(rota, dict):
             continue
-        for m in ["get", "post", "put", "patch", "delete"]:
-            if m in ops and isinstance(ops[m], dict):
-                op_id = str(dict(ops[m]).get("operationId") or _op_id(m, str(path)))
-                methods.append(_MetodoRota(m.upper(), str(path), op_id))
+        methods.append(
+            _MetodoRota(
+                str(rota.get("metodo", "GET")).upper(),
+                str(rota.get("caminho", "/")),
+                str(rota.get("operation_id") or _op_id(str(rota.get("metodo", "GET")), str(rota.get("caminho", "/")))),
+            )
+        )
+    return methods
 
-    lines = [
-        '"""SDK cliente Python gerado pela Trama a partir de OpenAPI."""',
+
+def _sdk_python(doc: dict[str, object], nome_cliente: str = "ClienteApiTrama") -> str:
+    methods = _metodos_ir(doc)
+    if dict(doc).get("ir_contrato") == "trama_http_v1":
+        ir = dict(doc)
+    else:
+        ir = contrato_ir.gerar_ir_de_documento(doc)
+
+    helper_paths = [
+        '"""SDK cliente Python gerado pela Trama a partir do IR formal de contrato."""',
         "",
         "from __future__ import annotations",
         "",
@@ -279,50 +194,65 @@ def _sdk_python(spec: dict[str, object], nome_cliente: str = "ClienteApiTrama") 
         "        self.base_url = base_url.rstrip('/')",
         "        self.timeout_segundos = float(timeout_segundos)",
         "",
-        "    def _req(self, metodo: str, caminho: str, payload: dict | None = None, headers: dict | None = None) -> dict:",
+        "    def _montar_caminho(self, caminho: str, parametros: dict | None = None) -> str:",
+        "        out = str(caminho)",
+        "        for chave, valor in dict(parametros or {}).items():",
+        "            out = out.replace('{' + str(chave) + '}', str(valor))",
+        "        return out",
+        "",
+        "    def _req(self, metodo: str, caminho: str, payload: dict | None = None, headers: dict | None = None, parametros: dict | None = None) -> dict:",
         "        h = {'Content-Type': 'application/json; charset=utf-8'}",
         "        if isinstance(headers, dict):",
         "            h.update(headers)",
         "        data = None if payload is None else json.dumps(payload, ensure_ascii=False).encode('utf-8')",
-        "        req = request.Request(self.base_url + caminho, method=metodo, data=data, headers=h)",
+        "        req = request.Request(self.base_url + self._montar_caminho(caminho, parametros), method=metodo, data=data, headers=h)",
         "        with request.urlopen(req, timeout=self.timeout_segundos) as resp:",
         "            txt = resp.read().decode('utf-8', errors='replace')",
         "            return json.loads(txt) if txt else {}",
         "",
+        "    def contrato(self) -> dict:",
+        f"        return {repr(ir)}",
+        "",
     ]
+    lines = helper_paths
     for mt in methods:
         nome_fn = mt.op_id
         lines.extend(
             [
-                f"    def {nome_fn}(self, payload: dict | None = None, headers: dict | None = None) -> dict:",
-                f"        return self._req('{mt.metodo}', '{mt.caminho}', payload=payload, headers=headers)",
+                f"    def {nome_fn}(self, payload: dict | None = None, headers: dict | None = None, parametros: dict | None = None) -> dict:",
+                f"        return self._req('{mt.metodo}', '{mt.caminho}', payload=payload, headers=headers, parametros=parametros)",
                 "",
             ]
         )
     return "\n".join(lines) + "\n"
 
 
-def _sdk_typescript(spec: dict[str, object], nome_cliente: str = "ClienteApiTrama") -> str:
-    paths = dict(spec.get("paths", {}))
-    methods: list[_MetodoRota] = []
-    for path, ops in paths.items():
-        if not isinstance(ops, dict):
-            continue
-        for m in ["get", "post", "put", "patch", "delete"]:
-            if m in ops and isinstance(ops[m], dict):
-                op_id = str(dict(ops[m]).get("operationId") or _op_id(m, str(path)))
-                methods.append(_MetodoRota(m.upper(), str(path), op_id))
+def _sdk_typescript(doc: dict[str, object], nome_cliente: str = "ClienteApiTrama") -> str:
+    methods = _metodos_ir(doc)
+    if dict(doc).get("ir_contrato") == "trama_http_v1":
+        ir = dict(doc)
+    else:
+        ir = contrato_ir.gerar_ir_de_documento(doc)
+
     lines = [
-        "// SDK cliente TypeScript gerado pela Trama a partir de OpenAPI.",
+        "// SDK cliente TypeScript gerado pela Trama a partir do IR formal de contrato.",
         "",
         f"export class {nome_cliente} {{",
         "  constructor(private baseUrl: string, private timeoutMs: number = 10000) {}",
         "",
-        "  private async req(metodo: string, caminho: string, payload?: Record<string, unknown>, headers?: Record<string, string>): Promise<any> {",
+        "  private montarCaminho(caminho: string, parametros?: Record<string, unknown>): string {",
+        "    let out = String(caminho);",
+        "    for (const [chave, valor] of Object.entries(parametros || {})) {",
+        "      out = out.replace(`{${chave}}`, String(valor));",
+        "    }",
+        "    return out;",
+        "  }",
+        "",
+        "  private async req(metodo: string, caminho: string, payload?: Record<string, unknown>, headers?: Record<string, string>, parametros?: Record<string, unknown>): Promise<any> {",
         "    const controller = new AbortController();",
         "    const t = setTimeout(() => controller.abort(), this.timeoutMs);",
         "    try {",
-        "      const resp = await fetch(this.baseUrl.replace(/\\/$/, '') + caminho, {",
+        "      const resp = await fetch(this.baseUrl.replace(/\\/$/, '') + this.montarCaminho(caminho, parametros), {",
         "        method: metodo,",
         "        headers: { 'Content-Type': 'application/json; charset=utf-8', ...(headers || {}) },",
         "        body: payload ? JSON.stringify(payload) : undefined,",
@@ -335,12 +265,16 @@ def _sdk_typescript(spec: dict[str, object], nome_cliente: str = "ClienteApiTram
         "    }",
         "  }",
         "",
+        "  contrato(): any {",
+        f"    return {json.dumps(ir, ensure_ascii=False, indent=4)};",
+        "  }",
+        "",
     ]
     for mt in methods:
         lines.extend(
             [
-                f"  async {mt.op_id}(payload?: Record<string, unknown>, headers?: Record<string, string>): Promise<any> {{",
-                f"    return this.req('{mt.metodo}', '{mt.caminho}', payload, headers);",
+                f"  async {mt.op_id}(payload?: Record<string, unknown>, headers?: Record<string, string>, parametros?: Record<string, unknown>): Promise<any> {{",
+                f"    return this.req('{mt.metodo}', '{mt.caminho}', payload, headers, parametros);",
                 "  }",
                 "",
             ]
@@ -363,7 +297,17 @@ def gerar_sdk_cliente(
     out = Path(destino_arquivo)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(conteudo, encoding="utf-8")
-    return {"ok": True, "arquivo": str(out.resolve()), "linguagem": ("typescript" if lang in {"typescript", "ts"} else "python")}
+    ir = contrato_ir.gerar_ir_de_documento(spec)
+    return {
+        "ok": True,
+        "arquivo": str(out.resolve()),
+        "linguagem": ("typescript" if lang in {"typescript", "ts"} else "python"),
+        "ir_contrato": str(ir.get("ir_contrato", "")),
+    }
+
+
+def verificar_breaking_changes_contrato(antes: dict[str, object], depois: dict[str, object]) -> dict[str, object]:
+    return contrato_ir.comparar_breaking_changes(antes, depois)
 
 
 def dashboards_operacionais_prontos() -> dict[str, object]:

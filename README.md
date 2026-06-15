@@ -95,8 +95,8 @@ trama testes-avancados-v213 [--perfil rapido|completo] [--json]
 
 ```bash
 scripts/build_standalone.sh
-scripts/package_deb.sh 2.1.3 amd64
-scripts/build_release_nativo.sh 2.1.3 amd64
+scripts/package_deb.sh 2.1.34 amd64
+scripts/build_release_nativo.sh 2.1.34 amd64
 ```
 
 ## Índice de Documentação
@@ -132,7 +132,34 @@ scripts/build_release_nativo.sh 2.1.3 amd64
 - `docs/LINGUAGEM_V2_1_3.md`
 - `docs/LINGUAGEM_V2_1_11.md`
 - `docs/LINGUAGEM_V2_1_17.md`
+- `docs/LINGUAGEM_V2_1_21.md`
+- `docs/LINGUAGEM_V2_1_22.md`
+- `docs/LINGUAGEM_V2_1_23.md`
+- `docs/LINGUAGEM_V2_1_24.md`
+- `docs/LINGUAGEM_V2_1_25.md`
+- `docs/LINGUAGEM_V2_1_26.md`
+- `docs/LINGUAGEM_V2_1_27.md`
+- `docs/LINGUAGEM_V2_1_28.md`
+- `docs/LINGUAGEM_V2_1_29.md`
+- `docs/LINGUAGEM_V2_1_30.md`
+- `docs/LINGUAGEM_V2_1_31.md`
+- `docs/LINGUAGEM_V2_1_32.md`
+- `docs/LINGUAGEM_V2_1_33.md`
+- `docs/LINGUAGEM_V2_1_34.md`
 - `docs/MANUAL_TRAMA_COMPLETO_V2_1_17.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_22.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_23.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_24.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_25.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_26.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_27.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_28.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_29.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_30.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_31.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_32.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_33.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_34.md`
 - `docs/OPERACAO_V2_1_17_ENGINE_ASGI_DB_CAPACIDADES.md`
 - `docs/REFERENCIA_CAPACIDADES_DB_V2_1_17.md`
 
@@ -173,6 +200,20 @@ scripts/build_release_nativo.sh 2.1.3 amd64
 - `exemplos/v213/`
 - `exemplos/v214/`
 - `exemplos/v217/`
+- `exemplos/v221/`
+- `exemplos/v222/`
+- `exemplos/v223/`
+- `exemplos/v224/`
+- `exemplos/v225/`
+- `exemplos/v226/`
+- `exemplos/v227/`
+- `exemplos/v228/`
+- `exemplos/v229/`
+- `exemplos/v230/`
+- `exemplos/v231/`
+- `exemplos/v232/`
+- `exemplos/v233/`
+- `exemplos/v234/`
 
 ## Roadmap Versionado (Checklist)
 
@@ -307,6 +348,56 @@ Evidências principais da v2.1.3:
 - `docs/TODO_V2_1_3_IMPLEMENTACAO_TOTAL.md`
 - `docs/LINGUAGEM_V2_1_3.md`
 - `exemplos/v213/` (pacote amplo + ARLS)
+- marcos: `v2.1.3-alpha.1`, `v2.1.3-beta.1`, `v2.1.3-rc.1`
+- referência de capacidades: `docs/REFERENCIA_CAPACIDADES_V2_1_2.md`
+
+Evidências principais da v2.1.19-v2.1.21:
+- `docs/LINGUAGEM_V2_1_21.md`
+- `exemplos/v221/` (JWT RS256 + JWKS + OIDC em pt-BR)
+- `tests/test_security_runtime_v219_v221.py`
+
+Evidências principais da v2.1.22:
+- `docs/LINGUAGEM_V2_1_22.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_22.md`
+- `exemplos/v222/` (autorização contextual ator/ação/recurso/contexto)
+- `tests/test_security_runtime_v222.py`
+
+Evidências principais da v2.1.23:
+- `docs/LINGUAGEM_V2_1_23.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_23.md`
+- `exemplos/v223/` (fachada de jobs com backend plugável)
+- `tests/test_jobs_runtime_v223.py`
+
+Evidências principais da v2.1.24:
+- `docs/LINGUAGEM_V2_1_24.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_24.md`
+- `exemplos/v224/` (backend persistente de jobs via SQL com retry/leasing/DLQ/reprocessamento)
+- `tests/test_jobs_runtime_v224.py`
+
+Evidências principais da v2.1.25:
+- `docs/LINGUAGEM_V2_1_25.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_25.md`
+- `exemplos/v225/` (worker standalone e operacao de filas/DLQ por CLI)
+- `tests/test_jobs_runtime_v225.py`
+- `tests/test_cli_v225.py`
+
+Evidências principais da v2.1.26:
+- `docs/LINGUAGEM_V2_1_26.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_26.md`
+- `exemplos/v226/` (backend Redis para jobs com concorrencia distribuida controlada)
+- `tests/test_jobs_runtime_v226.py`
+
+Evidências principais da v2.1.27:
+- `docs/LINGUAGEM_V2_1_27.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_27.md`
+- `exemplos/v227/` (IR formal de contrato HTTP)
+- `tests/test_tooling_runtime_v227_v228.py`
+
+Evidências principais da v2.1.28:
+- `docs/LINGUAGEM_V2_1_28.md`
+- `docs/MANUAL_TRAMA_COMPLETO_V2_1_28.md`
+- `exemplos/v228/` (OpenAPI gerado a partir do IR formal)
+- `tests/test_cli_v227_v228.py`
 
 ### v2.1.4+ - Evolução incremental da base ao topo
 - [x] `v2.1.4` separar `web_runtime.py` em núcleo HTTP, modelo de rotas/DTO/contrato e engine legada baseada em `http.server`
@@ -323,23 +414,23 @@ Evidências principais da v2.1.3:
 - [x] `v2.1.15` ampliar a suíte de integração PostgreSQL real para cobrir transação, paginação, constraints, migração e seed
 - [x] `v2.1.16` consolidar introspecção e diff de schema por dialeto com paridade real entre SQLite/PostgreSQL
 - [x] `v2.1.17` formalizar camada de capability/capacidades por backend de banco para evitar comportamento implícito de SQLite
-- [ ] `v2.1.18` dividir segurança em módulos de JWT, sessão, RBAC e políticas, preservando a API canônica existente
-- [ ] `v2.1.19` adicionar suporte a JWT assimétrico (`RS256`) com chaves locais e `kid`
-- [ ] `v2.1.20` adicionar suporte a JWK/JWKS com cache, rotação e validação de `iss`/`aud`
-- [ ] `v2.1.21` introduzir base de autenticação federada/OIDC para consumo de provedores externos
-- [ ] `v2.1.22` evoluir autorização de RBAC puro para políticas contextuais baseadas em ator/ação/recurso/contexto
-- [ ] `v2.1.23` transformar jobs em fachada com backend pluggável, preservando o backend em memória atual para desenvolvimento
-- [ ] `v2.1.24` adicionar backend persistente de jobs via SQL com retry, leasing, DLQ e reprocessamento
-- [ ] `v2.1.25` criar worker standalone e comandos operacionais para filas, DLQ e reprocessamento
-- [ ] `v2.1.26` adicionar backend Redis para jobs e concorrência distribuída controlada
-- [ ] `v2.1.27` formalizar modelo de contrato/IR para HTTP, DTOs, erros, auth, exemplos e versionamento
-- [ ] `v2.1.28` fazer OpenAPI consumir o IR formal em vez de depender diretamente das estruturas ad hoc do runtime
-- [ ] `v2.1.29` fazer geração de SDK Python/TypeScript consumir o mesmo IR formal de contrato
-- [ ] `v2.1.30` adicionar verificação automatizada de breaking changes em contrato entre versões
-- [ ] `v2.1.31` evoluir storage para pipeline de upload com validação de MIME, tamanho, hash e promoção temporário->definitivo
-- [ ] `v2.1.32` endurecer multipart/streaming para upload grande sem depender de payload inteiro em memória
-- [ ] `v2.1.33` adicionar pipeline de mídia com transformação, variantes e metadados conectada ao storage
-- [ ] `v2.1.34` formalizar políticas de lifecycle, URL assinada, retenção e visibilidade por backend de storage
+- [x] `v2.1.18` dividir segurança em módulos de JWT, sessão, RBAC e políticas, preservando a API canônica existente
+- [x] `v2.1.19` adicionar suporte a JWT assimétrico (`RS256`) com chaves locais e `kid`
+- [x] `v2.1.20` adicionar suporte a JWK/JWKS com cache, rotação e validação de `iss`/`aud`
+- [x] `v2.1.21` introduzir base de autenticação federada/OIDC para consumo de provedores externos
+- [x] `v2.1.22` evoluir autorização de RBAC puro para políticas contextuais baseadas em ator/ação/recurso/contexto
+- [x] `v2.1.23` transformar jobs em fachada com backend pluggável, preservando o backend em memória atual para desenvolvimento
+- [x] `v2.1.24` adicionar backend persistente de jobs via SQL com retry, leasing, DLQ e reprocessamento
+- [x] `v2.1.25` criar worker standalone e comandos operacionais para filas, DLQ e reprocessamento
+- [x] `v2.1.26` adicionar backend Redis para jobs e concorrência distribuída controlada
+- [x] `v2.1.27` formalizar modelo de contrato/IR para HTTP, DTOs, erros, auth, exemplos e versionamento
+- [x] `v2.1.28` fazer OpenAPI consumir o IR formal em vez de depender diretamente das estruturas ad hoc do runtime
+- [x] `v2.1.29` fazer geração de SDK Python/TypeScript consumir o mesmo IR formal de contrato
+- [x] `v2.1.30` adicionar verificação automatizada de breaking changes em contrato entre versões
+- [x] `v2.1.31` evoluir storage para pipeline de upload com validação de MIME, tamanho, hash e promoção temporário->definitivo
+- [x] `v2.1.32` endurecer multipart/streaming para upload grande sem depender de payload inteiro em memória
+- [x] `v2.1.33` adicionar pipeline de mídia com transformação, variantes e metadados conectada ao storage
+- [x] `v2.1.34` formalizar políticas de lifecycle, URL assinada, retenção e visibilidade por backend de storage
 - [ ] `v2.1.35` ampliar observabilidade com propagação W3C (`traceparent`), métricas por engine e tracing mais formal
 - [ ] `v2.1.36` integrar circuit breaker, timeouts globais, pools configuráveis e diagnóstico operacional por ambiente
 - [ ] `v2.1.37` fechar a plataforma backend de produção com benchmark, suíte de carga multi-processo e critérios SLO oficiais

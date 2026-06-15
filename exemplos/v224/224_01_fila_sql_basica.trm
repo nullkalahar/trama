@@ -1,0 +1,13 @@
+função processar(payload)
+    retorne payload["id"]
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("emails", "sql", {
+        "dsn": "sqlite:///.local/v224/jobs.db"
+    })
+    aguarde fila_enfileirar(fila, processar, {"id": 1}, 1, 5.0, "email-1")
+    resultado = aguarde fila_processar(fila)
+    exibir(resultado["backend"])
+    exibir(fila_status(fila)["concluidos"])
+fim

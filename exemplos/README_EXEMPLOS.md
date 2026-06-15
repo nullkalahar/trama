@@ -105,6 +105,24 @@ trama executar exemplos/01_ola_mundo.trm
 - `v214/214_01_estado_modular.trm` até `v214/214_10_paridade_motor_fumaca.trm`: extrações de módulos web/realtime, backplane e paridade de fachada HTTP
 - `v217/README_V217_EXEMPLOS.md`: coleção v2.1.12-v2.1.17 (ASGI, operação HTTP e capacidades de banco)
 - `v217/217_01_engine_legada_padrao.trm` até `v217/217_15_fluxo_completo_web_db_v217.trm`: engine HTTP, saúde/readiness/liveness, limites operacionais, capabilities e schema por dialeto
+- `v221/README_V221_EXEMPLOS.md`: coleção v2.1.19-v2.1.21 (RS256, JWKS e OIDC federado)
+- `v221/221_01_jwt_rs256_assinar_validar.trm` até `v221/221_10_fluxo_gateway_federado.trm`: assinatura/validação JWT assimétrica, cache/rotação JWKS e fluxo base de autenticação OIDC em pt-BR
+- `v222/README_V222_EXEMPLOS.md`: coleção v2.1.22 (autorização contextual com políticas)
+- `v222/222_01_politica_permitir_basica.trm` até `v222/222_08_fluxo_api_autorizacao_contextual.trm`: regras de autorização por ator/ação/recurso/contexto com fallback RBAC e override contextual
+- `v223/README_V223_EXEMPLOS.md`: coleção v2.1.23 (fachada de jobs com backend plugável)
+- `v223/223_01_fila_memoria_padrao.trm` até `v223/223_08_fluxo_dev_fachada_jobs.trm`: criação de fila padrão e com backend explícito, idempotência/retry, status e fluxo de desenvolvimento
+- `v229/README_V229_EXEMPLOS.md`: coleção v2.1.29 (SDKs Python/TypeScript a partir do IR formal)
+- `v229/229_01_sdk_python_via_ir.trm` e `v229/229_02_sdk_typescript_via_ir.trm`: geração de cliente canônico a partir do mesmo contrato formal
+- `v230/README_V230_EXEMPLOS.md`: coleção v2.1.30 (breaking changes de contrato)
+- `v230/230_01_verificar_breaking_cli.trm` e `v230/230_02_relatorio_breaking_ir.trm`: comparação entre versões de contrato e leitura do relatório
+- `v231/README_V231_EXEMPLOS.md`: coleção v2.1.31 (pipeline de upload em storage)
+- `v231/231_01_upload_validado_local.trm` e `v231/231_02_upload_promocao_local.trm`: upload validado com hash/MIME e promoção temporário->definitivo
+- `v232/README_V232_EXEMPLOS.md`: coleção v2.1.32 (multipart/streaming robusto)
+- `v232/232_01_upload_multipart_grande.trm` e `v232/232_02_upload_multipart_schema_limites.trm`: upload grande via multipart e leitura de metadados de streaming
+- `v233/README_V233_EXEMPLOS.md`: coleção v2.1.33 (pipeline de mídia integrada ao storage)
+- `v233/233_01_pipeline_midia_storage.trm` e `v233/233_02_manifesto_variantes.trm`: variantes, manifesto e rastreabilidade de mídia
+- `v234/README_V234_EXEMPLOS.md`: coleção v2.1.34 (políticas de storage)
+- `v234/234_01_politicas_visibilidade_retencao.trm` e `v234/234_02_url_assinada_storage.trm`: visibilidade, retenção, lifecycle e URL assinada por backend
 - `sintaxe/01_expressoes_multilinha.trm`: lista/mapa/chamada multilinha
 - `sintaxe/02_encadeamento_multilinha.trm`: encadeamento com indexação multilinha
 - `anilist/README_ANILIST_EXEMPLOS.md`: coleção completa de integrações AniList (anime/mangá + DB em `.local/tests/anilist/`)

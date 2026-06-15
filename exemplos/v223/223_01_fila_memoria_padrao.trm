@@ -1,0 +1,11 @@
+função tarefa(payload)
+    retorne payload["x"] * 2
+fim
+
+assíncrona função principal()
+    fila = fila_criar("emails")
+    aguarde fila_enfileirar(fila, tarefa, {"x": 2})
+    r = aguarde fila_processar(fila)
+    exibir(r["backend"])
+    exibir(r["concluidos"])
+fim

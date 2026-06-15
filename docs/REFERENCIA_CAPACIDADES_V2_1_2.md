@@ -41,7 +41,7 @@ Total: `26`
 
 ## cli_comandos
 
-Total: `30`
+Total: `39`
 
 - `admin-jobs-listar`
 - `admin-manutencao-status`
@@ -53,9 +53,16 @@ Total: `30`
 - `cobertura`
 - `compilar`
 - `compilar-legado`
+- `contrato-breaking-verificar`
+- `contrato-ir-gerar`
+- `db-capacidades`
 - `executar`
 - `executar-tbc`
 - `formatar`
+- `jobs-dlq-listar`
+- `jobs-dlq-reprocessar`
+- `jobs-fila-status`
+- `jobs-worker-rodar`
 - `lint`
 - `migracao-aplicar-v2`
 - `migracao-trilha-listar`
@@ -68,15 +75,17 @@ Total: `30`
 - `seed-aplicar-ambiente`
 - `semente-compilar`
 - `template-backend`
+- `template-frontend-pwa`
 - `template-modulo`
 - `template-servico`
 - `testar`
 - `testes-avancados-v208`
 - `testes-avancados-v212`
+- `testes-avancados-v213`
 
 ## builtins_superficie_total
 
-Total: `338`
+Total: `380`
 
 - `admin_auditoria_listar`
 - `admin_auditoria_registrar`
@@ -84,14 +93,25 @@ Total: `338`
 - `alertas_avaliar`
 - `armazenamento_criar_local`
 - `armazenamento_criar_s3`
+- `armazenamento_definir_politicas`
+- `armazenamento_iniciar_upload`
 - `armazenamento_ler`
 - `armazenamento_listar`
 - `armazenamento_local_criar`
+- `armazenamento_metadados`
+- `armazenamento_processar_upload`
+- `armazenamento_promover`
 - `armazenamento_remover`
 - `armazenamento_s3_criar`
 - `armazenamento_salvar`
+- `armazenamento_upload_escrever`
+- `armazenamento_upload_finalizar`
 - `armazenamento_url`
+- `armazenamento_url_assinada`
 - `arquivo_existe`
+- `autenticacao_oidc_configurar`
+- `autenticacao_oidc_descobrir`
+- `autenticacao_oidc_validar`
 - `auth_refresh_emitir`
 - `auth_refresh_rotacionar`
 - `auth_sessao_ativa`
@@ -104,6 +124,9 @@ Total: `338`
 - `auth_token_limpar_denylist`
 - `auth_token_revogado`
 - `auth_token_revogar`
+- `autorizacao_avaliar`
+- `autorizacao_politicas_avaliar`
+- `autorizacao_politicas_criar`
 - `banco_conectar`
 - `banco_consultar`
 - `banco_executar`
@@ -175,6 +198,7 @@ Total: `338`
 - `consulta_sql`
 - `criar_tarefa`
 - `dashboards_operacionais_prontos`
+- `db_capacidades`
 - `dormir`
 - `dto_gerar_exemplos`
 - `dto_validar`
@@ -183,9 +207,14 @@ Total: `338`
 - `escrever_texto`
 - `escrever_texto_async`
 - `exibir`
+- `fila_backends_listar`
 - `fila_criar`
+- `fila_criar_com_backend`
 - `fila_enfileirar`
+- `fila_listar_dlq`
+- `fila_obter_job`
 - `fila_processar`
+- `fila_reprocessar_dlq`
 - `fila_status`
 - `http_get`
 - `http_obter`
@@ -195,7 +224,11 @@ Total: `338`
 - `json_parse_seguro`
 - `json_stringify`
 - `json_stringify_pretty`
+- `jwks_obter`
+- `jwt_assinar`
 - `jwt_criar`
+- `jwt_validar`
+- `jwt_validar_jwks`
 - `jwt_verificar`
 - `ler_texto`
 - `ler_texto_async`
@@ -222,10 +255,12 @@ Total: `338`
 - `midia_comprimir_gzip`
 - `midia_converter_imagem`
 - `midia_descomprimir_gzip`
+- `midia_extrair_metadados`
 - `midia_gzip_comprimir`
 - `midia_gzip_descomprimir`
 - `midia_ler_arquivo`
 - `midia_pipeline`
+- `midia_pipeline_storage`
 - `midia_redimensionar_imagem`
 - `midia_salvar_arquivo`
 - `midia_sha256`
@@ -257,6 +292,11 @@ Total: `338`
 - `observabilidade_exportar_prometheus`
 - `observabilidade_resumo`
 - `observabilidade_runbooks_prontos`
+- `oidc_configurar_provedor`
+- `oidc_descobrir_configuracao`
+- `oidc_listar_provedores`
+- `oidc_remover_provedor`
+- `oidc_validar_token`
 - `operacao_smoke_checks`
 - `orm_atualizar`
 - `orm_buscar_por_id`
@@ -280,6 +320,8 @@ Total: `338`
 - `pg_transacao_rollback`
 - `pg_tx_consultar`
 - `pg_tx_executar`
+- `politica_autorizacao_avaliar`
+- `politica_autorizacao_criar`
 - `qb_consultar`
 - `qb_limite`
 - `qb_order_by`
@@ -330,9 +372,12 @@ Total: `338`
 - `sync_resolver_conflito`
 - `tamanho`
 - `timestamp`
+- `token_assinar`
 - `token_criar`
 - `token_revogado`
 - `token_revogar`
+- `token_validar`
+- `token_validar_jwks`
 - `token_verificar`
 - `traca_evento`
 - `traca_finalizar`
@@ -359,10 +404,16 @@ Total: `338`
 - `web_ativar_healthcheck`
 - `web_ativar_observabilidade`
 - `web_configurar_cors`
+- `web_configurar_engine_http`
 - `web_configurar_hardening`
 - `web_configurar_seguranca_http`
+- `web_contrato_ir_exportar`
+- `web_contrato_ir_gerar`
 - `web_criar_app`
+- `web_engine_configurar`
+- `web_exportar_ir_contrato`
 - `web_exportar_openapi`
+- `web_gerar_ir_contrato`
 - `web_gerar_openapi`
 - `web_gerar_sdk`
 - `web_iniciar`
@@ -419,7 +470,7 @@ Total: `338`
 
 ## builtins_canonicos_ou_neutros
 
-Total: `270`
+Total: `312`
 
 - `admin_auditoria_listar`
 - `admin_auditoria_registrar`
@@ -427,14 +478,25 @@ Total: `270`
 - `alertas_avaliar`
 - `armazenamento_criar_local`
 - `armazenamento_criar_s3`
+- `armazenamento_definir_politicas`
+- `armazenamento_iniciar_upload`
 - `armazenamento_ler`
 - `armazenamento_listar`
 - `armazenamento_local_criar`
+- `armazenamento_metadados`
+- `armazenamento_processar_upload`
+- `armazenamento_promover`
 - `armazenamento_remover`
 - `armazenamento_s3_criar`
 - `armazenamento_salvar`
+- `armazenamento_upload_escrever`
+- `armazenamento_upload_finalizar`
 - `armazenamento_url`
+- `armazenamento_url_assinada`
 - `arquivo_existe`
+- `autenticacao_oidc_configurar`
+- `autenticacao_oidc_descobrir`
+- `autenticacao_oidc_validar`
 - `auth_refresh_emitir`
 - `auth_refresh_rotacionar`
 - `auth_sessao_ativa`
@@ -447,6 +509,9 @@ Total: `270`
 - `auth_token_limpar_denylist`
 - `auth_token_revogado`
 - `auth_token_revogar`
+- `autorizacao_avaliar`
+- `autorizacao_politicas_avaliar`
+- `autorizacao_politicas_criar`
 - `banco_conectar`
 - `banco_consultar`
 - `banco_executar`
@@ -491,6 +556,7 @@ Total: `270`
 - `consulta_selecionar`
 - `consulta_sql`
 - `criar_tarefa`
+- `db_capacidades`
 - `dormir`
 - `dto_gerar_exemplos`
 - `dto_validar`
@@ -498,16 +564,25 @@ Total: `270`
 - `env_todos`
 - `escrever_texto`
 - `exibir`
+- `fila_backends_listar`
 - `fila_criar`
+- `fila_criar_com_backend`
 - `fila_enfileirar`
+- `fila_listar_dlq`
+- `fila_obter_job`
 - `fila_processar`
+- `fila_reprocessar_dlq`
 - `fila_status`
 - `http_obter`
 - `json_parse`
 - `json_parse_seguro`
 - `json_stringify`
 - `json_stringify_pretty`
+- `jwks_obter`
+- `jwt_assinar`
 - `jwt_criar`
+- `jwt_validar`
+- `jwt_validar_jwks`
 - `jwt_verificar`
 - `ler_texto`
 - `lista_adicionar`
@@ -531,10 +606,12 @@ Total: `270`
 - `midia_comprimir_gzip`
 - `midia_converter_imagem`
 - `midia_descomprimir_gzip`
+- `midia_extrair_metadados`
 - `midia_gzip_comprimir`
 - `midia_gzip_descomprimir`
 - `midia_ler_arquivo`
 - `midia_pipeline`
+- `midia_pipeline_storage`
 - `midia_redimensionar_imagem`
 - `midia_salvar_arquivo`
 - `midia_sha256`
@@ -562,6 +639,11 @@ Total: `270`
 - `observabilidade_exportar_prom`
 - `observabilidade_exportar_prometheus`
 - `observabilidade_resumo`
+- `oidc_configurar_provedor`
+- `oidc_descobrir_configuracao`
+- `oidc_listar_provedores`
+- `oidc_remover_provedor`
+- `oidc_validar_token`
 - `operacao_smoke_checks`
 - `orm_atualizar`
 - `orm_buscar_por_id`
@@ -585,6 +667,8 @@ Total: `270`
 - `pg_transacao_rollback`
 - `pg_tx_consultar`
 - `pg_tx_executar`
+- `politica_autorizacao_avaliar`
+- `politica_autorizacao_criar`
 - `qb_consultar`
 - `qb_limite`
 - `qb_order_by`
@@ -626,9 +710,12 @@ Total: `270`
 - `sessao_revogar`
 - `tamanho`
 - `timestamp`
+- `token_assinar`
 - `token_criar`
 - `token_revogado`
 - `token_revogar`
+- `token_validar`
+- `token_validar_jwks`
 - `token_verificar`
 - `traca_evento`
 - `traca_finalizar`
@@ -655,9 +742,15 @@ Total: `270`
 - `web_ativar_healthcheck`
 - `web_ativar_observabilidade`
 - `web_configurar_cors`
+- `web_configurar_engine_http`
 - `web_configurar_hardening`
 - `web_configurar_seguranca_http`
+- `web_contrato_ir_exportar`
+- `web_contrato_ir_gerar`
 - `web_criar_app`
+- `web_engine_configurar`
+- `web_exportar_ir_contrato`
+- `web_gerar_ir_contrato`
 - `web_iniciar`
 - `web_limite_taxa`
 - `web_limite_taxa_distribuido`

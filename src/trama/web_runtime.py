@@ -4,23 +4,28 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
-from email.parser import BytesParser
-from email.policy import default
 import hashlib
 import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import mimetypes
+import os
 from pathlib import Path
 import re
 import socket
 import struct
+import tempfile
 import threading
 import time
 from typing import Callable
 from urllib.parse import parse_qs, urlparse
 import uuid
 import unicodedata
+import warnings
+
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning, message="'cgi' is deprecated.*")
+    import cgi
 
 from . import cache_runtime
 from . import observability_runtime
@@ -457,50 +462,99 @@ def _parse_multipart_form_data(content_type: str, data: bytes) -> tuple[dict[str
         return {}, {}
     if "boundary=" not in ctype:
         raise ValueError("multipart/form-data sem boundary.")
-
-    raw = (
-        f"Content-Type: {content_type}\r\n"
-        "MIME-Version: 1.0\r\n"
-        "\r\n"
-    ).encode("utf-8") + data
-    msg = BytesParser(policy=default).parsebytes(raw)
-    if not msg.is_multipart():
-        return {}, {}
-
+    tmp = tempfile.SpooledTemporaryFile(max_size=max(len(data), 1))
+    tmp.write(data)
+    tmp.seek(0)
     form: dict[str, object] = {}
     files: dict[str, object] = {}
-    for part in msg.iter_parts():
-        name = part.get_param("name", header="content-disposition")
-        if not name:
-            continue
-        filename = part.get_param("filename", header="content-disposition")
-        payload = part.get_payload(decode=True) or b""
-        if filename:
-            entry = {
-                "campo": str(name),
-                "nome_arquivo": str(filename),
-                "content_type": str(part.get_content_type() or "application/octet-stream"),
-                "tamanho": len(payload),
-                "bytes": payload,
-            }
-            if name in files:
-                atual = files[name]
-                if isinstance(atual, list):
-                    atual.append(entry)
-                else:
-                    files[name] = [atual, entry]
+    fs = cgi.FieldStorage(
+        fp=tmp,
+        environ={"REQUEST_METHOD": "POST", "CONTENT_TYPE": content_type, "CONTENT_LENGTH": str(len(data))},
+        keep_blank_values=True,
+    )
+    for part in list(fs.list or []):
+        _multipart_accumular(form, files, part)
+    return form, files
+
+
+def _multipart_accumular(
+    form: dict[str, object],
+    files: dict[str, object],
+    part: object,
+    limite_memoria_arquivo: int = 1_048_576,
+) -> None:
+    name = str(getattr(part, "name", "") or "")
+    if not name:
+        return
+    filename = getattr(part, "filename", None)
+    if not filename:
+        value = str(getattr(part, "value", ""))
+        if name in form:
+            atual = form[name]
+            if isinstance(atual, list):
+                atual.append(value)
             else:
-                files[name] = [entry]
+                form[name] = [atual, value]
         else:
-            value = payload.decode("utf-8", errors="replace")
-            if name in form:
-                atual = form[name]
-                if isinstance(atual, list):
-                    atual.append(value)
-                else:
-                    form[name] = [atual, value]
-            else:
-                form[name] = value
+            form[name] = value
+        return
+
+    file_obj = getattr(part, "file", None)
+    tamanho = 0
+    payload: bytes | None = b""
+    caminho_temporario: str | None = None
+    if file_obj is not None:
+        file_obj.seek(0, os.SEEK_END)
+        tamanho = int(file_obj.tell())
+        file_obj.seek(0)
+        if tamanho <= limite_memoria_arquivo:
+            payload = file_obj.read()
+        else:
+            payload = None
+            tmp = tempfile.NamedTemporaryFile(prefix="trama_upload_", suffix=".bin", delete=False)
+            try:
+                while True:
+                    chunk = file_obj.read(65536)
+                    if not chunk:
+                        break
+                    tmp.write(chunk)
+            finally:
+                tmp.close()
+            caminho_temporario = tmp.name
+    entry = {
+        "campo": name,
+        "nome_arquivo": str(filename),
+        "content_type": str(getattr(part, "type", None) or "application/octet-stream"),
+        "tamanho": tamanho,
+        "bytes": payload,
+        "caminho_temporario": caminho_temporario,
+        "streaming": bool(caminho_temporario),
+    }
+    if name in files:
+        atual = files[name]
+        if isinstance(atual, list):
+            atual.append(entry)
+        else:
+            files[name] = [atual, entry]
+    else:
+        files[name] = [entry]
+
+
+def _parse_multipart_form_data_stream(handler: BaseHTTPRequestHandler, content_type: str, length: int) -> tuple[dict[str, object], dict[str, object]]:
+    form: dict[str, object] = {}
+    files: dict[str, object] = {}
+    fs = cgi.FieldStorage(
+        fp=handler.rfile,
+        headers=handler.headers,
+        environ={
+            "REQUEST_METHOD": str(getattr(handler, "command", "POST") or "POST"),
+            "CONTENT_TYPE": content_type,
+            "CONTENT_LENGTH": str(length),
+        },
+        keep_blank_values=True,
+    )
+    for part in list(fs.list or []):
+        _multipart_accumular(form, files, part)
     return form, files
 
 
@@ -1025,12 +1079,11 @@ class WebRuntime:
                             },
                         },
                     )
-                data = self.rfile.read(length)
                 ctype = (self.headers.get("Content-Type") or "")
                 ctype_l = ctype.lower()
                 if "multipart/form-data" in ctype_l:
                     try:
-                        form, files = _parse_multipart_form_data(ctype, data)
+                        form, files = _parse_multipart_form_data_stream(self, ctype, length)
                     except Exception as exc:  # noqa: BLE001
                         return b"", None, {}, {}, (
                             400,
@@ -1043,7 +1096,8 @@ class WebRuntime:
                                 },
                             },
                         )
-                    return data, {}, form, files, None
+                    return b"", {}, form, files, None
+                data = self.rfile.read(length)
                 if "application/json" not in ctype_l:
                     return data, {}, {}, {}, None
                 text = data.decode("utf-8", errors="replace")

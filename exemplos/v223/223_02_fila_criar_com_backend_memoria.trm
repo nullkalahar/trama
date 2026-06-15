@@ -1,0 +1,12 @@
+função tarefa(payload)
+    retorne payload["nome"]
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("notificacoes", "memoria")
+    aguarde fila_enfileirar(fila, tarefa, {"nome": "ana"}, 2, 5.0)
+    r = aguarde fila_processar(fila)
+    s = fila_status(fila)
+    exibir(r["backend"])
+    exibir(s["backend"])
+fim

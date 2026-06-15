@@ -1,0 +1,28 @@
+função principal()
+    modelo = rbac_criar({"admin": ["usuario:apagar"]})
+    usuarios = {}
+    usuarios = rbac_atribuir(usuarios, "davi", "admin")
+
+    politicas = autorizacao_politicas_criar([
+        {
+            "id": "negar_apagar_em_prod",
+            "efeito": "negar",
+            "ator": {"papeis": ["admin"]},
+            "acao": "usuario:apagar",
+            "contexto": {"ambiente": "producao"}
+        }
+    ], "negar")
+
+    out = autorizacao_avaliar(
+        modelo,
+        usuarios,
+        "davi",
+        "usuario:apagar",
+        {"tipo": "usuario", "id": "u9"},
+        {"ambiente": "producao"},
+        politicas
+    )
+
+    exibir(out["origem_decisao"])
+    exibir(out["permitido"])
+fim

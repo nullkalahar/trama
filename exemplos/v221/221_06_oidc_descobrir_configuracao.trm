@@ -1,0 +1,5 @@
+função principal()
+    cfg = oidc_descobrir_configuracao("https://id.trama.dev", 2.0)
+    exibir(cfg["issuer"])
+    exibir(cfg["jwks_uri"])
+fim

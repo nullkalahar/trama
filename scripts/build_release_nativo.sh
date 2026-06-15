@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-VERSION="${1:-2.1.3}"
+VERSION="${1:-2.1.34}"
 ARCH="${2:-amd64}"
 
 scripts/build_native_stub.sh

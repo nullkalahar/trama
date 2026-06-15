@@ -1,0 +1,16 @@
+função gerar_email(payload)
+    retorne "email:" + payload["destino"]
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("emails_dev", "memoria")
+
+    aguarde fila_enfileirar(fila, gerar_email, {"destino": "ana@trama.dev"}, 2, 3.0, "email-ana")
+    aguarde fila_enfileirar(fila, gerar_email, {"destino": "bia@trama.dev"}, 2, 3.0, "email-bia")
+
+    r = aguarde fila_processar(fila)
+    s = fila_status(fila)
+
+    exibir(r["backend"])
+    exibir(s["dlq"])
+fim

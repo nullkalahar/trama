@@ -1,0 +1,13 @@
+função tarefa(payload)
+    retorne payload["id"]
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("idempotencia_sql", "sql", {
+        "dsn": "sqlite:///.local/v224/jobs_idem.db"
+    })
+    a = aguarde fila_enfileirar(fila, tarefa, {"id": 1}, 1, 5.0, "idem-1")
+    b = aguarde fila_enfileirar(fila, tarefa, {"id": 1}, 1, 5.0, "idem-1")
+    exibir(a["enfileirado"])
+    exibir(b["idempotente"])
+fim

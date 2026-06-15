@@ -1,0 +1,11 @@
+função principal()
+    oidc_configurar_provedor("remocao_teste", "https://id.remocao.dev", "api", 2.0, 120)
+    antes = oidc_listar_provedores()
+    exibir(tamanho(antes))
+
+    ok = oidc_remover_provedor("remocao_teste")
+    exibir(ok)
+
+    depois = oidc_listar_provedores()
+    exibir(tamanho(depois))
+fim

@@ -1,0 +1,14 @@
+função principal()
+    chave_privada_pem = ler_texto(".local/chaves/rs256_priv.pem")
+    chave_publica_pem = ler_texto(".local/chaves/rs256_pub.pem")
+
+    token = jwt_assinar(
+        {"sub": "usuario_01", "escopo": "api", "iss": "trama.local", "aud": "trama-app"},
+        chave_privada_pem,
+        900,
+        "RS256"
+    )
+
+    claims = jwt_validar(token, chave_publica_pem)
+    exibir(claims["sub"])
+fim

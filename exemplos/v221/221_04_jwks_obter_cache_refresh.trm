@@ -1,0 +1,9 @@
+função principal()
+    url_jwks = "https://id.trama.dev/.well-known/jwks.json"
+
+    doc_1 = jwks_obter(url_jwks, 300, 2.0, falso)
+    exibir(tamanho(doc_1["keys"]))
+
+    doc_2 = jwks_obter(url_jwks, 300, 2.0, verdadeiro)
+    exibir(tamanho(doc_2["keys"]))
+fim

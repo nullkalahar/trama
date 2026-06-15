@@ -1,0 +1,18 @@
+função processar(payload)
+    retorne payload["destino"]
+fim
+
+função falhar(payload)
+    lance "erro:" + texto(payload["id"])
+fim
+
+assíncrona função principal()
+    fila = fila_criar_com_backend("emails_sql", "sql", {
+        "dsn": "sqlite:///.local/v225/jobs_fluxo.db"
+    })
+    aguarde fila_enfileirar(fila, processar, {"destino": "ana@trama.dev"}, 2, 5.0, "email-ana")
+    aguarde fila_enfileirar(fila, falhar, {"id": 7}, 0, 5.0, "email-falha")
+    s = fila_status(fila)
+    exibir(s["backend"])
+    exibir(s["pendentes"])
+fim

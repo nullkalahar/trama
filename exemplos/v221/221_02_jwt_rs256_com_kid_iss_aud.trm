@@ -1,0 +1,15 @@
+função principal()
+    priv = ler_texto(".local/chaves/oidc_k1_priv.pem")
+    pub = ler_texto(".local/chaves/oidc_k1_pub.pem")
+
+    token = jwt_assinar(
+        {"sub": "u_kid", "iss": "https://id.trama.dev", "aud": "painel-admin", "papel": "admin"},
+        priv,
+        1200,
+        "RS256",
+        "k1"
+    )
+
+    claims = jwt_validar(token, pub, 0, "https://id.trama.dev", "painel-admin")
+    exibir(claims["papel"])
+fim
