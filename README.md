@@ -473,3 +473,5 @@ trama/
 ## Licença
 
 MIT.
+
+Este documento é linkado com a implementação do task.md
